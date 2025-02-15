@@ -3,5 +3,5 @@
 ## Acronym
 **V**ideoanalys och
 **E**vidensbaserad
-**R**apport och 
+**R**apportering och 
 **A**nnotation
