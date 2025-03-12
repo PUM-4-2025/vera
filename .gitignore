@@ -1,0 +1,19 @@
+# Enviornment files
+.env
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Just in case, we ingore any video files that show up in the project files
+*.mp4
+*.mkv
+*.avi
+*.MOV
