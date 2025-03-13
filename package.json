@@ -1,24 +1,9 @@
 {
   "name": "vera",
-  "version": "1.0.0",
-  "description": "**V**ideoanalys och  \r **E**vidensbaserad  \r **R**apportering och   \r **A**nnotation",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PUM-4-2025/vera.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/PUM-4-2025/vera/issues"
-  },
-  "homepage": "https://github.com/PUM-4-2025/vera#readme",
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^15.5.0"
@@ -32,7 +17,8 @@
       "npx prettier --write --config client/.prettierrc.json"
     ],
     "server/**/*.{cpp,h,hpp}": [
-      "clang-format -i"
+      "clang-format -i --style=file:server/.clang-format",
+      "clang-tidy -fix -p=server/build --config-file=server/.clang-tidy"
     ]
   }
 }
