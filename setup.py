@@ -24,6 +24,9 @@ if result.returncode != 0:
 print("Uppdaterar npm till senaste versionen...")
 run_command("npm install -g npm", "Kunde inte uppdatera npm")
 
+print("Installerar projektberoenden i root mappen...")
+run_command("npm install", "Kunde inte installera projektberoenden")
+
 # Kontrollera att client-mappen finns
 client_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "client")
 if not os.path.isdir(client_dir):
