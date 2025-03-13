@@ -53,3 +53,44 @@ accepterar de.
 Vid behov kan en ny "feature branch" skapas på en annan. 
 Men då behöver den merge:as tillbaka in i grenen den 
 skapades från, innan något merge:as in i `dev`.
+
+
+
+### Krav
+För att kunna köra projektet behöver du ha Node.js installerat. Du kan ladda ner det från [Node.js officiella hemsida](https://nodejs.org/).
+
+
+Rekommenderad version är Node.js 20.x LTS eller senare.
+
+För att verifiera att Node.js och npm är installerat, kör:
+```bash
+   node -v
+   npm -v
+```
+
+## Setup
+
+För att sätta upp projektet lokalt, följ dessa steg:
+
+1. Klona repot:
+```bash
+   git clone git@github.com:PUM-4-2025/vera.git
+   cd vera
+```
+
+2. Kör setup.py:
+```bash
+   python3 setup.py
+```
+När det kommer en ruta med alternativ, välj ```--legacy-peer-deps```.
+
+3. Starta utvecklingsservern:
+```bash
+   npm run dev
+```  
+
+
+
+
+
+
