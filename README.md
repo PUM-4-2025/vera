@@ -87,6 +87,7 @@ När det kommer en ruta med alternativ, välj ```--legacy-peer-deps```.
 
 3. Starta utvecklingsservern:
 ```bash
+   cd client
    npm run dev
 ```  
 
