@@ -54,7 +54,7 @@ Vid behov kan en ny "feature branch" skapas på en annan.
 Men då behöver den merge:as tillbaka in i grenen den 
 skapades från, innan något merge:as in i `dev`.
 
-
+---
 
 ### Krav
 För att kunna köra projektet behöver du ha Node.js installerat. Du kan ladda ner det från [Node.js officiella hemsida](https://nodejs.org/).
@@ -67,6 +67,7 @@ För att verifiera att Node.js och npm är installerat, kör:
    node -v
    npm -v
 ```
+
 
 ## Setup
 
