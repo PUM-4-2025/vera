@@ -35,8 +35,6 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true
-
-
   },
   "include": ["src"]
 }

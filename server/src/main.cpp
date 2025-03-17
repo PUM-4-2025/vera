@@ -1,7 +1,7 @@
 #include <iostream>
 
 int main() {
-  std::cout << "Hello world!" << '\n';
   int *ptr = nullptr;
+  std::cout << ptr << '\n';
   return 0;
 }

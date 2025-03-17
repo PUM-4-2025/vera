@@ -1,6 +1,3 @@
 {
-    "components": [
-    "dropdown-menu",
-    "button"
-    ]
+  "components": ["dropdown-menu", "button"]
 }
