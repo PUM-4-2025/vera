@@ -5,12 +5,12 @@ on:
     branches: [ main ]
     paths:
       - 'server/**'
-      - '.github/workflows/server.yml'
+      - '.github/workflows/format_check_server.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'server/**'
-      - '.github/workflows/server.yml'
+      - '.github/workflows/format_check_server.yml'
 
 jobs:
   lint-and-format-server:

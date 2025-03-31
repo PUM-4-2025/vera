@@ -5,12 +5,12 @@ on:
     branches: [ main ]
     paths:
       - 'client/**'
-      - '.github/workflows/client.yml'
+      - '.github/workflows/format_check_client.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'client/**'
-      - '.github/workflows/client.yml'
+      - '.github/workflows/format_check_client.yml'
 
 jobs:
   lint-and-format-client:
