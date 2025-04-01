@@ -10,6 +10,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 option(BUILD_TESTING "Build the tests" ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_options(-Wall -Wextra)
 
@@ -33,6 +34,8 @@ set(ALL_SOURCES
     ${CORE_SOURCES}
     ${UTIL_SOURCES}
 )
+
+
 
 add_executable(server ${ALL_SOURCES})
 
