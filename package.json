@@ -15,10 +15,6 @@
     ],
     "client/**/*.{json,css,md}": [
       "npx prettier --write --config client/.prettierrc.json"
-    ],
-    "server/src/*.{cpp,h,hpp}": [
-      "clang-format -i --style=file:server/.clang-format",
-      "clang-tidy -fix -p=server/build --config-file=server/.clang-tidy"
     ]
   }
 }

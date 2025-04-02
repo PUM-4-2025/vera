@@ -18,6 +18,21 @@ else()
   set(PLATFORM_SPECIFIC_LIBS)
 endif()
 
+if(MSVC) # disable warnings for mongoose
+    set(MONGOOSE_WARNINGS 
+        /W0
+        /D_CRT_SECURE_NO_WARNINGS
+        /D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+    )
+else()
+    set(MONGOOSE_WARNINGS 
+        -w
+        -Wno-everything
+        -Wno-pedantic
+        -Wno-conversion
+    )
+endif()
+
 if(DEFINED BACKEND_PORT)
     message(STATUS "Using specified backend port: ${BACKEND_PORT}")
     add_definitions(-DBACKEND_PORT=${BACKEND_PORT})
@@ -36,16 +51,23 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/include/project_config.h"
 )
 
-add_compile_options(-Wall -Wextra)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+)
+
+add_library(mongoose STATIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose/mongoose.c
+)
+
+target_compile_options(mongoose PRIVATE 
+    ${MONGOOSE_WARNINGS}
 )
 
 set(CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/http_server/http_server.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose/mongoose.c
     # Add more source files here
 )
 
@@ -62,7 +84,14 @@ set(ALL_SOURCES
 
 
 add_executable(server ${ALL_SOURCES})
-target_link_libraries(server ${PLATFORM_SPECIFIC_LIBS})
+
+target_compile_options(server PRIVATE -Wall -Wextra)
+
+
+target_link_libraries(server 
+    mongoose 
+    ${PLATFORM_SPECIFIC_LIBS}
+)
 
 # debug config (default)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wpedantic -Wshadow -Wconversion -g")
