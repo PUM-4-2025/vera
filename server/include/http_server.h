@@ -24,11 +24,11 @@ public:
   // to be a function to allow other modules, like the audio
   // analysis to register a handler for a specific api path,
   // e.g. ("/api/audio", audio_analysis_func).
-  void registerHandler(std::string api_path, void (*f)(void)) {};
+  void registerHandler(const std::string &api_path, void (*f)()) {};
 
 private:
-  struct mg_mgr m_mgr;
-  std::string m_adress;
+  struct MgMgr m_mgr_{};
+  std::string m_adress_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
 };
