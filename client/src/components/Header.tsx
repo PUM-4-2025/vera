@@ -30,8 +30,10 @@ import {
   Info,
   Headphones,
   Menu,
+  FolderOutput,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useProject } from '@/contexts/ProjectContext';
 
 interface HeaderMenuItemProps {
   icon: React.ReactNode;
@@ -84,21 +86,6 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({ label, items }) => (
   </DropdownMenu>
 );
 
-const fileMenuItems: HeaderMenuItemProps[] = [
-  { icon: <Save size={16} />, label: 'Save Project', shortcut: '⌘S' },
-  { icon: <Save size={16} />, label: 'Load Project', shortcut: '⌘O' },
-  {
-    icon: <UploadCloud size={16} />,
-    label: 'Upload Video',
-    shortcut: '⌘U',
-    onClick: () => {
-      toast.info('Upload Video clicked!');
-      // TODO: Implement actual video upload logic here
-    },
-  },
-  { icon: <Download size={16} />, label: 'Export', shortcut: '⌘E' },
-];
-
 const editMenuItems: HeaderMenuItemProps[] = [
   { icon: <Undo2 size={16} />, label: 'Undo', shortcut: '⌘Z' },
   { icon: <Redo2 size={16} />, label: 'Redo', shortcut: '⌘Y' },
@@ -138,6 +125,45 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
+  const { saveProject, loadProject, uploadVideo } = useProject();
+
+  const fileMenuItems: HeaderMenuItemProps[] = [
+    {
+      icon: <Save size={16} />,
+      label: 'Save Project',
+      shortcut: '⌘S',
+      onClick: () => {
+        saveProject();
+        toast.success('Project saved successfully');
+      },
+    },
+    {
+      icon: <Save size={16} />,
+      label: 'Load Project',
+      shortcut: '⌘O',
+      onClick: () => {
+        loadProject();
+        toast.success('Project loaded successfully');
+      },
+    },
+    {
+      icon: <UploadCloud size={16} />,
+      label: 'Upload Video',
+      shortcut: '⌘U',
+      onClick: async () => {
+        try {
+          const videoId = await uploadVideo();
+          if (videoId) {
+            toast.success(`Video added to project: ${videoId}`);
+          }
+        } catch (error) {
+          toast.error(`Failed to upload video: ${error}`);
+        }
+      },
+    },
+    { icon: <Download size={16} />, label: 'Export', shortcut: '⌘E' },
+  ];
+
   return (
     <header className="w-full h-14 border-b flex items-center justify-between px-3 backdrop-blur-md z-10">
       <div className="flex items-center gap-1 sm:gap-2">
