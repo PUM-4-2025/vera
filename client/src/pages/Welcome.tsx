@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { FolderOpen, PlusCircle, FileSymlink } from 'lucide-react';
+import { FolderOpen, PlusCircle } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { toast } from 'sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import veraLogo from '../assets/vera_blagul.svg';
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ const Welcome = () => {
             <Card className="w-full">
               <CardHeader className="text-center">
                 <img
-                  src="/src/assets/vera_blagul.svg"
+                  src={veraLogo}
                   alt="VERA Logo"
                   className="h-16 mx-auto mb-4"
                 />

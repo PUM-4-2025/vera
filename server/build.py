@@ -195,7 +195,6 @@ class BackendBuilder:
         for flag in self.custom_flags:
             cmake_config_cmd.append(flag)
         
-        print(self.custom_flags)
         
         return self.run_command(cmake_config_cmd)
     

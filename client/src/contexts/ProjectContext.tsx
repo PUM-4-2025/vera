@@ -182,7 +182,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Error loading project:', err);
-        setState((s) => ({
+        setState((_) => ({
           ...initialState,
           error: err.message || 'Failed to load project.',
         }));
@@ -223,11 +223,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       );
 
       // Create a videos directory if it doesn't exist
-      let videosDirHandle: FileSystemDirectoryHandle;
       try {
-        videosDirHandle = await dirHandle.getDirectoryHandle('videos');
+        await dirHandle.getDirectoryHandle('videos');
       } catch (e) {
-        videosDirHandle = await dirHandle.getDirectoryHandle('videos', {
+        await dirHandle.getDirectoryHandle('videos', {
           create: true,
         });
       }
@@ -497,7 +496,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         }
 
         // Update application state with the new project
-        setState((s) => ({
+        setState((_) => ({
           ...initialState,
           projectDirectoryHandle: projectDirHandle,
           metadata,
@@ -508,7 +507,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
           console.error('Error creating project:', err);
-          setState((s) => ({
+          setState((_) => ({
             ...initialState,
             error: err.message || 'Failed to create project.',
           }));

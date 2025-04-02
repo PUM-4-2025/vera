@@ -1,18 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-<<<<<<< HEAD
-=======
-import { cn } from '@/lib/utils';
 import { useProject } from '@/contexts/ProjectContext';
->>>>>>> 53a18b2d9ecf88b9c47437361b3eccf01d27f5e2
 
 const VideoPlayer: React.FC = () => {
   const { videos, currentVideoId } = useProject();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [_, setCurrentTime] = useState(0);
 
   // Get the current video object from the project context
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;

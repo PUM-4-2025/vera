@@ -14,6 +14,7 @@ import urllib.request
 import urllib.error
 import socket
 from pathlib import Path
+import os.path
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/server')
 
@@ -183,7 +184,7 @@ class AppRunner:
         # denna 'r dock snabbare, kanske kan anv'ndas senare
 
         if self.production_mode:
-            self.backend_builder.custom_flags.append(f"-DSTATIC_FILES_PATH={self.backend_dir / "static"}")
+            self.backend_builder.custom_flags.append(f"-DSTATIC_FILES_PATH=./static")
         
         status, elapsed_time = self.backend_builder.build()
         

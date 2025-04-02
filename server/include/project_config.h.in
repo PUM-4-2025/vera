@@ -7,6 +7,6 @@
 #define TOSTRING(x) STRINGIFY(x)
 
 #define STATIC_FILES_PATH "@STATIC_FILES_PATH@"
-#define BACKEND_PORT "@BACKEND_PORT@"
+#define BACKEND_PORT "@BACKEND_PORT@" // not used atm, might be faster than env in the future
 
 #endif // PROJECT_CONFIG_H

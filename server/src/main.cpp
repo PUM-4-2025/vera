@@ -1,5 +1,5 @@
 #include "../include/http_server.h"
-
+#include "project_config.h"
 #include <iostream>
 
 int main() {
@@ -10,9 +10,9 @@ int main() {
 
   HttpServer server;
   server.listenTo(url);
+  server.setStaticFilesPath(STATIC_FILES_PATH);
   server.start();
 
-  std::cout << "Server listening at " << url << '\n';
 
   return 0;
 }

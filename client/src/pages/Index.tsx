@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-import { useState } from 'react';
-=======
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
->>>>>>> 53a18b2d9ecf88b9c47437361b3eccf01d27f5e2
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import VideoPlayer from '@/components/VideoPlayer';

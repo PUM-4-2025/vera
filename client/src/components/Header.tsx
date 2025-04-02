@@ -30,13 +30,9 @@ import {
   Info,
   Headphones,
   Menu,
-  FolderOutput,
 } from 'lucide-react';
-<<<<<<< HEAD
-=======
-import { cn } from '@/lib/utils';
 import { useProject } from '@/contexts/ProjectContext';
->>>>>>> 53a18b2d9ecf88b9c47437361b3eccf01d27f5e2
+import veraLogo from '../assets/vera_blagul.svg';
 
 interface HeaderMenuItemProps {
   icon: React.ReactNode;
@@ -178,11 +174,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
           <Menu size={20} />
         </button>
         <div className="flex items-center mr-1 md:mr-4">
-          <img
-            src="/src/assets/vera_blagul.svg"
-            alt="VERA Logo"
-            className="h-8 w-auto"
-          />
+          <img src={veraLogo} alt="VERA Logo" className="h-8 w-auto" />
         </div>
         <div className="hidden sm:flex items-center space-x-1">
           <HeaderMenu label="File" items={fileMenuItems} />

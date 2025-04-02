@@ -5,7 +5,6 @@ import {
   FolderIcon,
   Film,
   FileText,
-  BarChart,
   MoreHorizontal,
   Trash2,
   Info,
@@ -165,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   }));
 
   // Convert the bookmarks object to the format needed for the Folder component
-  const bookmarkFiles = Object.entries(bookmarks).map(([id, bookmark]) => ({
+  const bookmarkFiles = Object.entries(bookmarks).map(([id, _]) => ({
     id,
     name: `${id}_bookmarks.json`,
     type: 'bookmark' as const,
