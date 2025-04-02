@@ -33,8 +33,8 @@ include_directories(
 
 set(CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/add.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sub.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/http_server/http_server.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose/mongoose.c
     # Add more source files here
 )
 
@@ -63,7 +63,7 @@ if(BUILD_TESTING)
     set(LIB_SOURCES ${ALL_SOURCES})
     list(REMOVE_ITEM LIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 
-    add_library(server_lib STATIC ${LIB_SOURCES})
+    #add_library(server_lib STATIC ${LIB_SOURCES})
     enable_testing()
     find_package(GTest REQUIRED)
     add_subdirectory(tests)
