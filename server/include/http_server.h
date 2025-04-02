@@ -14,8 +14,8 @@ public:
   /**
    * Pass adress as a string to listen to, e.g. "localhost:8080"
    */
-  HttpServer();
-  ~HttpServer();
+  HttpServer() = default;
+  ~HttpServer() = default;
 
   void listenTo(std::string adress);
   void start();

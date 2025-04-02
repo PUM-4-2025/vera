@@ -19,6 +19,8 @@ include_directories(
 
 set(CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/http_server/http_server.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose/mongoose.c
     # Add more source files here
 )
 
