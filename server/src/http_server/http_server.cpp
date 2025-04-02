@@ -3,19 +3,19 @@
 
 #include <iostream>
 void HttpServer::listenTo(std::string adress) {
-  m_adress = adress;
+  m_adress_ = adress;
 }
 
 void HttpServer::start() {
-  mg_mgr_init(&m_mgr);
-  mg_http_listen(&m_mgr, m_adress.c_str(), eventHandler, nullptr);
+  mg_mgr_init(&m_mgr_);
+  mg_http_listen(&m_mgr_, m_adress_.c_str(), eventHandler, nullptr);
 
-  std::cout << "Webserver running on: " << m_adress << std::endl;
+  std::cout << "Webserver running on: " << m_adress_ << std::endl;
 
   for (;;) {
     // Using 1000 from mongooses own example:
     // https://mongoose.ws/documentation/#2-minute-integration-guide
-    mg_mgr_poll(&m_mgr, 1000);
+    mg_mgr_poll(&m_mgr_, 1000);
   }
 }
 
@@ -23,7 +23,6 @@ void HttpServer::start() {
  * Currently the eventhandler can only server static index.html for VERA.
  */
 void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
-  std::cout << TOSTRING(STATIC_FILES_PATH) << std::endl;
   if (ev == MG_EV_HTTP_MSG) {                                       // New HTTP request received
     auto *hm = (struct mg_http_message *)ev_data;                   // Parsed HTTP request
     struct mg_http_serve_opts opts = {.root_dir = TOSTRING(STATIC_FILES_PATH)};// For all other URLs,

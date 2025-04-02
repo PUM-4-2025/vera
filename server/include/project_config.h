@@ -6,7 +6,7 @@
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
-#define STATIC_FILES_PATH "C:\Users\olive\Documents\projects\pum\vera\server\static"
+#define STATIC_FILES_PATH "C:\Users\olive\Documents\projects\pum\cpy\vera\server\static"
 #define BACKEND_PORT "8000"
 
 #endif // PROJECT_CONFIG_H

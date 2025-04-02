@@ -27,7 +27,7 @@ public:
   void registerHandler(const std::string &api_path, void (*f)()) {};
 
 private:
-  struct MgMgr m_mgr_{};
+  struct mg_mgr m_mgr_{};
   std::string m_adress_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
