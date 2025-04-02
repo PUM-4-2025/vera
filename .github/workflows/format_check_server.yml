@@ -2,15 +2,15 @@ name: C++ Server CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, testing, dev]
     paths:
-      - 'server/**'
-      - '.github/workflows/format_check_server.yml'
+      - "server/**"
+      - ".github/workflows/format_check_server.yml"
   pull_request:
-    branches: [ main ]
+    branches: [main, testing, dev]
     paths:
-      - 'server/**'
-      - '.github/workflows/format_check_server.yml'
+      - "server/**"
+      - ".github/workflows/format_check_server.yml"
 
 jobs:
   lint-and-format-server:
@@ -18,85 +18,83 @@ jobs:
     defaults:
       run:
         working-directory: ./server
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang-tidy clang-format cmake libgtest-dev
-    
-    - name: Run clang-format (will probably change this script)
-      run: |
-        #!/bin/bash
+      - uses: actions/checkout@v3
 
-        FORMATTING_ISSUES=0
-        FILES_WITH_ISSUES=""
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy clang-format cmake libgtest-dev
 
-        FOUND_FILES=$(find . -not -path "./build/*" -regex ".*\.\(cpp\|hpp\|cc\|cxx\|h\)")
+      - name: Run clang-format (will probably change this script)
+        run: |
+          #!/bin/bash
 
-        for file in $FOUND_FILES; do
-          if ! clang-format -style=file "$file" --dry-run --Werror 2>&1; then
-            FORMATTING_ISSUES=1
-            FILES_WITH_ISSUES="$FILES_WITH_ISSUES\n  - $file"
+          FORMATTING_ISSUES=0
+          FILES_WITH_ISSUES=""
+
+          FOUND_FILES=$(find . -not -path "./build/*" -regex ".*\.\(cpp\|hpp\|cc\|cxx\|h\)")
+
+          for file in $FOUND_FILES; do
+            if ! clang-format -style=file "$file" --dry-run --Werror 2>&1; then
+              FORMATTING_ISSUES=1
+              FILES_WITH_ISSUES="$FILES_WITH_ISSUES\n  - $file"
+            fi
+          done
+
+          if [ $FORMATTING_ISSUES -ne 0 ]; then
+            echo "=========================="
+            echo "❌ FORMATTING CHECK FAILED"
+            echo "Formatting issues found in the following files:"
+            echo -e "$FILES_WITH_ISSUES"
+            echo ""
+            echo "Run this command from the server dir to fix these issues:"
+            echo "find . -not -path \"./build/*\" -regex \".*\.\(cpp\|hpp\|cc\|cxx\|h\)\" -exec clang-format -style=file -i {} \;"
+            exit 1
+          else
+            echo "=========================="
+            echo "✅ FORMATTING CHECK PASSED"
+            echo "All files are properly formatted."
+            exit 0
           fi
-        done
 
-        if [ $FORMATTING_ISSUES -ne 0 ]; then
-          echo "=========================="
-          echo "❌ FORMATTING CHECK FAILED"
-          echo "Formatting issues found in the following files:"
-          echo -e "$FILES_WITH_ISSUES"
-          echo ""
-          echo "Run this command from the server dir to fix these issues:"
-          echo "find . -not -path \"./build/*\" -regex \".*\.\(cpp\|hpp\|cc\|cxx\|h\)\" -exec clang-format -style=file -i {} \;"
-          exit 1
-        else
-          echo "=========================="
-          echo "✅ FORMATTING CHECK PASSED"
-          echo "All files are properly formatted."
-          exit 0
-        fi
+      - name: Configure cmaake
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
 
+      - name: Run clang-tidy
+        run: |
+          clang-tidy -p build --warnings-as-errors='*' $(find . -not -path "./build/*" -regex '.*\.\(cpp\|hpp\|cc\|cxx\|h\)')
 
-    
-    - name: Configure cmaake
-      run: |
-        mkdir -p build
-        cd build
-        cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
-    
-    - name: Run clang-tidy
-      run: |
-        clang-tidy -p build --warnings-as-errors='*' $(find . -not -path "./build/*" -regex '.*\.\(cpp\|hpp\|cc\|cxx\|h\)')
-    
   build-and-test-server:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./server
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential libgtest-dev
-    
-    - name: Configure cmake
-      run: |
-        mkdir -p build
-        cd build
-        cmake ..
-    
-    - name: Build
-      run: |
-        cd build
-        make -j$(nproc)
-    
-    - name: Test
-      run: |
-        cd build
-        ctest --verbose
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgtest-dev
+
+      - name: Configure cmake
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Test
+        run: |
+          cd build
+          ctest --verbose
