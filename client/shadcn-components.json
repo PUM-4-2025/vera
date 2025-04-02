@@ -1,3 +1,13 @@
 {
-  "components": ["dropdown-menu", "button", "sonner", "tooltip", "scroll-area"]
+  "components": [
+    "dropdown-menu",
+    "button",
+    "sonner",
+    "tooltip",
+    "scroll-area",
+    "card",
+    "input",
+    "label",
+    "textarea"
+  ]
 }
