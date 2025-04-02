@@ -19,4 +19,13 @@ void HttpServer::start() {
   }
 }
 
-void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {}
+/**
+ * Currently the eventhandler can only server static index.html for VERA.
+ */
+void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
+  if (ev == MG_EV_HTTP_MSG) {                                       // New HTTP request received
+    auto *hm = (struct mg_http_message *)ev_data;                   // Parsed HTTP request
+    struct mg_http_serve_opts opts = {.root_dir = "client/dist/"};  // For all other URLs,
+    mg_http_serve_dir(c, hm, &opts);                                // Serve static files
+  }
+}
