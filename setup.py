@@ -13,6 +13,9 @@ def run_command(command, error_message="Kommando misslyckades", cwd=None):
         print(f"{error_message}: {e}")
         sys.exit(1)
 
+script_root_dir = os.path.dirname(os.path.abspath(__file__))
+
+
 # Kontrollera att npm finns
 print("Kontrollerar om npm finns...")
 result = subprocess.run("npm -v", shell=True, capture_output=True, text=True)
@@ -20,12 +23,9 @@ if result.returncode != 0:
     print("npm kunde inte hittas. Installera Node.js och npm först.")
     sys.exit(1)
 
-# Uppdatera npm
-print("Uppdaterar npm till senaste versionen...")
-run_command("npm install -g npm", "Kunde inte uppdatera npm")
+print("Installerar projektberoenden i root-mappen...")
+run_command("npm install", "Kunde inte installera projektberoenden" , cwd=script_root_dir)
 
-print("Installerar projektberoenden i root mappen...")
-run_command("npm install", "Kunde inte installera projektberoenden")
 
 # Kontrollera att client-mappen finns
 client_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "client")
@@ -36,9 +36,6 @@ if not os.path.isdir(client_dir):
 # Installera projektberoenden i client-mappen
 print("Installerar projektberoenden i client-mappen...")
 run_command("npm install", "Kunde inte installera projektberoenden", cwd=client_dir)
-
-
-
 
 # Installera shadcn/ui
 print("Installerar shadcn...")
@@ -63,7 +60,7 @@ except Exception as e:
 if components:
     components_str = " ".join(components)
     print(f"Installerar komponenter: {components_str}")
-    run_command(f"npx shadcn add {components_str} --yes", "Kunde inte installera komponenterna", cwd=client_dir)
+    run_command(f"npx shadcn add {components_str} --overwrite --yes", "Kunde inte installera komponenterna", cwd=client_dir)
 
 
 print("Installation och konfiguration klar!")
