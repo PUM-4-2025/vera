@@ -24,7 +24,7 @@ public:
   // to be a function to allow other modules, like the audio
   // analysis to register a handler for a specific api path,
   // e.g. ("/api/audio", audio_analysis_func).
-  void registerHandler(std::string api_path, void (*f)(void));
+  void registerHandler(std::string api_path, void (*f)(void)) {};
 
 private:
   struct mg_mgr m_mgr;
