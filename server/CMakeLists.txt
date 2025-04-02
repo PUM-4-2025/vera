@@ -9,8 +9,21 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-option(BUILD_TESTING "Build the tests" ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+option(BUILD_TESTING "Build the tests" OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+
+if(DEFINED BACKEND_PORT)
+    message(STATUS "Using specified backend port: ${BACKEND_PORT}")
+    add_definitions(-DBACKEND_PORT=${BACKEND_PORT})
+else()
+    message(STATUS "Using default backend port: 8000")
+    add_definitions(-DBACKEND_PORT=8000)
+endif()
+
+if(DEFINED STATIC_FILES_PATH)
+  message(STATUS "Static files will be served in dir: ${STATIC_FILES_PATH}")
+  add_definitions(-DSTATIC_FILES_PATH="${STATIC_FILES_PATH}")
+endif()
 
 add_compile_options(-Wall -Wextra)
 
