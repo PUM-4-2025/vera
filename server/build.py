@@ -11,7 +11,7 @@ from pathlib import Path
 import logging
 import multiprocessing
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # add path to coloredformatter
-from colored_formatter import setup_logger
+from logger_initialize import setup_logger
 
 
 logger = setup_logger("backend_build")
@@ -29,7 +29,8 @@ class BackendBuilder:
         self.generate_compile_commands = True
         self.is_windows = platform.system() == "Windows"
         self.compiler = None
-        self.jobs = max(1, multiprocessing.cpu_count() - 1)  # Use N-1 cores by default
+        self.jobs = max(1, multiprocessing.cpu_count() - 1) # num of cores
+        self.custom_flags = []
         
     def parse_arguments(self):
         parser = argparse.ArgumentParser(description='Build the backend')
@@ -48,7 +49,7 @@ class BackendBuilder:
                             help='Install after building (to build/install)')
         parser.add_argument('--custom-flags', help='Additional cmake flags')
         
-        args = parser.parse_args()
+        args, unknown = parser.parse_known_args()
         
         self.build_type = args.build_type
         self.clean_build = args.clean
@@ -63,7 +64,7 @@ class BackendBuilder:
         if args.jobs:
             self.jobs = args.jobs
             
-        self.custom_flags = []
+        
         if args.custom_flags:
             self.custom_flags = args.custom_flags.split(',')
         
@@ -130,7 +131,7 @@ class BackendBuilder:
         self.build_dir.mkdir(exist_ok=True)
         return True
     
-    def run_command(self, cmd, cwd=None, env=None, log_output=False):
+    def run_command(self, cmd, cwd=None, env=None, log_output=True):
         cmd_str = " ".join(str(c) for c in cmd)
         logger.debug(f"Running command: {cmd_str}")
         
@@ -194,6 +195,8 @@ class BackendBuilder:
         for flag in self.custom_flags:
             cmake_config_cmd.append(flag)
         
+        print(self.custom_flags)
+        
         return self.run_command(cmake_config_cmd)
     
     def build_project(self):
@@ -232,7 +235,7 @@ class BackendBuilder:
         if self.verbose:
             ctest_cmd.append("-V")
         
-        return self.run_command(ctest_cmd, log_output=True)
+        return self.run_command(ctest_cmd)
     
     def install_project(self):
         if not self.install:

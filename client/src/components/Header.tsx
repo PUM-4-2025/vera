@@ -31,7 +31,6 @@ import {
   Headphones,
   Menu,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface HeaderMenuItemProps {
   icon: React.ReactNode;

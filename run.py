@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/server')
 
 from build import BackendBuilder
-from colored_formatter import setup_logger
+from logger_initialize import setup_logger
 
 logger = setup_logger("run_app")
 
@@ -50,37 +50,31 @@ class AppRunner:
         
     def parse_arguments(self):
         parser = argparse.ArgumentParser(description='Run the fullstack app')
-        parser.add_argument('--no-backend-build', action='store_true', 
-                            help='No building the backend')
-        parser.add_argument('--no-frontend-build', action='store_true', 
-                            help='No building the frontend')
+        parser.add_argument('--no-backend', action='store_true')
+        parser.add_argument('--no-frontend', action='store_true')
         parser.add_argument('--build-type', choices=['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel'],
-                            default='Debug', help='CMake build type for backend')
+                            default='Debug')
         parser.add_argument('--production', action='store_true',
                             help='Run in production mode (inc static)')
-        parser.add_argument('--clean', action='store_true', help='Clean build')
-        parser.add_argument('--no-browser', action='store_true', 
-                            help='Do not open browser automatically')
-        parser.add_argument('--backend-port', type=int, default=self.backend_port,
-                            help=f'Backend port (default: {self.backend_port})')
-        parser.add_argument('--frontend-port', type=int, default=self.frontend_port,
-                            help=f'Frontend port (default: {self.frontend_port})')
-        parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
-        parser.add_argument('--backend-flags', help='Additional backend cmake flags')
-        parser.add_argument('--frontend-flags', help='Additional frontend npm flags')
+        parser.add_argument('--clean', action='store_true')
+        parser.add_argument('--no-browser', action='store_true')
+        parser.add_argument('--backend-port', type=int, default=self.backend_port)
+        parser.add_argument('--frontend-port', type=int, default=self.frontend_port)
+        parser.add_argument('-v', '--verbose', action='store_true')
+        parser.add_argument('--backend-flags', help='Additional cmake flags')
+        parser.add_argument('--frontend-flags', help='Additional npm flags')
         
         args = parser.parse_args()
         
-        self.build_backend = not args.no_backend_build
-        self.build_frontend = not args.no_frontend_build
+        self.build_backend = not args.no_backend
+        self.build_frontend = not args.no_frontend
         self.build_type = args.build_type
         self.clean_build = args.clean
         self.verbose = args.verbose
         self.open_browser = not args.no_browser
         self.backend_port = args.backend_port
         self.frontend_port = args.frontend_port
-        
-        self.production_mode = args.production or self.build_type in ['Release', 'RelWithDebInfo', 'MinSizeRel']
+        self.production_mode = args.production or self.build_type in ['Release', 'RelWithDebInfo', 'MinSizeRel'] # beh;ver kanske 'ndra
         
         self.backend_flags = []
         if args.backend_flags:
@@ -124,7 +118,7 @@ class AppRunner:
         logger.info(f"All dependencies are installed.")
         return True
         
-    def run_command(self, cmd, cwd=None, env=None, log_output=False, capture_output=False):
+    def run_command(self, cmd, cwd=None, env=None, log_output=True, capture_output=False):
         cmd_str = " ".join(str(c) for c in cmd)
         logger.debug(f"Running command: {cmd_str}")
         
@@ -175,13 +169,21 @@ class AppRunner:
             return True
             
         logger.info(f"Building backend...")
+
+        
         
         self.backend_builder.build_type = self.build_type
         self.backend_builder.clean_build = self.clean_build
         self.backend_builder.verbose = self.verbose
-        self.backend_builder.custom_flags = self.backend_flags
+        if self.backend_flags:
+            self.backend_builder.custom_flags.extend(self.backend_flags)
         
-        self.backend_builder.custom_flags.append(f"-DBACKEND_PORT={self.backend_port}")
+        self.backend_builder.custom_flags.append(f"-DBACKEND_PORT={self.backend_port}") 
+        # kanske tar bort, endast compile time, PORT anv'nds i runtime nu
+        # denna 'r dock snabbare, kanske kan anv'ndas senare
+
+        if self.production_mode:
+            self.backend_builder.custom_flags.append(f"-DSTATIC_FILES_PATH={self.backend_dir / "static"}")
         
         status, elapsed_time = self.backend_builder.build()
         
@@ -200,7 +202,7 @@ class AppRunner:
         logger.info(f"Building frontend...")
             
         frontend_env = os.environ.copy()
-        frontend_env["REACT_APP_BACKEND_URL"] = f"http://localhost:{self.backend_port}"
+        frontend_env["VITE_BACKEND_URL"] = f"http://localhost:{self.backend_port}"
         
         logger.info(f"Installing frontend dependencies...")
         npm_executable = "npm.cmd" if self.is_windows else "npm"
@@ -210,7 +212,6 @@ class AppRunner:
             cwd=str(self.frontend_dir),
             env=frontend_env,
             capture_output=True,
-            log_output=self.verbose
         )
         
         if not success:
@@ -225,18 +226,18 @@ class AppRunner:
                 cwd=str(self.frontend_dir),
                 env=frontend_env,
                 capture_output=True,
-                log_output=self.verbose
             )
             
-        if self.build_type == "Release" or self.build_type == "RelWithDebInfo" or self.build_type == "MinSizeRel":
+        if self.build_type in ["Release", "RelWithDebInfo", "MinSizeRel"] or self.production_mode:
             logger.info(f"Building production")
-            build_cmd = ["npm", "run", "build"]
+            npm_executable = "npm.cmd" if self.is_windows else "npm"
+
+            build_cmd = [npm_executable, "run", "build"]
             success, _ = self.run_command(
                 build_cmd, 
                 cwd=str(self.frontend_dir),
                 env=frontend_env,
                 capture_output=True,
-                log_output=self.verbose
             )
             
             if not success:
@@ -249,6 +250,7 @@ class AppRunner:
             
             backend_static_dir.mkdir(exist_ok=True, parents=True)
             
+            # AI:ad
             try:
                 for item in backend_static_dir.glob('*'):
                     if item.is_dir():
@@ -270,11 +272,15 @@ class AppRunner:
                 logger.error(f"Failed to copy frontend assets: {e}")
                 return False
             
-            self.backend_flags.append(f"-DSTATIC_FILES_PATH={backend_static_dir}")
+            
         
         return True
     
     def start_backend_server(self):
+        if not self.build_backend:
+            logger.info(f"Not running backend")
+            return True
+
         logger.info(f"Starting backend server on port {self.backend_port}...")
         
         if self.is_windows:
@@ -289,7 +295,6 @@ class AppRunner:
         backend_env = os.environ.copy()
         backend_env["PORT"] = str(self.backend_port)
         
-        # Start the backend process
         success, process = self.run_command(
             [str(backend_exe)],
             cwd=str(self.backend_dir),
@@ -306,6 +311,12 @@ class AppRunner:
         return True
     
     def start_frontend_server(self):
+        if not self.build_frontend:
+            logger.info(f"Not running frontend")
+            return True
+        
+
+
         if self.production_mode:
             logger.info(f"Running in production mode - frontend will be served by backend")
             return True
@@ -313,8 +324,8 @@ class AppRunner:
         logger.info(f"Starting frontend development server on port {self.frontend_port}...")
         
         frontend_env = os.environ.copy()
-        frontend_env["PORT"] = str(self.frontend_port)
-        frontend_env["REACT_APP_BACKEND_URL"] = f"http://localhost:{self.backend_port}"
+        frontend_env["VITE_PORT"] = str(self.frontend_port)
+        frontend_env["VITE_BACKEND_URL"] = f"http://localhost:{self.backend_port}"
         
         npm_executable = "npm.cmd" if self.is_windows else "npm"
         cmd = [npm_executable, "run", "dev"]
@@ -337,7 +348,7 @@ class AppRunner:
         return True
     
     def open_app_in_browser(self):
-        if not self.open_browser:
+        if not self.open_browser or not self.build_frontend:
             return True
             
         logger.info(f"Opening application in web browser...")
@@ -367,6 +378,9 @@ class AppRunner:
         backend_ready = False
         
         for attempt in range(max_attempts):
+            if not self.build_backend: 
+                backend_ready = True
+                break
             try:
                 with urllib.request.urlopen(backend_url, timeout=1) as response:
                     if response.status in [200, 404]:
@@ -388,7 +402,11 @@ class AppRunner:
         frontend_ready = False
         
         for attempt in range(max_attempts):
+            if not self.build_frontend: 
+                frontend_ready = True
+                break
             try:
+                
                 with urllib.request.urlopen(frontend_url, timeout=1) as response:
                     if response.status in [200, 404]:  # Either response means server is up
                         logger.info(f"Frontend server ready at {frontend_url}")

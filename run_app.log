@@ -1,44 +1,48 @@
-2025-04-02 14:24:15,456 - INFO - Running fullstack app with the following config:
-2025-04-02 14:24:15,457 - INFO -   Build backend: True
-2025-04-02 14:24:15,457 - INFO -   Build frontend: True
-2025-04-02 14:24:15,457 - INFO -   Backend build type: Debug
-2025-04-02 14:24:15,457 - INFO -   Production mode: False
-2025-04-02 14:24:15,458 - INFO -   Clean build: False
-2025-04-02 14:24:15,458 - INFO -   Backend port: 8000
-2025-04-02 14:24:15,458 - INFO -   Frontend port: 3000
-2025-04-02 14:24:15,458 - INFO -   Open browser: True
-2025-04-02 14:24:15,458 - INFO - Checking dependencies...
-2025-04-02 14:24:15,459 - INFO - Checking dependencies...
-2025-04-02 14:24:15,522 - INFO - Valid compiler found!
-2025-04-02 14:24:15,523 - INFO - All dependencies are installed.
-2025-04-02 14:24:15,546 - INFO - All dependencies are installed.
-2025-04-02 14:24:15,547 - INFO - Building backend...
-2025-04-02 14:24:15,552 - INFO - Building backend with the following config:
-2025-04-02 14:24:15,553 - INFO -   Build type: Debug
-2025-04-02 14:24:15,554 - INFO -   Clean build: False
-2025-04-02 14:24:15,555 - INFO -   Build tests: True
-2025-04-02 14:24:15,555 - INFO -   Jobs: 7
-2025-04-02 14:24:15,556 - INFO -   Install: False
-2025-04-02 14:24:15,557 - INFO - Checking dependencies...
-2025-04-02 14:24:15,624 - INFO - Valid compiler found!
-2025-04-02 14:24:15,627 - INFO - All dependencies are installed.
-2025-04-02 14:24:15,627 - INFO - Configuring backend using cmake
-2025-04-02 14:24:15,931 - WARNING - Command cmake -B C:\Users\olive\Documents\projects\pum\vera\server\build -S C:\Users\olive\Documents\projects\pum\vera\server -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=ON failed with return code 1
-2025-04-02 14:24:15,932 - ERROR - Command output:
-2025-04-02 14:24:15,932 - ERROR - CMake Error at CMakeLists.txt:53 (add_executable):
-  Cannot find source file:
-
-    C:/Users/olive/Documents/projects/pum/vera/server/extern/mongoose/mongoose.c
-
-  Tried extensions .c .C .c++ .cc .cpp .cxx .cu .mpp .m .M .mm .ixx .cppm
-  .ccm .cxxm .c++m .h .hh .h++ .hm .hpp .hxx .in .txx .f .F .for .f77 .f90
-  .f95 .f03 .hip .ispc
-
-
-CMake Error at CMakeLists.txt:53 (add_executable):
-  No SOURCES given to target: server
-
-
-CMake Generate step failed.  Build files cannot be regenerated correctly.
-
-2025-04-02 14:24:15,936 - ERROR - Backend build failed
+2025-04-02 17:59:54,247 - INFO - Running fullstack app with the following config:
+2025-04-02 17:59:54,247 - INFO -   Build backend: True
+2025-04-02 17:59:54,248 - INFO -   Build frontend: True
+2025-04-02 17:59:54,248 - INFO -   Backend build type: Debug
+2025-04-02 17:59:54,248 - INFO -   Production mode: True
+2025-04-02 17:59:54,249 - INFO -   Clean build: False
+2025-04-02 17:59:54,249 - INFO -   Backend port: 8000
+2025-04-02 17:59:54,250 - INFO -   Frontend port: 3000
+2025-04-02 17:59:54,250 - INFO -   Open browser: True
+2025-04-02 17:59:54,250 - INFO - Checking dependencies...
+2025-04-02 17:59:54,252 - INFO - Checking dependencies...
+2025-04-02 17:59:54,281 - INFO - Valid compiler found!
+2025-04-02 17:59:54,282 - INFO - All dependencies are installed.
+2025-04-02 17:59:54,292 - INFO - All dependencies are installed.
+2025-04-02 17:59:54,292 - INFO - Building backend...
+2025-04-02 17:59:54,295 - INFO - Building backend with the following config:
+2025-04-02 17:59:54,296 - INFO -   Build type: Debug
+2025-04-02 17:59:54,296 - INFO -   Clean build: False
+2025-04-02 17:59:54,297 - INFO -   Build tests: True
+2025-04-02 17:59:54,297 - INFO -   Jobs: 7
+2025-04-02 17:59:54,298 - INFO -   Install: False
+2025-04-02 17:59:54,299 - INFO - Checking dependencies...
+2025-04-02 17:59:54,326 - INFO - Valid compiler found!
+2025-04-02 17:59:54,326 - INFO - All dependencies are installed.
+2025-04-02 17:59:54,327 - INFO - Configuring backend using cmake
+2025-04-02 17:59:54,584 - INFO - Building project...
+2025-04-02 17:59:55,885 - INFO - Running tests...
+2025-04-02 17:59:55,930 - INFO - Backend built successfully in 1.64 seconds
+2025-04-02 17:59:55,930 - INFO - Building frontend...
+2025-04-02 17:59:55,931 - INFO - Installing frontend dependencies...
+2025-04-02 17:59:58,131 - INFO - Building production
+2025-04-02 18:00:06,445 - INFO - Copying frontend assets for backend static serving...
+2025-04-02 18:00:06,460 - INFO - Frontend assets copied to C:\Users\olive\Documents\projects\pum\vera\server\static
+2025-04-02 18:00:06,461 - INFO - Starting backend server on port 8000...
+2025-04-02 18:00:06,579 - INFO - Backend server started on http://localhost:8000
+2025-04-02 18:00:06,580 - INFO - Running in production mode - frontend will be served by backend
+2025-04-02 18:00:06,581 - INFO - Opening application in web browser...
+2025-04-02 18:00:06,581 - INFO - Waiting for servers to be ready...
+2025-04-02 18:00:07,677 - INFO - Backend server ready at http://localhost:8000
+2025-04-02 18:00:08,058 - INFO - Application started in 13.81 seconds
+2025-04-02 18:00:08,059 - INFO - Application running. Press Ctrl+C to stop.
+2025-04-02 18:00:31,331 - INFO - Shutting down application...
+2025-04-02 18:00:31,331 - INFO - Stopping backend server...
+2025-04-02 18:00:31,331 - INFO - Application shutdown complete
+2025-04-02 18:00:32,073 - ERROR - Backend server stopped unexpectedly with code 3221225786
+2025-04-02 18:00:32,074 - INFO - Shutting down application...
+2025-04-02 18:00:32,074 - INFO - Stopping backend server...
+2025-04-02 18:00:32,075 - INFO - Application shutdown complete

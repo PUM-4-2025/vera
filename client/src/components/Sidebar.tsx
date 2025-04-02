@@ -3,7 +3,6 @@ import {
   ChevronRight,
   ChevronDown,
   FolderIcon,
-  File,
   Film,
   FileText,
   BarChart,

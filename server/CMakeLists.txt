@@ -12,6 +12,12 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(BUILD_TESTING "Build the tests" OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
+if(WIN32)
+  set(PLATFORM_SPECIFIC_LIBS ws2_32)
+else()
+  set(PLATFORM_SPECIFIC_LIBS)
+endif()
+
 if(DEFINED BACKEND_PORT)
     message(STATUS "Using specified backend port: ${BACKEND_PORT}")
     add_definitions(-DBACKEND_PORT=${BACKEND_PORT})
@@ -24,6 +30,11 @@ if(DEFINED STATIC_FILES_PATH)
   message(STATUS "Static files will be served in dir: ${STATIC_FILES_PATH}")
   add_definitions(-DSTATIC_FILES_PATH="${STATIC_FILES_PATH}")
 endif()
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/project_config.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/project_config.h"
+)
 
 add_compile_options(-Wall -Wextra)
 
@@ -51,6 +62,7 @@ set(ALL_SOURCES
 
 
 add_executable(server ${ALL_SOURCES})
+target_link_libraries(server ${PLATFORM_SPECIFIC_LIBS})
 
 # debug config (default)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wpedantic -Wshadow -Wconversion -g")

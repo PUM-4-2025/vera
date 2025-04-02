@@ -1,7 +1,6 @@
 import React from 'react';
 import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {
   videoSrc?: string;
