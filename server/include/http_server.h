@@ -8,27 +8,42 @@
 #include "../extern/mongoose/mongoose.h"
 
 #include <string>
+#include <atomic>
+#include <functional>
+#include <vector>
 
 class HttpServer {
 public:
   /**
    * Pass adress as a string to listen to, e.g. "localhost:8080"
    */
-  HttpServer() = default;
-  ~HttpServer() = default;
+  HttpServer();
+  ~HttpServer();
 
-  void listenTo(std::string adress);
+  void listenTo(std::string address);
+  void setStaticFilesPath(std::string path);
   void start();
+  void stop();
 
   // TODO: Come back and iterate on function below. This is meant
   // to be a function to allow other modules, like the audio
   // analysis to register a handler for a specific api path,
   // e.g. ("/api/audio", audio_analysis_func).
-  void registerHandler(std::string api_path, void (*f)(void)) {};
+  using RequestHandler = std::function<void(struct mg_connection*, struct mg_http_message*)>;
+  void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
-  struct mg_mgr m_mgr;
-  std::string m_adress;
+  struct mg_mgr m_mgr_{};
+  std::string m_address_;
+  std::string m_static_dir_ = "./static";
+  std::atomic<bool> m_running_{false};
+
+  struct HandlerInfo {
+    std::string path;
+    RequestHandler handler;
+  };
+
+  std::vector<HandlerInfo> m_handlers_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
 };
