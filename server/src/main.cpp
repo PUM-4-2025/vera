@@ -1,5 +1,7 @@
 #include "../include/http_server.h"
+#include "../include/upload_media.h"
 #include "project_config.h"
+
 #include <iostream>
 
 int main() {
@@ -8,11 +10,16 @@ int main() {
 
   std::string url = "http://127.0.0.1:" + std::to_string(port);
 
+  // Set up server properties
   HttpServer server;
   server.listenTo(url);
   server.setStaticFilesPath(STATIC_FILES_PATH);
-  server.start();
 
+  // Register relevant handlers
+  register_media_handlers(server);
+
+  // Run server
+  server.start();
 
   return 0;
 }

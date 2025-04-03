@@ -7,9 +7,9 @@
 
 #include "../extern/mongoose/mongoose.h"
 
-#include <string>
 #include <atomic>
 #include <functional>
+#include <string>
 #include <vector>
 
 class HttpServer {
@@ -25,11 +25,15 @@ public:
   void start();
   void stop();
 
-  // TODO: Come back and iterate on function below. This is meant
-  // to be a function to allow other modules, like the audio
-  // analysis to register a handler for a specific api path,
-  // e.g. ("/api/audio", audio_analysis_func).
-  using RequestHandler = std::function<void(struct mg_connection*, struct mg_http_message*)>;
+  /**
+   * TODO: Come back and iterate on function below. This is meant
+   * to be a function to allow other modules, like the audio
+   * analysis to register a handler for a specific api path,
+   * e.g. http_server.registerHandler("/api/audio", audio_analysis_func).
+   * The handler function is meant to also handle the
+   * reply, by using mg_http_reply(...).
+   */
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:

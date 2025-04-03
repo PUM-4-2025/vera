@@ -1,8 +1,9 @@
 #include "http_server.h"
+
 #include "project_config.h"
 
-#include <iostream>
 #include <algorithm>
+#include <iostream>
 
 HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
@@ -43,14 +44,13 @@ void HttpServer::registerHandler(const std::string &api_path, RequestHandler han
 }
 
 /**
- * Currently the eventhandler can only server static index.html for VERA.
  */
 void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
-  auto *server = static_cast<HttpServer*>(c->fn_data);
-  
+  auto *server = static_cast<HttpServer *>(c->fn_data);
+
   if (ev == MG_EV_HTTP_MSG) {
-    auto *hm = (struct mg_http_message *)ev_data;         // Parsed HTTP request
-    
+    auto *hm = (struct mg_http_message *)ev_data;  // Parsed HTTP request
+
     bool handled = false;
     for (const auto &handler_info : server->m_handlers_) {
       std::string uri(hm->uri.buf, hm->uri.len);
@@ -60,10 +60,11 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
         break;
       }
     }
-  
+
     if (!handled) {
-      struct mg_http_serve_opts opts = {.root_dir = server->m_static_dir_.c_str()};         // For all other URLs,
-      mg_http_serve_dir(c, hm, &opts);                                                      // Serve static files
+      struct mg_http_serve_opts opts = {.root_dir =
+                                            server->m_static_dir_.c_str()};  // For all other URLs,
+      mg_http_serve_dir(c, hm, &opts);                                       // Serve static files
     }
   }
 }

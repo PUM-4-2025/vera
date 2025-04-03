@@ -68,6 +68,7 @@ target_compile_options(mongoose PRIVATE
 set(CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/http_server/http_server.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/media_handler/upload_media.cpp
     # Add more source files here
 )
 
