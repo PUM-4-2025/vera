@@ -1,4 +1,4 @@
-#include "../include/http_server.h"
+#include "http_server.h"
 #include "project_config.h"
 #include <iostream>
 
@@ -8,7 +8,7 @@ int main() {
 
   std::string url = "http://127.0.0.1:" + std::to_string(port);
 
-  HttpServer server;
+  httpServer server;
   server.listenTo(url);
   server.setStaticFilesPath(STATIC_FILES_PATH);
   server.start();

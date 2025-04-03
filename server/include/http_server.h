@@ -5,20 +5,20 @@
 #ifndef HTTPSERVER_H
 #define HTTPSERVER_H
 
-#include "../extern/mongoose/mongoose.h"
 
 #include <string>
 #include <atomic>
 #include <functional>
 #include <vector>
+#include "mongoose.h"
 
-class HttpServer {
+class httpServer {
 public:
   /**
    * Pass adress as a string to listen to, e.g. "localhost:8080"
    */
-  HttpServer();
-  ~HttpServer();
+  httpServer();
+  ~httpServer();
 
   void listenTo(std::string address);
   void setStaticFilesPath(std::string path);

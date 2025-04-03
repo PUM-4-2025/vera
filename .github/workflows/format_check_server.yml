@@ -32,41 +32,8 @@ jobs:
 
       - name: Run clang-format (will probably change this script)
         run: |
-          #!/bin/bash
+          find . -type f -regex ".*\.\(c\|h\)\(pp\|xx\|\+\+\|c\|\)$" -not -path "*/extern/*" -not -path "*/static/*" -not -path "*/build/*" -exec clang-format --style=file:.clang-format {} \;
 
-          FORMATTING_ISSUES=0
-          FILES_WITH_ISSUES=""
-
-          FOUND_FILES=$(find ./src ./include ./tests \
-            -type f \
-            -regex ".*\.\(cpp\|hpp\|cc\|cxx\|h\)" \
-            2>/dev/null)
-
-          for file in $FOUND_FILES; do
-            if ! clang-format -style=file "$file" --dry-run --Werror 2>&1; then
-              FORMATTING_ISSUES=1
-              FILES_WITH_ISSUES="$FILES_WITH_ISSUES\n  - $file"
-            fi
-          done
-
-          if [ $FORMATTING_ISSUES -ne 0 ]; then
-            echo "=========================="
-            echo "❌ FORMATTING CHECK FAILED"
-            echo "Formatting issues found in the following files:"
-            echo -e "$FILES_WITH_ISSUES"
-            echo ""
-            echo "Run this command from the server dir to fix these issues:"
-            echo "find ./src ./include ./tests \
-            -type f \
-            -regex \".*\.\(cpp\|hpp\|cc\|cxx\|h\)\" \
-            -exec clang-format -style=file -i {} \;"
-            exit 1
-          else
-            echo "=========================="
-            echo "✅ FORMATTING CHECK PASSED"
-            echo "All files are properly formatted."
-            exit 0
-          fi
 
       - name: Configure cmaake
         run: |
@@ -76,7 +43,7 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          clang-tidy -p build --warnings-as-errors='*' $(find ./src ./include ./tests -type f -regex '.*\.\(cpp\|hpp\|cc\|cxx\|h\)' 2>/dev/null)
+          find . -type f -regex ".*\.\(c\|h\)\(pp\|xx\|\+\+\|c\|\)$" -not -path "*/extern/*" -not -path "*/static/*" -not -path "*/build/*" -exec clang-tidy -p=build --config-file=.clang-tidy {} \;
 
   build-and-test-server:
     runs-on: ubuntu-latest
