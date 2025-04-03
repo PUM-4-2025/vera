@@ -19,3 +19,5 @@ node_modules
 *.mkv
 *.avi
 *.MOV
+
+*.log
