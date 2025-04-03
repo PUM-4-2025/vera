@@ -55,6 +55,7 @@ configure_file(
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/json
 )
 
 add_library(mongoose STATIC 
