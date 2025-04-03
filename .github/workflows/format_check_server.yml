@@ -86,6 +86,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libgtest-dev
 
+          git submodule init
+          git submodule update --remote
+
       - name: Configure cmake
         run: |
           mkdir -p build
