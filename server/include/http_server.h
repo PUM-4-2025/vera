@@ -5,20 +5,20 @@
 #ifndef HTTPSERVER_H
 #define HTTPSERVER_H
 
-
-#include <string>
-#include <atomic>
-#include <functional>
-#include <vector>
 #include "mongoose.h"
 
-class httpServer {
+#include <atomic>
+#include <functional>
+#include <string>
+#include <vector>
+
+class HttpServer {
 public:
   /**
    * Pass adress as a string to listen to, e.g. "localhost:8080"
    */
-  httpServer();
-  ~httpServer();
+  HttpServer();
+  ~HttpServer();
 
   void listenTo(std::string address);
   void setStaticFilesPath(std::string path);
@@ -29,7 +29,7 @@ public:
   // to be a function to allow other modules, like the audio
   // analysis to register a handler for a specific api path,
   // e.g. ("/api/audio", audio_analysis_func).
-  using RequestHandler = std::function<void(struct mg_connection*, struct mg_http_message*)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
