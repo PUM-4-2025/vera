@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import json
+import urllib.request
 
 # Funktion för att köra kommandon och hantera fel
 def run_command(command, error_message="Kommando misslyckades", cwd=None):
@@ -62,6 +63,14 @@ if components:
     print(f"Installerar komponenter: {components_str}")
     run_command(f"npx shadcn add {components_str} --overwrite --yes", "Kunde inte installera komponenterna", cwd=client_dir)
 
+# Ladda ner json.hpp åt servern
+print("Laddar ner json.hpp från https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp...")
+url = 'https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp'
+file_Path = 'server/extern/json/json.hpp'
+
+if not os.path.exists("server/extern/json/"):
+    os.mkdir("server/extern/json/")
+urllib.request.urlretrieve(url, file_Path)
 
 print("Installation och konfiguration klar!")
 print("Starta projektet med: cd client && npm run dev")
