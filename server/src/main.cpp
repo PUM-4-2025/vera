@@ -8,7 +8,7 @@ int main() {
 
   std::string url = "http://127.0.0.1:" + std::to_string(port);
 
-  httpServer server;
+  HttpServer server;
   server.listenTo(url);
   server.setStaticFilesPath(STATIC_FILES_PATH);
   server.start();

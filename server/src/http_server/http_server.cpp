@@ -1,27 +1,27 @@
-#include "mongoose.h"
+#include <mongoose.h>
 #include "http_server.h"
 #include "project_config.h"
 #include <iostream>
 #include <algorithm>
 
-httpServer::httpServer() {
+HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
 }
 
-httpServer::~httpServer() {
+HttpServer::~HttpServer() {
   stop();
   mg_mgr_free(&m_mgr_);
 }
 
-void httpServer::listenTo(std::string address) {
+void HttpServer::listenTo(std::string address) {
   m_address_ = address;
 }
 
-void httpServer::setStaticFilesPath(std::string path) {
+void HttpServer::setStaticFilesPath(std::string path) {
   m_static_dir_ = path;
 }
 
-void httpServer::start() {
+void HttpServer::start() {
   mg_http_listen(&m_mgr_, m_address_.c_str(), eventHandler, this);
 
   std::cout << "Webserver running on: " << m_address_ << std::endl;
@@ -33,20 +33,20 @@ void httpServer::start() {
   }
 }
 
-void httpServer::stop() {
+void HttpServer::stop() {
   m_running_ = false;
   std::cout << "Shutting down the servr..." << std::endl;
 }
 
-void httpServer::registerHandler(const std::string &api_path, RequestHandler handler) {
+void HttpServer::registerHandler(const std::string &api_path, RequestHandler handler) {
   m_handlers_.push_back({api_path, handler});
 }
 
 /**
  * Currently the eventhandler can only server static index.html for VERA.
  */
-void httpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
-  auto *server = static_cast<httpServer*>(c->fn_data);
+void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
+  auto *server = static_cast<HttpServer*>(c->fn_data);
   
   if (ev == MG_EV_HTTP_MSG) {
     auto *hm = (struct mg_http_message *)ev_data;         // Parsed HTTP request
