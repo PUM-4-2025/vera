@@ -6,6 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
+import { addRecentProject } from '@/utils/recentProjects';
 
 // Define types for your project data
 interface Metadata {
@@ -178,6 +179,17 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       console.log('Project Loaded Successfully:', newState.metadata?.name);
+
+      // Add to recent projects
+      if (newState.metadata && dirHandle) {
+        addRecentProject({
+          name: newState.metadata.name,
+          path: dirHandle.name,
+          description: newState.metadata.projectDescription,
+          lastOpened: new Date().toISOString(),
+        });
+      }
+
       setState({ ...newState, isLoading: false });
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
@@ -504,6 +516,16 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         }));
 
         console.log('Project Created Successfully:', name);
+
+        // Add to recent projects
+        if (projectDirHandle) {
+          addRecentProject({
+            name,
+            path: projectDirHandle.name,
+            description: description,
+            lastOpened: new Date().toISOString(),
+          });
+        }
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
           console.error('Error creating project:', err);
