@@ -88,4 +88,4 @@ if not os.path.exists("server/extern/json/"):
 urllib.request.urlretrieve(url, file_Path)
 
 print("Installation och konfiguration klar!")
-print("Starta projektet med: cd client && npm run dev")
+print("Starta projektet med: 'python3 run.py'")
