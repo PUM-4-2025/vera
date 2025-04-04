@@ -1,9 +1,7 @@
 #include "http_server.h"
 
-#include "project_config.h"
-
-#include <algorithm>
 #include <iostream>
+#include <utility>
 
 HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
@@ -15,11 +13,11 @@ HttpServer::~HttpServer() {
 }
 
 void HttpServer::listenTo(std::string address) {
-  m_address_ = address;
+  m_address_ = std::move(address);
 }
 
 void HttpServer::setStaticFilesPath(std::string path) {
-  m_static_dir_ = path;
+  m_static_dir_ = std::move(path);
 }
 
 void HttpServer::start() {

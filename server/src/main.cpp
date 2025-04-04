@@ -2,8 +2,6 @@
 #include "../include/upload_media.h"
 #include "project_config.h"
 
-#include <iostream>
-
 int main() {
   const char *portEnv = std::getenv("PORT");
   int port = std::stoi(portEnv);

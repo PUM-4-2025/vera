@@ -30,15 +30,12 @@ void init_upload(struct mg_connection *c, struct mg_http_message *msg) {
   int num_chunks = 0;
   int total_chunks = file_size / 5242880;
 
-  std::string filename;
-  int file_size;
-  int session_id;
-  int completed_chunks;
-  int total_chunks;
-
   UploadSession new_session = {
+      file_name,
+      file_size,
       upload_id,
-      0,
+      num_chunks,
+      total_chunks,
 
   };
   handler.new_session(new_session);
