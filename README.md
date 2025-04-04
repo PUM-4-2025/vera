@@ -1,5 +1,4 @@
 # VERA
-![](./client/public/vera_eye.svg)
 
 ## Namnet
 **V**ideoanalys och  
@@ -69,8 +68,6 @@ För att verifiera att Node.js och npm är installerat, kör:
    npm -v
 ```
 
-Du behöver även ha `make` `cmake` och `clang` för att kunna 
-webservern som är skriven i `C++`. 
 
 ## Setup
 
@@ -90,16 +87,12 @@ När det kommer en ruta med alternativ, välj ```--legacy-peer-deps```.
 
 3. Starta utvecklingsservern:
 ```bash
-   python3 run.py
+   cd client
+   npm run dev
 ```  
-Med detta kommando kommer VERA köras i `dev` läge. Då körs
- en C++ baserad webserver på port 8000 som hanterar api:n 
- samt en node-js server kör hemsidan på port 3000.  
- 
-**Alternativt** om du ska köra i en produktionsmiljö kör
- man:
-```bash
-   python3 run.py --production
-```
-Då körs vera i optimerat läge. Det innebär även att både
- webservern och hemsidan körs på port 8000.
+
+
+
+
+
+
