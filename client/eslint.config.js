@@ -7,12 +7,14 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 
 import eslintPluginPrettier from 'eslint-plugin-prettier';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 /** @type {import('eslint').Linter.Config[]} */
-export default [
+export default defineConfig([
+  globalIgnores(['dist/**', 'node_modules/**', 'build/**', 'coverage/**']),
+
   {
     files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
-    ignores: ['dist/**', 'node_modules/**', 'build/**'],
   },
 
   {
@@ -81,4 +83,4 @@ export default [
       'prettier/prettier': 'error',
     },
   },
-];
+]);

@@ -6,6 +6,8 @@ import sys
 import json
 import urllib.request
 
+import urllib.request
+
 
 # Funktion för att köra kommandon och hantera fel
 def run_command(command, error_message="Kommando misslyckades", cwd=None):
@@ -30,6 +32,9 @@ print("Installerar projektberoenden i root-mappen...")
 run_command(
     "npm install", "Kunde inte installera projektberoenden", cwd=script_root_dir
 )
+run_command(
+    "npm install", "Kunde inte installera projektberoenden", cwd=script_root_dir
+)
 
 
 # Kontrollera att client-mappen finns
@@ -48,6 +53,7 @@ print("Installerar shadcn...")
 # Läs in components.json för att hämta komponenter
 components_json_path = os.path.join(client_dir, "shadcn-components.json")
 try:
+    with open(components_json_path, "r") as f:
     with open(components_json_path, "r") as f:
         components = json.load(f).get("components", [])
         if components:
@@ -70,7 +76,27 @@ if components:
         "Kunde inte installera komponenterna",
         cwd=client_dir,
     )
+    run_command(
+        f"npx shadcn add {components_str} --overwrite --yes",
+        "Kunde inte installera komponenterna",
+        cwd=client_dir,
+    )
 
+# Sätt igång git submoduler
+print("Hämtar submoduler för VERA...")
+os.system("git submodule init")
+os.system("git submodule update --remote")
+
+# Ladda ner json.hpp åt servern
+print(
+    "Laddar ner json.hpp från https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp..."
+)
+url = "https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp"
+file_Path = "server/extern/json/json.hpp"
+
+if not os.path.exists("server/extern/json/"):
+    os.mkdir("server/extern/json/")
+urllib.request.urlretrieve(url, file_Path)
 # Sätt igång git submoduler
 print("Hämtar submoduler för VERA...")
 os.system("git submodule init")
@@ -88,4 +114,4 @@ if not os.path.exists("server/extern/json/"):
 urllib.request.urlretrieve(url, file_Path)
 
 print("Installation och konfiguration klar!")
-print("Starta projektet med: cd client && npm run dev")
+print("Starta projektet med: 'python3 run.py'")

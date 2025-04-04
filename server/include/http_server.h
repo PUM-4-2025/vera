@@ -5,10 +5,9 @@
 #ifndef HTTPSERVER_H
 #define HTTPSERVER_H
 
-#include "../extern/mongoose/mongoose.h"
-
 #include <atomic>
 #include <functional>
+#include <mongoose.h>
 #include <string>
 #include <vector>
 
