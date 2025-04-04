@@ -10,7 +10,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 option(BUILD_TESTING "Build the tests" OFF)
-set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(WIN32)
   set(PLATFORM_SPECIFIC_LIBS ws2_32)
@@ -54,7 +54,7 @@ configure_file(
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+    SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
 )
 
 add_library(mongoose STATIC 
@@ -62,6 +62,15 @@ add_library(mongoose STATIC
 )
 
 target_compile_options(mongoose PRIVATE 
+    ${MONGOOSE_WARNINGS}
+)
+
+add_library(mongoose_includes INTERFACE)
+target_include_directories(mongoose_includes INTERFACE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+)
+
+target_compile_options(mongoose_includes INTERFACE 
     ${MONGOOSE_WARNINGS}
 )
 
@@ -90,6 +99,7 @@ target_compile_options(server PRIVATE -Wall -Wextra)
 
 target_link_libraries(server 
     mongoose 
+    mongoose_includes
     ${PLATFORM_SPECIFIC_LIBS}
 )
 

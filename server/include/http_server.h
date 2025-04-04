@@ -5,11 +5,10 @@
 #ifndef HTTPSERVER_H
 #define HTTPSERVER_H
 
-#include "../extern/mongoose/mongoose.h"
-
-#include <string>
 #include <atomic>
 #include <functional>
+#include <mongoose.h>
+#include <string>
 #include <vector>
 
 class HttpServer {
@@ -29,7 +28,7 @@ public:
   // to be a function to allow other modules, like the audio
   // analysis to register a handler for a specific api path,
   // e.g. ("/api/audio", audio_analysis_func).
-  using RequestHandler = std::function<void(struct mg_connection*, struct mg_http_message*)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:

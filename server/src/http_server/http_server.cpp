@@ -1,6 +1,6 @@
+#include <mongoose.h>
 #include "http_server.h"
 #include "project_config.h"
-
 #include <iostream>
 #include <algorithm>
 
@@ -62,7 +62,8 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
     }
   
     if (!handled) {
-      struct mg_http_serve_opts opts = {.root_dir = server->m_static_dir_.c_str()};         // For all other URLs,
+      struct mg_http_serve_opts opts = {};                                                   // Zero-initialize all fields
+      opts.root_dir = server->m_static_dir_.c_str();                                        // For all other URLs,
       mg_http_serve_dir(c, hm, &opts);                                                      // Serve static files
     }
   }
