@@ -1,17 +1,19 @@
 #include "upload_media.h"
 
-#include "../../extern/json/json.hpp"
+#include <json.hpp>
 using json = nlohmann::json;
+
+#include <bits/stdc++.h>
 
 UploadHandler handler;
 
 /**
  * Returns a unique id for uploading media.
- * TODO: Replace with proper implementation once sessions are
- * able to be tracked.
+ * Uses rand and current time as a seed.
  */
 int get_upload_id() {
-  return 1;
+  srand(time(0));
+  return rand();
 }
 
 void register_media_handlers(HttpServer &server) {

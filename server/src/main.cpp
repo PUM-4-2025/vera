@@ -1,4 +1,5 @@
 #include "http_server.h"
+#include "upload_media.h"
 #include "project_config.h"
 
 int main() {
