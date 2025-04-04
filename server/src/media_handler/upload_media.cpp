@@ -13,7 +13,13 @@ UploadHandler handler;
  */
 int get_upload_id() {
   srand(time(0));
-  return rand();
+  int id;
+
+  do {
+    id = rand();
+  } while (!handler.isUniqueId(id));
+
+  return id;
 }
 
 void register_media_handlers(HttpServer &server) {
@@ -65,4 +71,18 @@ void UploadHandler::new_session(UploadSession session) {
   m_uploads_guard_.lock();
   m_uploads_.push_back(session);
   m_uploads_guard_.unlock();
+}
+
+bool UploadHandler::isUniqueId(int id) {
+  m_uploads_guard_.lock();
+  
+  for (const auto &session : m_uploads_) {
+    if (session.session_id == id) {
+      m_uploads_guard_.unlock();
+      return false;
+    }
+  }
+
+  m_uploads_guard_.unlock();
+  return true;
 }
