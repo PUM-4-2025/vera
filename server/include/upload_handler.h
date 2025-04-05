@@ -1,0 +1,25 @@
+#ifndef UPLOADHANDLER_H
+#define UPLOADHANDLER_H
+
+#include "upload_media.h"
+
+#include <mutex>
+#include <vector>
+#include <optional>
+
+class UploadHandler {
+public:
+  UploadHandler();
+  ~UploadHandler();
+
+  void newSession(const UploadSession &session);
+  void removeSession(int upload_id);
+  UploadSession* getSession(int upload_id);
+  bool isUniqueId(int id);
+
+private:
+  std::vector<UploadSession> m_uploads_;
+  std::mutex m_uploads_guard_;
+};
+
+#endif

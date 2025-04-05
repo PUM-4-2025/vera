@@ -24,19 +24,11 @@ public:
   void start();
   void stop();
 
-  /**
-   * TODO: Come back and iterate on function below. This is meant
-   * to be a function to allow other modules, like the audio
-   * analysis to register a handler for a specific api path,
-   * e.g. http_server.registerHandler("/api/audio", audio_analysis_func).
-   * The handler function is meant to also handle the
-   * reply, by using mg_http_reply(...).
-   */
-  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct MgHttpMessage *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
-  struct mg_mgr m_mgr_{};
+  struct MgMgr m_mgr_{};
   std::string m_address_;
   std::string m_static_dir_ = "./static";
   std::atomic<bool> m_running_{false};

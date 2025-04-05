@@ -1,4 +1,5 @@
 #include "upload_media.h"
+#include "upload_handler.h"
 
 #include <json.hpp>
 using json = nlohmann::json;
@@ -6,6 +7,15 @@ using json = nlohmann::json;
 #include <bits/stdc++.h>
 
 UploadHandler handler;
+
+/**
+ * Registers all the file upload handlers to the HttpServer. 
+ */
+void registerMediaHandlers(HttpServer &server) {
+  server.registerHandler("/api/v1/uploads/initiate", initUpload);
+  server.registerHandler("/api/v1/uploads/chunks", uploadChunk);
+  server.registerHandler("/api/v1/uploads/status", uploadStatus);
+}
 
 /**
  * Returns a unique id for uploading media.
@@ -22,13 +32,10 @@ int get_upload_id() {
   return id;
 }
 
-void register_media_handlers(HttpServer &server) {
-  server.registerHandler("/api/v1/uploads/initiate", init_upload);
-  server.registerHandler("/api/v1/uploads/chunks", upload_chunk);
-  server.registerHandler("/api/v1/uploads/status", upload_status);
-}
-
-void init_upload(struct mg_connection *c, struct mg_http_message *msg) {
+/**
+ * Handles HTTP request for initiating new uploads. 
+ */
+void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
   std::string body = msg->body.buf;
   json json_body = json::parse(body);
   std::string file_name = json_body["fileName"];
@@ -46,7 +53,7 @@ void init_upload(struct mg_connection *c, struct mg_http_message *msg) {
       total_chunks,
 
   };
-  handler.new_session(new_session);
+  handler.newSession(new_session);
 
   json response = {{"uploadId", upload_id},
                    {"status", "initiated"},
@@ -56,33 +63,35 @@ void init_upload(struct mg_connection *c, struct mg_http_message *msg) {
   mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }
 
-void upload_chunk(struct mg_connection *, struct mg_http_message *) {}
+/**
+ * Handles HTTP request for uploading a chunk of a file.
+ */
+void uploadChunk(struct mg_connection *c, struct mg_http_message *msg) {}
 
-void upload_status(struct mg_connection *, struct mg_http_message *) {}
+/**
+ * Handles HTTP request for status of an upload.
+ */
+void uploadStatus(struct mg_connection *c, struct mg_http_message *msg) {
+  std::string body = msg->body.buf;
+  json json_body = json::parse(body);
+  int upload_id = json_body["uploadId"];
 
-UploadHandler::UploadHandler() {};
-UploadHandler::~UploadHandler() {
-  m_uploads_guard_.lock();
-  m_uploads_.clear();
-  m_uploads_guard_.unlock();
-}
+  UploadSession *session = handler.getSession(upload_id);
 
-void UploadHandler::new_session(UploadSession session) {
-  m_uploads_guard_.lock();
-  m_uploads_.push_back(session);
-  m_uploads_guard_.unlock();
-}
-
-bool UploadHandler::isUniqueId(int id) {
-  m_uploads_guard_.lock();
-  
-  for (const auto &session : m_uploads_) {
-    if (session.session_id == id) {
-      m_uploads_guard_.unlock();
-      return false;
-    }
+  if (session == nullptr) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Not found!"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
   }
 
-  m_uploads_guard_.unlock();
-  return true;
+  int uploaded_chunks = session->completed_chunks;
+  int total_chunks = session->total_chunks;
+
+  json response = {{"uploadId", upload_id},
+                    {"status", "In progress"},
+                    {"uploadedChunks", uploaded_chunks},
+                    {"totalChunks", total_chunks}};
+  std::string response_str = response.dump();
+  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }

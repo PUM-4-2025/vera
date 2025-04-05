@@ -14,7 +14,7 @@ int main() {
   server.setStaticFilesPath(STATIC_FILES_PATH);
 
   // Register relevant handlers
-  register_media_handlers(server);
+  registerMediaHandlers(server);
 
   // Run server
   server.start();
