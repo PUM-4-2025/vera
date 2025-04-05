@@ -21,7 +21,7 @@ void registerMediaHandlers(HttpServer &server) {
  * Returns a unique id for uploading media.
  * Uses rand and current time as a seed.
  */
-int get_upload_id() {
+int getUploadId() {
   srand(time(0));
   int id;
 
@@ -32,6 +32,9 @@ int get_upload_id() {
   return id;
 }
 
+void handleChunkUpload() {};
+
+
 /**
  * Handles HTTP request for initiating new uploads. 
  */
@@ -41,7 +44,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
   std::string file_name = json_body["fileName"];
   int file_size = json_body["fileSize"];
 
-  int upload_id = get_upload_id();
+  int upload_id = getUploadId();
   int num_chunks = 0;
   int total_chunks = file_size / 5242880;
 
@@ -83,6 +86,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg) {
                      {"status", "Not found!"}};
     std::string response_str = response.dump();
     mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
   }
 
   int uploaded_chunks = session->completed_chunks;

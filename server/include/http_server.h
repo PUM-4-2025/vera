@@ -24,11 +24,11 @@ public:
   void start();
   void stop();
 
-  using RequestHandler = std::function<void(struct mg_connection *, struct MgHttpMessage *)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
-  struct MgMgr m_mgr_{};
+  struct mg_mgr m_mgr_{};
   std::string m_address_;
   std::string m_static_dir_ = "./static";
   std::atomic<bool> m_running_{false};
