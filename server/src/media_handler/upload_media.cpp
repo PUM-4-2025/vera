@@ -45,17 +45,16 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
   int file_size = json_body["fileSize"];
 
   int upload_id = getUploadId();
-  int num_chunks = 0;
+  int num_chunks = 0; 
   int total_chunks = file_size / 5242880;
 
-  UploadSession new_session = {
-      file_name,
-      file_size,
-      upload_id,
-      num_chunks,
-      total_chunks,
+  UploadSession new_session = {};
+  new_session.filename = file_name;
+  new_session.file_size = file_size;
+  new_session.session_id = upload_id;
+  new_session.completed_chunks = num_chunks;
+  new_session.total_chunks = total_chunks;
 
-  };
   handler.newSession(new_session);
 
   json response = {{"uploadId", upload_id},
@@ -69,7 +68,9 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
 /**
  * Handles HTTP request for uploading a chunk of a file.
  */
-void uploadChunk(struct mg_connection *c, struct mg_http_message *msg) {}
+void uploadChunk(struct mg_connection *c, struct mg_http_message *msg) {
+
+}
 
 /**
  * Handles HTTP request for status of an upload.

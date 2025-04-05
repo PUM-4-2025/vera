@@ -2,6 +2,7 @@
 #define UPLOADMEDIA_H
 
 #include "http_server.h"
+#include <atomic>
 
 
 void registerMediaHandlers(HttpServer &server);
@@ -13,7 +14,7 @@ using UploadSession = struct UploadSession {
   std::string filename;
   int file_size;
   int session_id;
-  int completed_chunks;
+  std::atomic<int> completed_chunks;
   int total_chunks;
 };
 
