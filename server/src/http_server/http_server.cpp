@@ -46,6 +46,9 @@ void HttpServer::registerHandler(const std::string &api_path, RequestHandler han
 void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
   auto *server = static_cast<HttpServer *>(c->fn_data);
 
+  // TODO: Replace with proper user session handling
+  UserSession test_us = UserSession{ "abc123" };
+
   if (ev == MG_EV_HTTP_MSG) {
     auto *hm = (struct mg_http_message *)ev_data;  // Parsed HTTP request
 
@@ -53,7 +56,7 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
     for (const auto &handler_info : server->m_handlers_) {
       std::string uri(hm->uri.buf, hm->uri.len);
       if (uri == handler_info.path || uri.find(handler_info.path + "/") == 0) {
-        handler_info.handler(c, hm);
+        handler_info.handler(c, hm, &test_us);
         handled = true;
         break;
       }

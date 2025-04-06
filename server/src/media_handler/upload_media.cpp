@@ -32,13 +32,15 @@ int getUploadId() {
   return id;
 }
 
-void handleChunkUpload() {};
+void handleChunkUpload(UploadSession &session) {
+  
+};
 
 
 /**
  * Handles HTTP request for initiating new uploads. 
  */
-void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
+void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
   std::string body = msg->body.buf;
   json json_body = json::parse(body);
   std::string file_name = json_body["fileName"];
@@ -54,6 +56,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
   new_session.session_id = upload_id;
   new_session.completed_chunks = num_chunks;
   new_session.total_chunks = total_chunks;
+  new_session.us = us;
 
   handler.newSession(new_session);
 
@@ -68,14 +71,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg) {
 /**
  * Handles HTTP request for uploading a chunk of a file.
  */
-void uploadChunk(struct mg_connection *c, struct mg_http_message *msg) {
-
-}
-
-/**
- * Handles HTTP request for status of an upload.
- */
-void uploadStatus(struct mg_connection *c, struct mg_http_message *msg) {
+void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
   std::string body = msg->body.buf;
   json json_body = json::parse(body);
   int upload_id = json_body["uploadId"];
@@ -87,6 +83,37 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg) {
                      {"status", "Not found!"}};
     std::string response_str = response.dump();
     mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
+
+
+
+  handleChunkUpload(*session);
+}
+
+/**
+ * Handles HTTP request for status of an upload.
+ */
+void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+  std::string body = msg->body.buf;
+  json json_body = json::parse(body);
+  int upload_id = json_body["uploadId"];
+
+  UploadSession *session = handler.getSession(upload_id);
+
+  if (session == nullptr) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Not found!"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
+
+  if (session->us->session_id != us->session_id) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Unauthorized"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 401, "Content-Type: application/json\r\n", response_str.c_str());
     return;
   }
 

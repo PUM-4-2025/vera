@@ -5,7 +5,6 @@
 
 #include <mutex>
 #include <vector>
-#include <optional>
 
 class UploadHandler {
 public:
