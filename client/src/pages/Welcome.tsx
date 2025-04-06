@@ -24,13 +24,25 @@ import {
 
 const WelcomeContent = () => {
   const navigate = useNavigate();
-  const { loadProject, createProject } = useProject();
+  const {
+    loadProject,
+    loadProjectFromHandle,
+    createProject,
+    selectProjectLocation,
+  } = useProject();
   const { theme, toggleTheme } = useTheme();
   const [isCreating, setIsCreating] = useState(false);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [formData, setFormData] = useState({
     projectName: '',
     projectDescription: '',
+  });
+  const [selectedLocation, setSelectedLocation] = useState<{
+    dirHandle: FileSystemDirectoryHandle | null;
+    displayPath: string;
+  }>({
+    dirHandle: null,
+    displayPath: '',
   });
 
   useEffect(() => {
@@ -56,6 +68,39 @@ const WelcomeContent = () => {
     }
   };
 
+  const handleLoadRecentProject = async (projectPath: string) => {
+    try {
+      await loadProjectFromHandle(projectPath);
+      navigate('/editor');
+    } catch (error) {
+      console.error('Error loading recent project:', error);
+      toast.error(`Failed to load recent project: ${error}`);
+
+      // If the stored handle fails, fallback to manual selection
+      try {
+        toast.info('Trying to load project manually...');
+        await loadProject();
+        navigate('/editor');
+      } catch (fallbackError) {
+        toast.error(`Failed to load project manually: ${fallbackError}`);
+      }
+    }
+  };
+
+  const handleSelectLocation = async () => {
+    try {
+      const location = await selectProjectLocation();
+      if (location) {
+        setSelectedLocation({
+          dirHandle: location,
+          displayPath: `${location.name}`,
+        });
+      }
+    } catch (error) {
+      toast.error(`Failed to select location: ${error}`);
+    }
+  };
+
   const handleCreateProject = async () => {
     try {
       if (!formData.projectName.trim()) {
@@ -63,7 +108,16 @@ const WelcomeContent = () => {
         return;
       }
 
-      await createProject(formData.projectName, formData.projectDescription);
+      if (!selectedLocation.dirHandle) {
+        toast.error('Please select a location for your project');
+        return;
+      }
+
+      await createProject(
+        formData.projectName,
+        formData.projectDescription,
+        selectedLocation.dirHandle
+      );
       navigate('/editor');
     } catch (error) {
       toast.error(`Failed to create project: ${error}`);
@@ -127,14 +181,7 @@ const WelcomeContent = () => {
                         key={project.path}
                         variant="outline"
                         className="flex flex-col items-start justify-start py-2 px-4 h-auto text-left hover:bg-primary/10"
-                        onClick={async () => {
-                          try {
-                            await loadProject();
-                            navigate('/editor');
-                          } catch (error) {
-                            toast.error(`Failed to load project: ${error}`);
-                          }
-                        }}
+                        onClick={() => handleLoadRecentProject(project.path)}
                       >
                         <div className="w-full flex justify-between items-center">
                           <div className="font-medium text-foreground">
@@ -190,12 +237,52 @@ const WelcomeContent = () => {
                   onChange={handleFormChange}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectLocation">Project Location</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="projectLocation"
+                    name="projectLocation"
+                    value={
+                      selectedLocation.displayPath +
+                      '/' +
+                      formData.projectName
+                        .trim()
+                        .replace(/[^a-z0-9]/gi, '_')
+                        .toLowerCase()
+                    }
+                    placeholder="Select a location for your project"
+                    readOnly
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleSelectLocation}
+                    className="shrink-0"
+                  >
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    Browse
+                  </Button>
+                </div>
+                {selectedLocation.displayPath && !formData.projectName && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Please enter a project name to see the final path
+                  </p>
+                )}
+              </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button variant="outline" onClick={() => setIsCreating(false)}>
                 Back
               </Button>
-              <Button onClick={handleCreateProject}>Create Project</Button>
+              <Button
+                onClick={handleCreateProject}
+                disabled={
+                  !formData.projectName.trim() || !selectedLocation.dirHandle
+                }
+              >
+                Create Project
+              </Button>
             </CardFooter>
           </Card>
         )}

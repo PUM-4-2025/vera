@@ -7,6 +7,11 @@ import React, {
   ReactNode,
 } from 'react';
 import { addRecentProject } from '@/utils/recentProjects';
+import {
+  storeDirectoryHandle,
+  getDirectoryHandle,
+  verifyPermission,
+} from '@/utils/projectDatabase';
 
 // Define types for your project data
 interface Metadata {
@@ -43,11 +48,17 @@ interface ProjectState {
 
 interface ProjectContextType extends ProjectState {
   loadProject: () => Promise<void>;
+  loadProjectFromHandle: (path: string) => Promise<void>;
   saveProject: () => Promise<void>;
   uploadVideo: () => Promise<string | undefined>;
-  createProject: (name: string, description: string) => Promise<void>;
+  createProject: (
+    name: string,
+    description: string,
+    dirHandle?: FileSystemDirectoryHandle
+  ) => Promise<void>;
   updateBookmark: (videoId: string, newBookmarkData: BookmarkData) => void;
   setCurrentVideoId: (videoId: string | null) => void;
+  selectProjectLocation: () => Promise<FileSystemDirectoryHandle | null>;
 }
 
 // Create initial state
@@ -180,8 +191,15 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
       console.log('Project Loaded Successfully:', newState.metadata?.name);
 
-      // Add to recent projects
+      // Store directory handle in IndexedDB
       if (newState.metadata && dirHandle) {
+        try {
+          await storeDirectoryHandle(dirHandle.name, dirHandle);
+        } catch (error) {
+          console.warn('Could not store directory handle in IndexedDB:', error);
+        }
+
+        // Add to recent projects
         addRecentProject({
           name: newState.metadata.name,
           path: dirHandle.name,
@@ -203,6 +221,141 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       }
     }
   }, [state.videos]);
+
+  const loadProjectFromHandle = useCallback(
+    async (path: string) => {
+      setState((s) => ({ ...s, isLoading: true, error: null }));
+      try {
+        // Get directory handle from IndexedDB
+        const dirHandle = await getDirectoryHandle(path);
+
+        if (!dirHandle) {
+          throw new Error('Project directory not found in storage');
+        }
+
+        // Verify we have permission to access this directory
+        const hasPermission = await verifyPermission(dirHandle);
+        if (!hasPermission) {
+          throw new Error('Permission denied to access project directory');
+        }
+
+        // Reset state for new project
+        const newState = {
+          ...initialState,
+          projectDirectoryHandle: dirHandle,
+          isLoading: true,
+        };
+
+        // 1. Load Metadata
+        try {
+          const metadataFileHandle =
+            await dirHandle.getFileHandle('metadata.json');
+          const metadataFile = await metadataFileHandle.getFile();
+          const metadataText = await metadataFile.text();
+          newState.metadata = JSON.parse(metadataText);
+        } catch (e) {
+          console.error('Failed to load metadata.json:', e);
+          throw new Error('Could not load essential metadata.json');
+        }
+
+        const videoFiles = newState.metadata?.videoFiles || [];
+        const videos: Record<string, VideoData> = {};
+        const bookmarks: Record<string, BookmarkData> = {};
+
+        // Get subdirectory handles
+        let videosDirHandle: FileSystemDirectoryHandle | undefined;
+        let bookmarksDirHandle: FileSystemDirectoryHandle | undefined;
+
+        try {
+          videosDirHandle = await dirHandle.getDirectoryHandle('videos');
+        } catch (e) {
+          console.warn('Videos directory not found:', e);
+        }
+        try {
+          bookmarksDirHandle = await dirHandle.getDirectoryHandle('bookmarks');
+        } catch (e) {
+          console.warn('Bookmarks directory not found:', e);
+        }
+
+        // 2. Load Videos, Annotations, Bookmarks, Analysis concurrently
+        await Promise.all(
+          videoFiles.map(async (videoFilename) => {
+            const videoId = videoFilename.split('.').slice(0, -1).join('.');
+
+            // Load Video file
+            if (videosDirHandle) {
+              try {
+                const fileHandle =
+                  await videosDirHandle.getFileHandle(videoFilename);
+                const file = await fileHandle.getFile();
+                // Revoke previous URL if reloading same video ID
+                if (state.videos[videoId]?.objectURL) {
+                  URL.revokeObjectURL(state.videos[videoId].objectURL);
+                }
+                const objectURL = URL.createObjectURL(file);
+                videos[videoId] = {
+                  name: videoFilename,
+                  objectURL,
+                  fileHandle,
+                };
+              } catch (e) {
+                console.warn(`Could not load video ${videoFilename}:`, e);
+              }
+            }
+            // Load Bookmarks
+            if (bookmarksDirHandle) {
+              try {
+                const bmFileName = `${videoId}_bookmarks.json`;
+                const bmFileHandle =
+                  await bookmarksDirHandle.getFileHandle(bmFileName);
+                const bmFile = await bmFileHandle.getFile();
+                bookmarks[videoId] = JSON.parse(await bmFile.text());
+              } catch (e) {
+                /* Expected if no bookmarks exist yet */
+              }
+            }
+          })
+        );
+
+        newState.videos = videos;
+        newState.bookmarks = bookmarks;
+
+        // Select first video by default if any are loaded
+        const firstVideoId = Object.keys(videos)[0];
+        if (firstVideoId) {
+          newState.currentVideoId = firstVideoId;
+        }
+
+        console.log(
+          'Project Loaded Successfully from handle:',
+          newState.metadata?.name
+        );
+
+        // Add to recent projects (updates the lastOpened timestamp)
+        if (newState.metadata) {
+          addRecentProject({
+            name: newState.metadata.name,
+            path: path,
+            description: newState.metadata.projectDescription,
+            lastOpened: new Date().toISOString(),
+          });
+        }
+
+        setState({ ...newState, isLoading: false });
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          console.error('Error loading project from handle:', err);
+          setState((_) => ({
+            ...initialState,
+            error: err.message || 'Failed to load project from handle.',
+          }));
+        } else {
+          setState((s) => ({ ...s, isLoading: false }));
+        }
+      }
+    },
+    [state.videos]
+  );
 
   const saveProject = useCallback(async () => {
     if (!state.projectDirectoryHandle) {
@@ -429,7 +582,11 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
   // Add this new function inside the ProjectProvider component
   const createProject = useCallback(
-    async (name: string, description: string) => {
+    async (
+      name: string,
+      description: string,
+      projectDirHandle?: FileSystemDirectoryHandle
+    ) => {
       setState((s) => ({ ...s, isLoading: true, error: null }));
 
       try {
@@ -440,14 +597,16 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
           );
         }
 
-        // Ask user to select a parent directory for projects
-        const parentDirHandle = await window.showDirectoryPicker({
-          id: 'project-parent-directory',
-          startIn: 'documents',
-          mode: 'readwrite',
-        });
+        // If no directory handle is provided, prompt user to select one
+        let parentDirHandle = projectDirHandle;
+        if (!parentDirHandle) {
+          parentDirHandle = await window.showDirectoryPicker({
+            id: 'veraProject',
+            mode: 'readwrite',
+          });
+        }
 
-        // Create a sanitized directory name from the project name
+        // Create a sanitized project name for the directory
         const projectDirName = name
           .trim()
           .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric with underscore
@@ -459,33 +618,35 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
           );
         }
 
-        // Create a new subdirectory for this project
-        let projectDirHandle;
+        // Create a subdirectory with the project name
+        let projectSubDirHandle;
         try {
-          projectDirHandle = await parentDirHandle.getDirectoryHandle(
+          projectSubDirHandle = await parentDirHandle.getDirectoryHandle(
             projectDirName,
             { create: true }
           );
         } catch (e) {
-          console.error('Failed to create project directory:', e);
+          console.error('Failed to create project subdirectory:', e);
           throw new Error(
-            `Could not create project directory "${projectDirName}"`
+            `Could not create project folder "${projectDirName}"`
           );
         }
 
-        // Create metadata.json with project details
+        // Create basic metadata
         const metadata: Metadata = {
           name,
-          projectDescription: description,
+          projectDescription: description || '',
           projectCreated: new Date().toISOString(),
           projectUpdated: new Date().toISOString(),
           videoFiles: [],
         };
 
-        // Create the necessary subdirectories inside the project directory
+        // Create project structure inside the subdirectory
         try {
-          await projectDirHandle.getDirectoryHandle('videos', { create: true });
-          await projectDirHandle.getDirectoryHandle('bookmarks', {
+          await projectSubDirHandle.getDirectoryHandle('videos', {
+            create: true,
+          });
+          await projectSubDirHandle.getDirectoryHandle('bookmarks', {
             create: true,
           });
         } catch (e) {
@@ -495,7 +656,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
         // Save metadata file
         try {
-          const metadataFileHandle = await projectDirHandle.getFileHandle(
+          const metadataFileHandle = await projectSubDirHandle.getFileHandle(
             'metadata.json',
             { create: true }
           );
@@ -510,18 +671,31 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         // Update application state with the new project
         setState((_) => ({
           ...initialState,
-          projectDirectoryHandle: projectDirHandle,
+          projectDirectoryHandle: projectSubDirHandle,
           metadata,
           isLoading: false,
         }));
 
         console.log('Project Created Successfully:', name);
 
-        // Add to recent projects
-        if (projectDirHandle) {
+        // Store directory handle in IndexedDB
+        if (projectSubDirHandle) {
+          try {
+            await storeDirectoryHandle(
+              projectSubDirHandle.name,
+              projectSubDirHandle
+            );
+          } catch (error) {
+            console.warn(
+              'Could not store directory handle in IndexedDB:',
+              error
+            );
+          }
+
+          // Add to recent projects
           addRecentProject({
             name,
-            path: projectDirHandle.name,
+            path: projectSubDirHandle.name,
             description: description,
             lastOpened: new Date().toISOString(),
           });
@@ -541,15 +715,45 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  // Add new selectProjectLocation function
+  const selectProjectLocation =
+    useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
+      try {
+        // Check if File System Access API is supported
+        if (!('showDirectoryPicker' in window)) {
+          throw new Error(
+            'Your browser does not support the File System Access API'
+          );
+        }
+
+        // Show directory picker to select a location
+        const dirHandle = await window.showDirectoryPicker({
+          id: 'veraProjectLocation',
+          mode: 'readwrite',
+        });
+
+        return dirHandle;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.error('Error selecting project location:', err);
+          throw err;
+        }
+        // User cancelled - return null
+        return null;
+      }
+    }, []);
+
   // Value provided to consumers
   const contextValue: ProjectContextType = {
     ...state,
     loadProject,
+    loadProjectFromHandle,
     saveProject,
     uploadVideo,
     createProject,
     updateBookmark,
     setCurrentVideoId,
+    selectProjectLocation,
   };
 
   return (
