@@ -1,20 +1,22 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward
+
+, FilmIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
+import { TimeWaveControls } from './TimeSlider_&_SoundWave';
 
 const VideoPlayer: React.FC = () => {
   const { videos, currentVideoId } = useProject();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
-  const [_, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
-  // Get the current video object from the project context
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
 
-  // Effect to handle video play/pause
   useEffect(() => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -28,26 +30,22 @@ const VideoPlayer: React.FC = () => {
     }
   }, [isPlaying]);
 
-  // Handle video metadata loaded
   const handleMetadataLoaded = () => {
     if (videoRef.current) {
       setVideoDuration(videoRef.current.duration);
     }
   };
 
-  // Handle time update
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
     }
   };
 
-  // Handle play/pause
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Handle step backward (5 seconds)
   const stepBackward = () => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(
@@ -57,7 +55,6 @@ const VideoPlayer: React.FC = () => {
     }
   };
 
-  // Handle step forward (5 seconds)
   const stepForward = () => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.min(
@@ -65,6 +62,24 @@ const VideoPlayer: React.FC = () => {
         videoRef.current.currentTime + 5
       );
     }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleTimeChange = (time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const handleZoomChange = (delta: number) => {
+    const newZoomLevel = Math.max(1, Math.min(10, zoomLevel + delta));
+    setZoomLevel(newZoomLevel);
   };
 
   return (
@@ -122,6 +137,18 @@ const VideoPlayer: React.FC = () => {
         >
           <SkipForward size={18} />
         </Button>
+      </div>
+
+      <TimeWaveControls
+        currentTime={currentTime}
+        videoDuration={videoDuration}
+        zoomLevel={zoomLevel}
+        onTimeChange={handleTimeChange}
+        onZoomChange={handleZoomChange}
+      />
+
+      <div className="time-display">
+        {formatTime(currentTime)} / {formatTime(videoDuration)}
       </div>
 
       <div className="bg-vera-muted/50 rounded-lg p-4 border border-border/30 min-h-[10vh] max-h-[10vh] overflow-y-auto">
