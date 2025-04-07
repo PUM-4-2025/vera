@@ -15,6 +15,7 @@ public:
   void removeSession(int upload_id);
   UploadSession* getSession(int upload_id);
   bool isUniqueId(int id);
+  void incrementChunk(UploadSession &session);
 
 private:
   std::vector<UploadSession> m_uploads_;

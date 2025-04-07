@@ -1,10 +1,11 @@
 #include "upload_media.h"
 #include "upload_handler.h"
 
-#include <json.hpp>
+#include "json.hpp"
 using json = nlohmann::json;
 
 #include <bits/stdc++.h>
+#include <filesystem>
 
 UploadHandler handler;
 
@@ -33,8 +34,9 @@ int getUploadId() {
 }
 
 void handleChunkUpload(UploadSession &session) {
-  
-};
+
+  handler.incrementChunk(session);
+}
 
 
 /**
@@ -59,6 +61,15 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
   new_session.us = us;
 
   handler.newSession(new_session);
+
+  // Create new directory for downloads
+  std::string path = "/tmp/";
+  path.append(us->session_id);
+  path.append("/");
+  
+  if (!std::filesystem::exists(path)) {
+    std::filesystem::create_directory(path);
+  }
 
   json response = {{"uploadId", upload_id},
                    {"status", "initiated"},
@@ -86,9 +97,20 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
     return;
   }
 
-
+  if (session->us->session_id != us->session_id) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Unauthorized"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 401, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
 
   handleChunkUpload(*session);
+
+  json response = {{"status", "Success"},
+                    {"message", "Chunks recieved successfully"}};
+  std::string response_str = response.dump();
+  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }
 
 /**

@@ -1,4 +1,12 @@
 #include "upload_handler.h"
+#include "upload_media.h"
+
+/*
+ * A lot of methods are written in here to stop race conditions
+ * from happening. Even though some methods would be trivial to 
+ * write in ohter functions, the locking mechanism is needed
+ * to assure that uploads are synced. 
+ */
 
 UploadHandler::UploadHandler() {};
 UploadHandler::~UploadHandler() {
@@ -39,4 +47,10 @@ UploadSession* UploadHandler::getSession(int id) {
 
   m_uploads_guard_.unlock();
   return nullptr;
+}
+
+void UploadHandler::incrementChunk(UploadSession &session) {
+  m_uploads_guard_.lock();
+  session.completed_chunks++;
+  m_uploads_guard_.unlock();
 }
