@@ -120,16 +120,15 @@ class AppRunner:
                 compiler_found = True
         else:
             # if not manually specified
-            if self.is_windows:
-                if shutil.which("clang++"):
-                    self.compiler = "clang"
-                    compiler_found = True
-                elif shutil.which("g++"):
-                    self.compiler = "gcc"
-                    compiler_found = True
-                elif shutil.which("cl"):
-                    self.compiler = "cl"
-                    compiler_found = True
+            if shutil.which("clang++"):
+                self.compiler = "clang"
+                compiler_found = True
+            elif shutil.which("g++"):
+                self.compiler = "gcc"
+                compiler_found = True
+            elif shutil.which("cl"):
+                self.compiler = "cl"
+                compiler_found = True
 
         if not compiler_found:
             logger.error(f"No C++ compiler found.")
@@ -208,6 +207,7 @@ class AppRunner:
         self.backend_builder.build_type = self.build_type
         self.backend_builder.clean_build = self.clean_build
         self.backend_builder.verbose = self.verbose
+        self.backend_builder.compiler = self.compiler
         if self.backend_flags:
             self.backend_builder.custom_flags.extend(self.backend_flags)
         

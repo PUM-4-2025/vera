@@ -99,14 +99,19 @@ class BackendBuilder:
                 compiler_found = True
         else:
             # if not manually specified
-            if self.is_windows:
-                if shutil.which("cl") or shutil.which("clang++") or shutil.which("g++"):
-                    compiler_found = True
-                    logger.info("Valid compiler found!")
-            else:
-                if shutil.which("g++") or shutil.which("clang++"):
-                    compiler_found = True
-                    logger.info("Valid compiler found!")
+            if shutil.which("clang++"):
+                self.compiler = "clang"
+                compiler_found = True
+            elif shutil.which("g++"):
+                self.compiler = "gcc"
+                compiler_found = True
+            elif shutil.which("cl"):
+                self.compiler = "cl"
+                compiler_found = True
+
+        if not compiler_found:
+            logger.error(f"No C++ compiler found.")
+            return False
 
 
         
