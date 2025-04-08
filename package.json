@@ -16,6 +16,8 @@
     "client/**/*.{json,css,md}": [
       "npx prettier --write --config client/.prettierrc.json"
     ]
+  },
+  "dependencies": {
+    "idb": "^8.0.2"
   }
 }
-
