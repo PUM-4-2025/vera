@@ -185,6 +185,10 @@ class BackendBuilder:
             elif self.compiler == 'clang':
                 cmake_config_cmd.extend(["-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"])
             # For MSVC, CMake should auto-detect?
+
+            if self.compiler != 'msvc' and self.is_windows:
+                cmake_config_cmd.append("-DCMAKE_GENERATOR_TOOLSET=")
+                cmake_config_cmd.append("-G Ninja")
         
         if self.generate_compile_commands:
             cmake_config_cmd.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
