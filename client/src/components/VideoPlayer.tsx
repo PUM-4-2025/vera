@@ -1,10 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward
-
-, FilmIcon } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
-import { TimeWaveControls } from './TimeSlider_&_SoundWave';
+import { VideoTimeSlider } from './VideoTimeSlider'; // Correct import
+import { SoundWaveform } from './SoundWaveform'; // Correct import
 
 const VideoPlayer: React.FC = () => {
   const { videos, currentVideoId } = useProject();
@@ -38,7 +37,9 @@ const VideoPlayer: React.FC = () => {
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const newTime = videoRef.current.currentTime;
+      setCurrentTime(newTime);
+      console.log('Time update:', newTime, 'at', Date.now()); // Debug frequency
     }
   };
 
@@ -139,7 +140,14 @@ const VideoPlayer: React.FC = () => {
         </Button>
       </div>
 
-      <TimeWaveControls
+      <VideoTimeSlider
+        currentTime={currentTime}
+        videoDuration={videoDuration}
+        zoomLevel={zoomLevel}
+        onTimeChange={handleTimeChange}
+        onZoomChange={handleZoomChange}
+      />
+      <SoundWaveform
         currentTime={currentTime}
         videoDuration={videoDuration}
         zoomLevel={zoomLevel}
