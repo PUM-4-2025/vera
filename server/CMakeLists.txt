@@ -74,10 +74,8 @@ target_compile_options(mongoose_includes INTERFACE
     ${MONGOOSE_WARNINGS}
 )
 
-set(CORE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/http_server/http_server.cpp
-    # Add more source files here
+file(GLOB_RECURSE CORE_SOURCES 
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
 
 set(UTIL_SOURCES
