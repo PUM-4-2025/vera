@@ -131,18 +131,26 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
       icon: <Save size={16} />,
       label: 'Save Project',
       shortcut: '⌘S',
-      onClick: () => {
-        saveProject();
-        toast.success('Project saved successfully');
+      onClick: async () => {
+        try {
+          await saveProject();
+          toast.success('Project saved successfully');
+        } catch (error) {
+          toast.error(`Failed to save project: ${error}`);
+        }
       },
     },
     {
       icon: <Save size={16} />,
       label: 'Load Project',
       shortcut: '⌘O',
-      onClick: () => {
-        loadProject();
-        toast.success('Project loaded successfully');
+      onClick: async () => {
+        try {
+          await loadProject();
+          toast.success('Project loaded successfully');
+        } catch (error) {
+          toast.error(`Failed to load project: ${error}`);
+        }
       },
     },
     {

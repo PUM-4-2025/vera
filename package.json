@@ -20,6 +20,8 @@
       "bash -c 'echo \"$0\" | grep -v -E \"(extern|build|static)\" | xargs -r clang-format -i --style=file:server/.clang-format'",
       "bash -c 'echo \"$0\" | grep -v -E \"(extern|build|static)\" | xargs clang-tidy -fix -p=server/build --config-file=server/.clang-tidy'"
     ]
+  },
+  "dependencies": {
+    "idb": "^8.0.2"
   }
 }
-
