@@ -15,10 +15,6 @@
     ],
     "client/**/*.{json,css,md}": [
       "npx prettier --write --config client/.prettierrc.json"
-    ],
-    "server/**/*.{cpp,h,hpp}": [
-      "bash -c 'echo \"$0\" | grep -v -E \"(extern|build|static)\" | xargs -r clang-format -i --style=file:server/.clang-format'",
-      "bash -c 'echo \"$0\" | grep -v -E \"(extern|build|static)\" | xargs clang-tidy -fix -p=server/build --config-file=server/.clang-tidy'"
     ]
   }
 }
