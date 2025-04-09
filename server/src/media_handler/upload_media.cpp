@@ -1,7 +1,7 @@
 #include "upload_media.h"
 #include "upload_handler.h"
 
-#include "json.hpp"
+#include <json.hpp>
 using json = nlohmann::json;
 
 #include <ios>
@@ -37,10 +37,13 @@ int getUploadId() {
   return id;
 }
 
-void handleChunkUpload(UploadSession &session, std::string data) {
+void handleChunkUpload(UploadSession &session, int index, const std::string &data) {
   // Open file in append mode
   std::filebuf fb;
-  fb.open(session.path, std::ios::app);
+  std::string chunk_path = session.path;
+  chunk_path.append("_chunk_");
+  chunk_path.append(std::to_string(index));
+  fb.open(chunk_path, std::ios::app);
   std::ostream os(&fb);
 
   os << data;
@@ -128,7 +131,8 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
   }
 
   std::string data = json_body["chunkData"];
-  handleChunkUpload(*session, data);
+  int index = json_body["chunkIndex"];
+  handleChunkUpload(*session, index, data);
 
   json response = {{"status", "Success"},
                     {"message", "Chunks recieved successfully"}};
