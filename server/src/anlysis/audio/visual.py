@@ -47,7 +47,7 @@ def wav_to_db_csv(wav_path, csv_path):
         for t, db in zip(time_axis, db_values):
             writer.writerow([t, db])
 
-    print(f"Saved dB data to: {csv_path}")
+    sys.stdout.write(f"Saved dB data to: {csv_path}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
