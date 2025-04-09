@@ -39,16 +39,46 @@ int getUploadId() {
 
 void handleChunkUpload(UploadSession &session, int index, const std::string &data) {
   // Open file in append mode
-  std::filebuf fb;
   std::string chunk_path = session.path;
   chunk_path.append("_chunk_");
   chunk_path.append(std::to_string(index));
-  fb.open(chunk_path, std::ios::app);
-  std::ostream os(&fb);
 
-  os << data;
+  std::ofstream of(chunk_path);
+  if (of.is_open()) {
+    of << data;
+    of.close();
+  }
 
   handler.incrementChunk(session);
+}
+
+int assembleFile(UploadSession &session) {
+  std::ofstream of(session.path);
+  if (!of.is_open()) {
+    std::cout << session.path << " not opened!" << std::endl;
+    return -1;
+  }
+
+  for (int i = 1; i <= session.total_chunks; i++) {
+    std::string chunk_path = session.path;
+    chunk_path.append("_chunk_");
+    chunk_path.append(std::to_string(i));
+
+    std::ifstream f(chunk_path);
+    if (!f.is_open()) {
+      std::cout << chunk_path << " not opened!" << std::endl;
+      of.close();
+      return -1;
+    }
+
+    of << f.rdbuf();
+    f.close();
+  }
+
+  of.close();
+
+  std::cout << "Written to: " << session.path << std::endl;
+  return 0;
 }
 
 
@@ -206,6 +236,15 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
     json response = {{"uploadId", upload_id},
                      {"status", "Failed"},
                      {"message", "Uploaded chunks != expected number of chunks. Upload failed!"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
+
+  if (assembleFile(*session) != 0) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Failed"},
+                     {"message", "Something went wrong while assembling all chunks!"}};
     std::string response_str = response.dump();
     mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
     return;
