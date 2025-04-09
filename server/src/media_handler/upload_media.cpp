@@ -37,15 +37,56 @@ int getUploadId() {
   return id;
 }
 
+char **base64Decode(const std::string &in) {
+    const std::string chars = 
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    int T[256];
+    memset(T, -1, sizeof(T));
+    for (int i = 0; i < 64; i++) T[static_cast<unsigned char>(chars[i])] = i;
+
+    // Compute maximum output size: every 4 base64 chars = 3 bytes
+    size_t max_output_size = (in.length() * 3) / 4;
+
+    // Allocate output buffer (+1 for null-terminator)
+    char *decoded = (char *)malloc(max_output_size + 1);
+    if (!decoded) return nullptr;
+
+    size_t out_index = 0;
+    int val = 0, valb = -8;
+    for (unsigned char c : in) {
+        if (T[c] == -1) break;
+        val = (val << 6) + T[c];
+        valb += 6;
+        if (valb >= 0) {
+            decoded[out_index++] = (char)((val >> valb) & 0xFF);
+            valb -= 8;
+        }
+    }
+
+    decoded[out_index] = '\0'; // Null-terminate
+
+    // Wrap in a char**
+    char **result = (char **)malloc(sizeof(char *));
+    if (!result) {
+        free(decoded);
+        return nullptr;
+    }
+
+    *result = decoded;
+    return result;
+}
+
 void handleChunkUpload(UploadSession &session, int index, const std::string &data) {
   // Open file in append mode
   std::string chunk_path = session.path;
   chunk_path.append("_chunk_");
   chunk_path.append(std::to_string(index));
 
-  std::ofstream of(chunk_path);
+  std::ofstream of(chunk_path, std::ios::binary);
   if (of.is_open()) {
-    of << data;
+    char **bin_data = base64Decode(data);
+
+    of.write(*bin_data, sizeof bin_data);
     of.close();
   }
 
@@ -53,7 +94,7 @@ void handleChunkUpload(UploadSession &session, int index, const std::string &dat
 }
 
 int assembleFile(UploadSession &session) {
-  std::ofstream of(session.path);
+  std::ofstream of(session.path, std::ios::binary);
   if (!of.is_open()) {
     std::cout << session.path << " not opened!" << std::endl;
     return -1;
@@ -64,7 +105,7 @@ int assembleFile(UploadSession &session) {
     chunk_path.append("_chunk_");
     chunk_path.append(std::to_string(i));
 
-    std::ifstream f(chunk_path);
+    std::ifstream f(chunk_path, std::ios::binary);
     if (!f.is_open()) {
       std::cout << chunk_path << " not opened!" << std::endl;
       of.close();
