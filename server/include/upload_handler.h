@@ -12,10 +12,11 @@ public:
   ~UploadHandler();
 
   void newSession(const UploadSession &session);
-  void removeSession(int upload_id);
+  void removeSession(const UploadSession &session);
   UploadSession* getSession(int upload_id);
   bool isUniqueId(int id);
   void incrementChunk(UploadSession &session);
+  bool sessionCompleted(const UploadSession &session);
 
 private:
   std::vector<UploadSession> m_uploads_;

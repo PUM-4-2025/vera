@@ -4,6 +4,9 @@
 #include "json.hpp"
 using json = nlohmann::json;
 
+#include <ios>
+#include <ostream>
+#include <cmath>
 #include <bits/stdc++.h>
 #include <filesystem>
 
@@ -16,6 +19,7 @@ void registerMediaHandlers(HttpServer &server) {
   server.registerHandler("/api/v1/uploads/initiate", initUpload);
   server.registerHandler("/api/v1/uploads/chunks", uploadChunk);
   server.registerHandler("/api/v1/uploads/status", uploadStatus);
+  server.registerHandler("/api/v1/uploads/complete", uploadComplete);
 }
 
 /**
@@ -33,7 +37,13 @@ int getUploadId() {
   return id;
 }
 
-void handleChunkUpload(UploadSession &session) {
+void handleChunkUpload(UploadSession &session, std::string data) {
+  // Open file in append mode
+  std::filebuf fb;
+  fb.open(session.path, std::ios::app);
+  std::ostream os(&fb);
+
+  os << data;
 
   handler.incrementChunk(session);
 }
@@ -50,26 +60,38 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
 
   int upload_id = getUploadId();
   int num_chunks = 0; 
-  int total_chunks = file_size / 5242880;
 
-  UploadSession new_session = {};
-  new_session.filename = file_name;
-  new_session.file_size = file_size;
-  new_session.session_id = upload_id;
-  new_session.completed_chunks = num_chunks;
-  new_session.total_chunks = total_chunks;
-  new_session.us = us;
-
-  handler.newSession(new_session);
+  // Chunks are expected to be 5MiB
+  int total_chunks = (file_size / 5242880) + 1;
 
   // Create new directory for downloads
-  std::string path = "/tmp/";
+  std::string path = "/tmp/vera/";
+
+  if (!std::filesystem::exists(path)) {
+    std::filesystem::create_directory(path);
+  }
+
   path.append(us->session_id);
   path.append("/");
   
   if (!std::filesystem::exists(path)) {
     std::filesystem::create_directory(path);
   }
+  path.append(file_name);
+  if (std::filesystem::exists(path)) {
+    std::filesystem::remove(path);
+  }
+
+  UploadSession new_session = {};
+  new_session.filename = file_name;
+  new_session.file_size = file_size;
+  new_session.path = path;
+  new_session.session_id = upload_id;
+  new_session.completed_chunks = num_chunks;
+  new_session.total_chunks = total_chunks;
+  new_session.us = us;
+
+  handler.newSession(new_session);
 
   json response = {{"uploadId", upload_id},
                    {"status", "initiated"},
@@ -105,7 +127,8 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
     return;
   }
 
-  handleChunkUpload(*session);
+  std::string data = json_body["chunkData"];
+  handleChunkUpload(*session, data);
 
   json response = {{"status", "Success"},
                     {"message", "Chunks recieved successfully"}};
@@ -146,6 +169,47 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
                     {"status", "In progress"},
                     {"uploadedChunks", uploaded_chunks},
                     {"totalChunks", total_chunks}};
+  std::string response_str = response.dump();
+  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+}
+
+void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+  std::string body = msg->body.buf;
+  json json_body = json::parse(body);
+  int upload_id = json_body["uploadId"];
+
+  UploadSession *session = handler.getSession(upload_id);
+
+  if (session == nullptr) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Not found!"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
+
+  if (session->us->session_id != us->session_id) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Unauthorized"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 401, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
+
+  handler.removeSession(*session);
+
+  if (!handler.sessionCompleted(*session)) {
+    json response = {{"uploadId", upload_id},
+                     {"status", "Failed"},
+                     {"message", "Uploaded chunks != expected number of chunks. Upload failed!"}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
+    return;
+  }
+
+  json response = {{"uploadId", upload_id},
+                    {"status", "Completed"},
+                    {"message", "Upload completed successfully"}};
   std::string response_str = response.dump();
   mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }
