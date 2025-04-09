@@ -122,6 +122,14 @@ int assembleFile(UploadSession &session) {
   return 0;
 }
 
+void send_http_response(struct mg_connection *c, int http_code, int id, std::string status, std::string message) {
+  json response = {{"uploadId", id},
+                   {"status", status},
+                   {"message", message}};
+  std::string response_str = response.dump();
+  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+}
+
 
 /**
  * Handles HTTP request for initiating new uploads. 
@@ -166,13 +174,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
   new_session.us = us;
 
   handler.newSession(new_session);
-
-  json response = {{"uploadId", upload_id},
-                   {"status", "initiated"},
-                   {"message", "Upload session initiated successfully."}};
-  std::string response_str = response.dump();
-
-  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+  send_http_response(c, 200, upload_id, "initiated", "Upload session initiated successfully.");
 }
 
 /**
@@ -186,18 +188,12 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
   UploadSession *session = handler.getSession(upload_id);
 
   if (session == nullptr) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Not found!"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
     return;
   }
 
   if (session->us->session_id != us->session_id) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Unauthorized"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 401, "Content-Type: application/json\r\n", response_str.c_str());
+    send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
     return;
   }
 
@@ -205,10 +201,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
   int index = json_body["chunkIndex"];
   handleChunkUpload(*session, index, data);
 
-  json response = {{"status", "Success"},
-                    {"message", "Chunks recieved successfully"}};
-  std::string response_str = response.dump();
-  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+  send_http_response(c, 200, upload_id, "Success", "Chunks received successfully.");
 }
 
 /**
@@ -222,24 +215,20 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
   UploadSession *session = handler.getSession(upload_id);
 
   if (session == nullptr) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Not found!"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
     return;
   }
 
   if (session->us->session_id != us->session_id) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Unauthorized"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 401, "Content-Type: application/json\r\n", response_str.c_str());
+    send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
     return;
   }
 
   int uploaded_chunks = session->completed_chunks;
   int total_chunks = session->total_chunks;
 
+  // Edge case, more information is expected to be returned.
+  // Therefore the send_http_response() helper function is not used here.
   json response = {{"uploadId", upload_id},
                     {"status", "In progress"},
                     {"uploadedChunks", uploaded_chunks},
@@ -256,49 +245,27 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
   UploadSession *session = handler.getSession(upload_id);
 
   if (session == nullptr) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Not found!"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 404, "Content-Type: application/json\r\n", response_str.c_str());
+    send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
     return;
   }
 
   if (session->us->session_id != us->session_id) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Unauthorized"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 401, "Content-Type: application/json\r\n", response_str.c_str());
+    send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
     return;
   }
 
-
   if (!handler.sessionCompleted(*session)) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Failed"},
-                     {"message", "Uploaded chunks != expected number of chunks. Upload failed!"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
-
+    send_http_response(c, 418, upload_id, "Failed", "Uploaded chunks != expected number of chunks. Upload failed!");
     handler.removeSession(*session);
     return;
   }
 
   if (assembleFile(*session) != 0) {
-    json response = {{"uploadId", upload_id},
-                     {"status", "Failed"},
-                     {"message", "Something went wrong while assembling all chunks!"}};
-    std::string response_str = response.dump();
-    mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
-
+    send_http_response(c, 418, upload_id, "Failed", "Something went wrong while assembling all chunks!");
     handler.removeSession(*session);
     return;
   }
 
-  json response = {{"uploadId", upload_id},
-                    {"status", "Completed"},
-                    {"message", "Upload completed successfully"}};
-  std::string response_str = response.dump();
-  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
-
+  send_http_response(c, 200, upload_id, "Completed", "Upload completed successfully");
   handler.removeSession(*session);
 }
