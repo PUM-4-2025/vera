@@ -230,7 +230,6 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
     return;
   }
 
-  handler.removeSession(*session);
 
   if (!handler.sessionCompleted(*session)) {
     json response = {{"uploadId", upload_id},
@@ -238,6 +237,8 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
                      {"message", "Uploaded chunks != expected number of chunks. Upload failed!"}};
     std::string response_str = response.dump();
     mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
+
+    handler.removeSession(*session);
     return;
   }
 
@@ -247,6 +248,8 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
                      {"message", "Something went wrong while assembling all chunks!"}};
     std::string response_str = response.dump();
     mg_http_reply(c, 418, "Content-Type: application/json\r\n", response_str.c_str());
+
+    handler.removeSession(*session);
     return;
   }
 
@@ -255,4 +258,6 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
                     {"message", "Upload completed successfully"}};
   std::string response_str = response.dump();
   mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+
+  handler.removeSession(*session);
 }
