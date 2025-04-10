@@ -18,7 +18,6 @@
     ]
   },
   "dependencies": {
-    "wavesurfer.js": "^7.9.4",
     "idb": "^8.0.2"
   }
 }
