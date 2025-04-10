@@ -1,19 +1,20 @@
 #include "upload_media.h"
+
 #include "upload_handler.h"
 
 #include <json.hpp>
 using json = nlohmann::json;
 
+#include <bits/stdc++.h>
+#include <cmath>
+#include <filesystem>
 #include <ios>
 #include <ostream>
-#include <cmath>
-#include <bits/stdc++.h>
-#include <filesystem>
 
 UploadHandler handler;
 
 /**
- * Registers all the file upload handlers to the HttpServer. 
+ * Registers all the file upload handlers to the HttpServer.
  */
 void registerMediaHandlers(HttpServer &server) {
   server.registerHandler("/api/v1/uploads/initiate", initUpload);
@@ -38,42 +39,44 @@ int getUploadId() {
 }
 
 char **base64Decode(const std::string &in) {
-    const std::string chars = 
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int T[256];
-    memset(T, -1, sizeof(T));
-    for (int i = 0; i < 64; i++) T[static_cast<unsigned char>(chars[i])] = i;
+  const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  int T[256];
+  memset(T, -1, sizeof(T));
+  for (int i = 0; i < 64; i++)
+    T[static_cast<unsigned char>(chars[i])] = i;
 
-    // Compute maximum output size: every 4 base64 chars = 3 bytes
-    size_t max_output_size = (in.length() * 3) / 4;
+  // Compute maximum output size: every 4 base64 chars = 3 bytes
+  size_t max_output_size = (in.length() * 3) / 4;
 
-    // Allocate output buffer (+1 for null-terminator)
-    char *decoded = (char *)malloc(max_output_size + 1);
-    if (!decoded) return nullptr;
+  // Allocate output buffer (+1 for null-terminator)
+  char *decoded = (char *)malloc(max_output_size + 1);
+  if (!decoded)
+    return nullptr;
 
-    size_t out_index = 0;
-    int val = 0, valb = -8;
-    for (unsigned char c : in) {
-        if (T[c] == -1) break;
-        val = (val << 6) + T[c];
-        valb += 6;
-        if (valb >= 0) {
-            decoded[out_index++] = (char)((val >> valb) & 0xFF);
-            valb -= 8;
-        }
+  size_t out_index = 0;
+  int val = 0, valb = -8;
+  for (unsigned char c : in) {
+    if (T[c] == -1)
+      break;
+    val = (val << 6) + T[c];
+    valb += 6;
+    if (valb >= 0) {
+      decoded[out_index++] = (char)((val >> valb) & 0xFF);
+      valb -= 8;
     }
+  }
 
-    decoded[out_index] = '\0'; // Null-terminate
+  decoded[out_index] = '\0';  // Null-terminate
 
-    // Wrap in a char**
-    char **result = (char **)malloc(sizeof(char *));
-    if (!result) {
-        free(decoded);
-        return nullptr;
-    }
+  // Wrap in a char**
+  char **result = (char **)malloc(sizeof(char *));
+  if (!result) {
+    free(decoded);
+    return nullptr;
+  }
 
-    *result = decoded;
-    return result;
+  *result = decoded;
+  return result;
 }
 
 void handleChunkUpload(UploadSession &session, int index, const std::string &data) {
@@ -122,17 +125,15 @@ int assembleFile(UploadSession &session) {
   return 0;
 }
 
-void send_http_response(struct mg_connection *c, int http_code, int id, std::string status, std::string message) {
-  json response = {{"uploadId", id},
-                   {"status", status},
-                   {"message", message}};
+void send_http_response(struct mg_connection *c, int http_code, int id, std::string status,
+                        std::string message) {
+  json response = {{"uploadId", id}, {"status", status}, {"message", message}};
   std::string response_str = response.dump();
-  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+  mg_http_reply(c, http_code, "Content-Type: application/json\r\n", response_str.c_str());
 }
 
-
 /**
- * Handles HTTP request for initiating new uploads. 
+ * Handles HTTP request for initiating new uploads.
  */
 void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
   std::string body = msg->body.buf;
@@ -141,7 +142,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
   int file_size = json_body["fileSize"];
 
   int upload_id = getUploadId();
-  int num_chunks = 0; 
+  int num_chunks = 0;
 
   // Chunks are expected to be 5MiB
   int total_chunks = (file_size / 5242880) + 1;
@@ -155,7 +156,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
 
   path.append(us->session_id);
   path.append("/");
-  
+
   if (!std::filesystem::exists(path)) {
     std::filesystem::create_directory(path);
   }
@@ -230,9 +231,9 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
   // Edge case, more information is expected to be returned.
   // Therefore the send_http_response() helper function is not used here.
   json response = {{"uploadId", upload_id},
-                    {"status", "In progress"},
-                    {"uploadedChunks", uploaded_chunks},
-                    {"totalChunks", total_chunks}};
+                   {"status", "In progress"},
+                   {"uploadedChunks", uploaded_chunks},
+                   {"totalChunks", total_chunks}};
   std::string response_str = response.dump();
   mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }
@@ -255,13 +256,15 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
   }
 
   if (!handler.sessionCompleted(*session)) {
-    send_http_response(c, 418, upload_id, "Failed", "Uploaded chunks != expected number of chunks. Upload failed!");
+    send_http_response(c, 418, upload_id, "Failed",
+                       "Uploaded chunks != expected number of chunks. Upload failed!");
     handler.removeSession(*session);
     return;
   }
 
   if (assembleFile(*session) != 0) {
-    send_http_response(c, 418, upload_id, "Failed", "Something went wrong while assembling all chunks!");
+    send_http_response(c, 418, upload_id, "Failed",
+                       "Something went wrong while assembling all chunks!");
     handler.removeSession(*session);
     return;
   }
