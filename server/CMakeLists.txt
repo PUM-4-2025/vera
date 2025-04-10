@@ -75,12 +75,8 @@ target_compile_options(mongoose_includes INTERFACE
     ${MONGOOSE_WARNINGS}
 )
 
-set(CORE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/http_server/http_server.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/media_handler/upload_media.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/media_handler/upload_handler.cpp
-    # Add more source files here
+file(GLOB_RECURSE CORE_SOURCES 
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
 
 set(UTIL_SOURCES
@@ -93,25 +89,30 @@ set(ALL_SOURCES
     ${UTIL_SOURCES}
 )
 
-
-
 add_executable(server ${ALL_SOURCES})
 
-target_compile_options(server PRIVATE -Wall -Wextra)
-
+# Compiler flags - platform specific definitions
+if(MSVC)
+    # MSVC-specific flags
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /W4 /sdl /permissive-")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG")
+    
+    # MSVC equivalent warnings for the server target
+    target_compile_options(server PRIVATE /W4)
+else()
+    # GCC/Clang flags
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wpedantic -Wshadow -Wconversion -g")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+    
+    # GCC/Clang specific warnings for the server target
+    target_compile_options(server PRIVATE -Wall -Wextra)
+endif()
 
 target_link_libraries(server 
     mongoose 
     mongoose_includes
     ${PLATFORM_SPECIFIC_LIBS}
 )
-
-# debug config (default)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wpedantic -Wshadow -Wconversion -g")
-
-# Release config
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
-
 
 if(BUILD_TESTING)
     set(LIB_SOURCES ${ALL_SOURCES})
