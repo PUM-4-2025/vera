@@ -38,6 +38,7 @@ int getUploadId() {
   return id;
 }
 
+/*/
 char **base64Decode(const std::string &in) {
   const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   int T[256];
@@ -78,6 +79,7 @@ char **base64Decode(const std::string &in) {
   *result = decoded;
   return result;
 }
+*/
 
 void handleChunkUpload(UploadSession &session, int index, const std::string &data) {
   // Open file in append mode
@@ -87,9 +89,7 @@ void handleChunkUpload(UploadSession &session, int index, const std::string &dat
 
   std::ofstream of(chunk_path, std::ios::binary);
   if (of.is_open()) {
-    char **bin_data = base64Decode(data);
-
-    of.write(*bin_data, sizeof bin_data);
+    of.write(data.c_str(), data.size());
     of.close();
   }
 

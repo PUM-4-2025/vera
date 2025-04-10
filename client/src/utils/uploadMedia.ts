@@ -16,7 +16,7 @@ export interface UploadStatus {
 
 const url = `${window.location.protocol}//${window.location.hostname}`;
 
-const uploadMedia = async (file: File): Promise<UploadSession> => {
+export const uploadMedia = async (file: File): Promise<UploadSession> => {
   const fileSize = fs.statSync(file.name).size;
 
   try {
@@ -60,7 +60,7 @@ const uploadMedia = async (file: File): Promise<UploadSession> => {
   }
 };
 
-const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
+export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
@@ -94,9 +94,37 @@ const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
   }
 };
 
-const chunkedUpload = async (uploadSession: UploadSession) => {};
+// TODO: Properly handle failed uploads
+export const uploadChunks = async (uploadSession: UploadSession) => {
+  const chunkSize = 5 * 1024 * 1024; // 5 MiB
 
-const uploadComplete = async (uploadId: number) => {
+  for (let i = 1; i <= uploadSession.totalChunks; i++) {
+    const chunk = uploadSession.file.slice((i - 1) * chunkSize, i * chunkSize);
+
+    const uploadUrl = url + '/api/v1/uploads/chunks';
+    const uploadData = {
+      uploadId: uploadSession.uploadId,
+      chunkData: chunk,
+      chunkIndex: i,
+    };
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(uploadData),
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload chunk: ' + i);
+    }
+
+    const uploadResult = await uploadResponse.json();
+    if (uploadResult.status != 'Success') {
+      throw new Error('Failed to upload chunk: ' + i);
+    }
+  }
+};
+
+export const uploadComplete = async (uploadId: number) => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
