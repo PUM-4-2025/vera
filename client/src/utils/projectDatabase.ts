@@ -3,10 +3,11 @@ const DB_NAME = 'vera_project_db';
 const DB_VERSION = 1;
 const DIRECTORY_STORE = 'directoryHandles';
 
+// TODO: Check with Marcus if the commented code below is needed.
 // Type declarations for FileSystemHandle APIs that may not be fully typed in TS
-interface PermissionDescriptor {
-  mode?: 'read' | 'readwrite';
-}
+//interface PermissionDescriptor {
+//  mode?: 'read' | 'readwrite';
+//}
 
 // Initialize the database
 export const initDatabase = (): Promise<IDBDatabase> => {
