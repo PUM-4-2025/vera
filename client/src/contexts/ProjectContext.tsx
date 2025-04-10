@@ -13,7 +13,6 @@ import {
   verifyPermission,
 } from '@/utils/projectDatabase';
 import { UploadSession, uploadMedia, uploadChunks } from '@/utils/uploadMedia';
-import { fork } from 'child_process';
 
 // Define types for your project data
 interface Metadata {
@@ -482,6 +481,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         return undefined;
       }
 
+      // Begin upload to server
+      const uploadSession = await uploadMedia(file);
+
       // At this point, TypeScript should know file is not null
       // Get the file name and make sure it exists
       const fileName = file.name;
@@ -511,10 +513,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
       // Create URL for video preview
       const objectURL = URL.createObjectURL(file);
-
-      // Begin upload to server
-      const uploadSession = await uploadMedia(file);
-      fork(uploadChunks(uploadSession));
 
       // Update state with new video
       setState((prevState) => {

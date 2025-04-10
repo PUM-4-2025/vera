@@ -1,5 +1,3 @@
-import fs from 'fs';
-
 export interface UploadSession {
   uploadId: number;
   file: File;
@@ -17,14 +15,14 @@ export interface UploadStatus {
 const url = `${window.location.protocol}//${window.location.hostname}`;
 
 export const uploadMedia = async (file: File): Promise<UploadSession> => {
-  const fileSize = fs.statSync(file.name).size;
+  console.log('Init upload');
 
   try {
     // Call the inititate API
     const initUrl = url + '/api/v1/uploads/initiate';
     const initData = {
-      fileName: file,
-      fileSize: fileSize,
+      fileName: file.name,
+      fileSize: file.size,
     };
     const initResponse = await fetch(initUrl, {
       method: 'POST',
@@ -38,6 +36,8 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
 
     const initResult = await initResponse.json();
     const uploadId = initResult.uploadId;
+
+    console.log(initResult);
 
     const status = await uploadStatus(uploadId);
 
@@ -53,6 +53,7 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       completedChunks: status.completedChunks,
       totalChunks: status.totalChunks,
     };
+    console.log('Init upload done');
 
     return newSession;
   } catch {

@@ -52,20 +52,36 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
   if (ev == MG_EV_HTTP_MSG) {
     auto *hm = (struct mg_http_message *)ev_data;  // Parsed HTTP request
 
-    bool handled = false;
-    for (const auto &handler_info : server->m_handlers_) {
-      std::string uri(hm->uri.buf, hm->uri.len);
-      if (uri == handler_info.path || uri.find(handler_info.path + "/") == 0) {
-        handler_info.handler(c, hm, &test_us);
-        handled = true;
-        break;
-      }
-    }
 
-    if (!handled) {
-      struct mg_http_serve_opts opts = {};                                                   // Zero-initialize all fields
-      opts.root_dir = server->m_static_dir_.c_str();                                        // For all other URLs,
-      mg_http_serve_dir(c, hm, &opts);                                                      // Serve static files
+      mg_printf(c,
+        "HTTP/1.1 200 OK\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n"
+        "Access-Control-Allow-Headers: Content-Type, Authorization\r\n");
+
+    if (mg_match(hm->method, mg_str("OPTIONS"), NULL)) {
+      std::cout << "Recieved CORS preflight!" << std::endl;
+      // Handle preflight request
+      mg_printf(c, "Content-Length: 0\r\n\r\n");
+      // Always set CORS headers
+    } else {
+      std::cout << "Other req: " << hm->method.buf << std::endl;
+      // Handle normal requests      
+      bool handled = false;
+      for (const auto &handler_info : server->m_handlers_) {
+        std::string uri(hm->uri.buf, hm->uri.len);
+        if (uri == handler_info.path || uri.find(handler_info.path + "/") == 0) {
+          handler_info.handler(c, hm, &test_us);
+          handled = true;
+          break;
+        }
+      }
+
+      if (!handled) {
+        struct mg_http_serve_opts opts = {};                                                   // Zero-initialize all fields
+        opts.root_dir = server->m_static_dir_.c_str();                                        // For all other URLs,
+        mg_http_serve_dir(c, hm, &opts);                                                      // Serve static files
+      }
     }
   }
 }

@@ -137,6 +137,9 @@ void send_http_response(struct mg_connection *c, int http_code, int id, std::str
  */
 void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
   std::string body = msg->body.buf;
+
+  std::cout << "Request: " << body << std::endl;
+
   json json_body = json::parse(body);
   std::string file_name = json_body["fileName"];
   int file_size = json_body["fileSize"];
