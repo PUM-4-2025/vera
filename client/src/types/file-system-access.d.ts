@@ -2,7 +2,21 @@ interface FileSystemHandle {
   readonly kind: 'file' | 'directory';
   readonly name: string;
   isSameEntry(other: FileSystemHandle): Promise<boolean>;
+
+  // Permission management methods
+  queryPermission(
+    descriptor?: FileSystemHandlePermissionDescriptor
+  ): Promise<PermissionState>;
+  requestPermission(
+    descriptor?: FileSystemHandlePermissionDescriptor
+  ): Promise<PermissionState>;
 }
+
+interface FileSystemHandlePermissionDescriptor {
+  mode?: 'read' | 'readwrite';
+}
+
+type PermissionState = 'granted' | 'denied' | 'prompt';
 
 interface FileSystemFileHandle extends FileSystemHandle {
   readonly kind: 'file';
@@ -48,7 +62,10 @@ interface FileSystemWritableFileStream extends WritableStream {
   truncate(size: number): Promise<void>;
 }
 
-type FileSystemWriteChunkType = BufferSource | Blob | string;
+type FileSystemWriteChunkType =
+  | { type: 'write'; position?: number; data: BufferSource | Blob | string }
+  | { type: 'seek'; position: number }
+  | { type: 'truncate'; size: number };
 
 interface Window {
   showDirectoryPicker(options?: {

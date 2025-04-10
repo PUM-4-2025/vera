@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(server)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -54,7 +54,8 @@ configure_file(
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/json
 )
 
 add_library(mongoose STATIC 
@@ -88,25 +89,30 @@ set(ALL_SOURCES
     ${UTIL_SOURCES}
 )
 
-
-
 add_executable(server ${ALL_SOURCES})
 
-target_compile_options(server PRIVATE -Wall -Wextra)
-
+# Compiler flags - platform specific definitions
+if(MSVC)
+    # MSVC-specific flags
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /W4 /sdl /permissive-")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG")
+    
+    # MSVC equivalent warnings for the server target
+    target_compile_options(server PRIVATE /W4)
+else()
+    # GCC/Clang flags
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wpedantic -Wshadow -Wconversion -g")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+    
+    # GCC/Clang specific warnings for the server target
+    target_compile_options(server PRIVATE -Wall -Wextra)
+endif()
 
 target_link_libraries(server 
     mongoose 
     mongoose_includes
     ${PLATFORM_SPECIFIC_LIBS}
 )
-
-# debug config (default)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wpedantic -Wshadow -Wconversion -g")
-
-# Release config
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
-
 
 if(BUILD_TESTING)
     set(LIB_SOURCES ${ALL_SOURCES})

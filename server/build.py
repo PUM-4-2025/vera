@@ -99,14 +99,19 @@ class BackendBuilder:
                 compiler_found = True
         else:
             # if not manually specified
-            if self.is_windows:
-                if shutil.which("cl") or shutil.which("clang++") or shutil.which("g++"):
-                    compiler_found = True
-                    logger.info("Valid compiler found!")
-            else:
-                if shutil.which("g++") or shutil.which("clang++"):
-                    compiler_found = True
-                    logger.info("Valid compiler found!")
+            if shutil.which("clang++"):
+                self.compiler = "clang"
+                compiler_found = True
+            elif shutil.which("g++"):
+                self.compiler = "gcc"
+                compiler_found = True
+            elif shutil.which("cl"):
+                self.compiler = "cl"
+                compiler_found = True
+
+        if not compiler_found:
+            logger.error(f"No C++ compiler found.")
+            return False
 
 
         
@@ -185,6 +190,10 @@ class BackendBuilder:
             elif self.compiler == 'clang':
                 cmake_config_cmd.extend(["-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"])
             # For MSVC, CMake should auto-detect?
+
+            if self.compiler != 'msvc' and self.is_windows:
+                cmake_config_cmd.append("-DCMAKE_GENERATOR_TOOLSET=")
+                cmake_config_cmd.append("-G Ninja")
         
         if self.generate_compile_commands:
             cmake_config_cmd.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")

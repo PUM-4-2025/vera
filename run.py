@@ -64,7 +64,9 @@ class AppRunner:
         parser.add_argument('-v', '--verbose', action='store_true')
         parser.add_argument('--backend-flags', help='Additional cmake flags')
         parser.add_argument('--frontend-flags', help='Additional npm flags')
-        
+        parser.add_argument('--compiler', choices=['gcc', 'clang', 'msvc'], 
+                            help='Specify compiler manually')
+
         args = parser.parse_args()
         
         self.build_backend = not args.no_backend
@@ -76,7 +78,8 @@ class AppRunner:
         self.backend_port = args.backend_port
         self.frontend_port = args.frontend_port
         self.production_mode = args.production or self.build_type in ['Release', 'RelWithDebInfo', 'MinSizeRel'] # beh;ver kanske 'ndra
-        
+        self.compiler = args.compiler
+
         self.backend_flags = []
         if args.backend_flags:
             self.backend_flags = args.backend_flags.split(',')
@@ -104,6 +107,34 @@ class AppRunner:
         if self.build_backend:
             if not self.backend_builder.check_dependencies():
                 return False
+            
+        compiler_found = False
+        
+        # if specified manually
+        if self.compiler:
+            if self.compiler == 'gcc' and shutil.which("g++"):
+                compiler_found = True
+            elif self.compiler == 'clang' and shutil.which("clang++"):
+                compiler_found = True
+            elif self.compiler == 'msvc' and (shutil.which("cl") or self.is_windows):
+                compiler_found = True
+        else:
+            # if not manually specified
+            if shutil.which("clang++"):
+                self.compiler = "clang"
+                compiler_found = True
+            elif shutil.which("g++"):
+                self.compiler = "gcc"
+                compiler_found = True
+            elif shutil.which("cl"):
+                self.compiler = "cl"
+                compiler_found = True
+
+        if not compiler_found:
+            logger.error(f"No C++ compiler found.")
+            return False
+            
+        
                 
         if self.build_frontend:
             # node
@@ -176,6 +207,7 @@ class AppRunner:
         self.backend_builder.build_type = self.build_type
         self.backend_builder.clean_build = self.clean_build
         self.backend_builder.verbose = self.verbose
+        self.backend_builder.compiler = self.compiler
         if self.backend_flags:
             self.backend_builder.custom_flags.extend(self.backend_flags)
         
@@ -284,7 +316,9 @@ class AppRunner:
 
         logger.info(f"Starting backend server on port {self.backend_port}...")
         
-        if self.is_windows:
+        if self.is_windows and self.compiler == "cl":
+            backend_exe = self.backend_dir / "build" / "bin" / self.build_type / "server.exe"
+        elif self.is_windows:
             backend_exe = self.backend_dir / "build" / "bin" / "server.exe"
         else:
             backend_exe = self.backend_dir / "build" / "bin" / "server"

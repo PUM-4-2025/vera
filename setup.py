@@ -6,7 +6,6 @@ import sys
 import json
 import urllib.request
 
-
 # Funktion för att köra kommandon och hantera fel
 def run_command(command, error_message="Kommando misslyckades", cwd=None):
     try:
@@ -30,7 +29,6 @@ print("Installerar projektberoenden i root-mappen...")
 run_command(
     "npm install", "Kunde inte installera projektberoenden", cwd=script_root_dir
 )
-
 
 # Kontrollera att client-mappen finns
 client_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "client")
@@ -88,4 +86,4 @@ if not os.path.exists("server/extern/json/"):
 urllib.request.urlretrieve(url, file_Path)
 
 print("Installation och konfiguration klar!")
-print("Starta projektet med: cd client && npm run dev")
+print("Starta projektet med: 'python3 run.py'")
