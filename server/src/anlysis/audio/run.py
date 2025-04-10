@@ -8,7 +8,7 @@ def run(in_video, out_csv):
     find_threshold_crossings(in_csv= "visual.csv", out_csv= out_csv)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    if len(sys.argv) != 3:
         print("Usage: python run.py <input_video> <output_csv>")
         sys.exit(1)
 
