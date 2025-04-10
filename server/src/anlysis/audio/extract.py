@@ -1,15 +1,17 @@
 import subprocess
 import sys
+from path import path
 
+PATH = path().PATH
 def extract(input_video, output_audio, sample_rate=16000):
     cmd = [
         "ffmpeg",
-        "-i", input_video,
+        "-i", PATH + input_video,
         "-vn",  # ingen video
         "-ac", "1",  # mono
         "-ar", str(sample_rate),  # sample rate
         "-y",  # skriv över om filen finns
-        output_audio
+        PATH + output_audio
     ]
     subprocess.run(cmd, check=True)
 
