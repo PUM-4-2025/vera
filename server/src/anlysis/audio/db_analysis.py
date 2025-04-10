@@ -5,7 +5,7 @@ from path import path
 
 PATH = path().PATH 
 
-def find_threshold_crossings(in_csv, out_csv, threshold_db= 10, min_duration_seconds= 5):
+def find_threshold_crossings(in_csv, threshold_db, min_duration_seconds):
     with open(PATH + in_csv, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         data = [(float(row['Time (s)']), float(row['Amplitude (dB)'])) for row in reader]
@@ -35,28 +35,28 @@ def find_threshold_crossings(in_csv, out_csv, threshold_db= 10, min_duration_sec
         segments.append((segment_start, data[-1][0]))
 
     # Skriv till CSV
-    with open(PATH + out_csv, 'w', newline='') as csvfile:
+    with open(PATH + in_csv + ".csv", 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Time (s)', 'Amplitude (dB)'])
         for start, end in segments:
             writer.writerow([start, end])
 
-    sys.stdout.write(f"Saved dB_analysis data to: {PATH + out_csv}")
+    sys.stdout.write(f"Saved dB_analysis data to: {PATH + in_csv + ".csv"}")
 
 # Exempelanvändning
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
-        print("Usage: python db_analysis.py input.csv output.csv threshold_db min_duration_seconds" )
+    if len(sys.argv) != 4:
+        print("Usage: python3 db_analysis.py input.csv threshold_db min_duration_seconds" )
         sys.exit(1)
 
     input_csv = sys.argv[1]
     threshold = sys.argv[2]
     min_duration_seconds = sys.argv[3]
-    output_csv = sys.argv[4]
+
 
     if not os.path.exists(input_csv):
         print(f"File not found: {input_csv}")
         sys.exit(1)
 
 
-    find_threshold_crossings(input_csv, output_csv, threshold, min_duration_seconds)
+    find_threshold_crossings(input_csv, threshold, min_duration_seconds)
