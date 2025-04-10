@@ -9,4 +9,4 @@
 #define STATIC_FILES_PATH ""
 #define BACKEND_PORT "8000"  // not used atm, might be faster than env in the future
 
-#endif // PROJECT_CONFIG_H
+#endif  // PROJECT_CONFIG_H
