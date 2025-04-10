@@ -2,8 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
-import { VideoTimeSlider } from './VideoTimeSlider'; // Correct import
-import { SoundWaveform } from './SoundWaveform'; // Correct import
+import { VideoTimeSlider } from './VideoTimeSlider';
+import { SoundWaveform } from './SoundWaveform';
 
 const VideoPlayer: React.FC = () => {
   const { videos, currentVideoId } = useProject();
@@ -29,17 +29,29 @@ const VideoPlayer: React.FC = () => {
     }
   }, [isPlaying]);
 
+  // Smooth time updates using requestAnimationFrame
+  useEffect(() => {
+    let animationFrameId: number;
+    const updateTime = () => {
+      if (videoRef.current && isPlaying) {
+        const newTime = videoRef.current.currentTime;
+        setCurrentTime(newTime);
+      }
+      animationFrameId = requestAnimationFrame(updateTime);
+    };
+
+    if (isPlaying) {
+      animationFrameId = requestAnimationFrame(updateTime);
+    }
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [isPlaying]);
+
   const handleMetadataLoaded = () => {
     if (videoRef.current) {
       setVideoDuration(videoRef.current.duration);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      const newTime = videoRef.current.currentTime;
-      setCurrentTime(newTime);
-      console.log('Time update:', newTime, 'at', Date.now()); // Debug frequency
     }
   };
 
@@ -93,7 +105,6 @@ const VideoPlayer: React.FC = () => {
             className="w-full h-full object-contain"
             controls={false}
             onLoadedMetadata={handleMetadataLoaded}
-            onTimeUpdate={handleTimeUpdate}
             onEnded={() => setIsPlaying(false)}
             onClick={togglePlay}
           />

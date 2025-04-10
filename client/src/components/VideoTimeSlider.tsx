@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 
 interface VideoTimeSliderProps {
   currentTime: number;
@@ -32,7 +32,7 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
   };
 
   // Update the zoom indicator's position and width
-  useEffect(() => {
+  const updateZoomIndicator = useCallback(() => {
     const zoomIndicator = zoomIndicatorRef.current;
     const slider = timeSliderRef.current;
     if (!zoomIndicator || !slider) return;
@@ -61,6 +61,23 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
     zoomIndicator.style.width = `${visibleWidthPercent}%`;
   }, [zoomLevel, currentTime, videoDuration]);
 
+  // Update the zoom indicator when dependencies change
+  useEffect(() => {
+    updateZoomIndicator();
+  }, [updateZoomIndicator]);
+
+  // Update the zoom indicator on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      updateZoomIndicator();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [updateZoomIndicator]);
+
   return (
     <div style={{ position: 'relative' }}>
       {/* Slider for controlling video playback time */}
@@ -72,6 +89,7 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
         value={currentTime}
         onChange={handleSliderChange}
         onWheel={handleWheel}
+        step={0.01}
         style={{
           width: '100%',
           height: '8px',
@@ -92,7 +110,6 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
           background: 'rgba(0, 128, 255, 0.3)',
           borderLeft: '1px solid blue',
           borderRight: '1px solid blue',
-          transition: 'all 0.1s ease',
           pointerEvents: 'none',
           zIndex: 0,
         }}

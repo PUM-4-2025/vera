@@ -35,72 +35,96 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const width = container.clientWidth;
-
+    const width = rect.width;
     const timePerPixel = videoDuration / width;
     const clickedTime = clickX * timePerPixel; // Time corresponding to click position
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
-
+    
     onTimeChange(newTime); // Update video time
   };
 
-  // Draw waveform and update scroll position (like autoscroll)
-  useEffect(() => {
+  // Draw the waveform and red line
+  const drawWaveform = () => {
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || !videoDuration) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = container.clientWidth; // Visible width of the container
-    const height = canvas.height; // Fixed height of the waveform
-    const numBars = 100; // Number of bars = number of samples
-    const totalWaveformWidth = width * zoomLevel; // Total width when zoomed
+    // Calculate effective width to match slider’s clickable range
+    const containerWidth = container.clientWidth;
+    const thumbWidthEstimate = 12; // Match VideoTimeSlider thumb size
+    const effectiveWidth = containerWidth - thumbWidthEstimate;
 
+    // Set canvas size
+    canvas.style.width = `${effectiveWidth}px`;
+    canvas.width = effectiveWidth;
+
+    const height = canvas.height || 50;
+    canvas.height = height;
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, effectiveWidth, height);
+
+    // Draw waveform bars
+    const numBars = 100; // Number of bars = number of samples
+    const totalWaveformWidth = effectiveWidth * zoomLevel;
     const timePerPixel = videoDuration / totalWaveformWidth;
-    const currentPixel = currentTime / timePerPixel; // Current time in pixel units
+    const currentPixel = currentTime / timePerPixel;
     let scrollOffset = 0;
 
-    // Auto-scroll to keep current time centered when zoomed in
-    if (totalWaveformWidth > width) {
-      scrollOffset = currentPixel - width / 2;
-      scrollOffset = Math.max(
-        0,
-        Math.min(scrollOffset, totalWaveformWidth - width)
-      );
+    // Calculate scroll offset to center the current time when zoomed in
+    if (totalWaveformWidth > effectiveWidth) {
+      scrollOffset = currentPixel - effectiveWidth / 2;
+      scrollOffset = Math.max(0, Math.min(scrollOffset, totalWaveformWidth - effectiveWidth));
     }
-
-    canvas.width = width;
-    ctx.clearRect(0, 0, width, height); // Clear grapth
 
     const barWidth = totalWaveformWidth / numBars;
     const startBar = Math.floor(scrollOffset / barWidth);
-    const visibleBars = Math.ceil(width / barWidth); // Number of visible bars (zoomed)
-
+    const visibleBars = Math.ceil(effectiveWidth / barWidth);
+    
     // Draw waveform data using samples
     for (let i = startBar; i < startBar + visibleBars && i < numBars; i++) {
-      const barHeight =
-        Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5;
+      const barHeight = 
+      Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5;
       const x = i * barWidth - scrollOffset;
       ctx.fillStyle = 'yellow';
       ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
     }
 
     // Draw red line indicating current video time
-    const lineX = currentPixel - scrollOffset;
-    if (lineX >= 0 && lineX <= width) {
+    const redLineX = currentPixel - scrollOffset;
+    if (redLineX >= 0 && redLineX <= effectiveWidth) {
       ctx.strokeStyle = 'red';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(lineX, 0);
-      ctx.lineTo(lineX, height);
+      ctx.moveTo(redLineX, 0);
+      ctx.lineTo(redLineX, height);
       ctx.stroke();
     }
 
-    // Apply scroll offset to the container for auto-scrolling
+    // Update container scroll position
     container.scrollLeft = scrollOffset;
-  }, [zoomLevel, currentTime, videoDuration]);
+  };
+
+  // Redraw when props change
+  useEffect(() => {
+    drawWaveform();
+  }, [currentTime, videoDuration, zoomLevel]);
+
+  // Redraw when window resizes
+  useEffect(() => {
+    const handleResize = () => {
+      drawWaveform();
+    };
+
+    window.addEventListener('resize', handleResize);
+    drawWaveform(); // Initial draw on mount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []); // Empty dependency array: runs once on mount
 
   return (
     <div
@@ -116,7 +140,10 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         height={50} // Fixed height for the waveform
         onWheel={handleWheel}
         onClick={handleWaveformClick}
-        style={{ width: '100%', display: 'block' }}
+        style={{
+          display: 'block',
+          margin: '0 auto',
+        }}
       />
     </div>
   );
