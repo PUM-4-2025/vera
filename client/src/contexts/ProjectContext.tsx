@@ -13,7 +13,6 @@ import {
   verifyPermission,
 } from '@/utils/projectDatabase';
 import { UploadSession, uploadMedia, uploadChunks } from '@/utils/uploadMedia';
-import { fork } from 'child_process';
 
 // Define types for your project data
 interface Metadata {
@@ -514,7 +513,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
       // Begin upload to server
       const uploadSession = await uploadMedia(file);
-      fork(uploadChunks(uploadSession));
 
       // Update state with new video
       setState((prevState) => {
