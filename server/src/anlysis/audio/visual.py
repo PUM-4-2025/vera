@@ -3,6 +3,9 @@ import wave
 import csv
 import sys
 import os
+from path import path
+
+PATH = path().PATH
 
 # === Konfiguration ===
 WINDOW_DURATION = 0.01  # sekunder
@@ -10,8 +13,8 @@ EPSILON = 1e-10
 MAX_AMPLITUDE = 32767  # För 16-bit PCM
 DB_REF = 30
 
-def wav_to_db_csv(wav_path, csv_path):
-    with wave.open(wav_path, 'rb') as wav_file:
+def wav_to_db_csv(in_wav):
+    with wave.open(PATH + in_wav, 'rb') as wav_file:
         sample_rate = wav_file.getframerate()
         n_channels = wav_file.getnchannels()
         n_frames = wav_file.getnframes()
@@ -41,24 +44,23 @@ def wav_to_db_csv(wav_path, csv_path):
         time_axis.append(t)
 
     # Skriv till CSV
-    with open(csv_path, 'w', newline='') as csvfile:
+    with open(PATH + in_wav + ".csv", 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Time (s)', 'Amplitude (dB)'])
         for t, db in zip(time_axis, db_values):
             writer.writerow([t, db])
 
-    print(f"Saved dB data to: {csv_path}")
+    sys.stdout.write(f"Saved dB data to: {PATH + in_wav + ".csv"}")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python visual.py input.wav output.csv")
+    if len(sys.argv) != 2:
+        print("Usage: python3 visual.py input.wav")
         sys.exit(1)
 
     input_wav = sys.argv[1]
-    output_csv = sys.argv[2]
 
     if not os.path.exists(input_wav):
         print(f"File not found: {input_wav}")
         sys.exit(1)
 
-    wav_to_db_csv(input_wav, output_csv)
+    wav_to_db_csv(input_wav)
