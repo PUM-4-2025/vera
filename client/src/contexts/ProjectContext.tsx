@@ -514,6 +514,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       // Create URL for video preview
       const objectURL = URL.createObjectURL(file);
 
+      // Begin upload to server
+      const uploadSession = await uploadMedia(file);
+
       // Update state with new video
       setState((prevState) => {
         // Update metadata to include new video

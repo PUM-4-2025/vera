@@ -1,15 +1,16 @@
 #include "upload_media.h"
 
+#include "mongoose.h"
 #include "upload_handler.h"
 
 #include <json.hpp>
 using json = nlohmann::json;
 
-#include <bits/stdc++.h>
 #include <cmath>
 #include <filesystem>
 #include <ios>
-#include <ostream>
+#include <fstream>
+#include <iostream>
 
 UploadHandler handler;
 
@@ -133,9 +134,29 @@ void send_http_response(struct mg_connection *c, int http_code, int id, std::str
 }
 
 /**
+ * Checks if message is preflight request.
+ * Currently assumes a preflight message is an empty body.
+ */
+int handlePreflight(struct mg_connection *c, struct mg_http_message *msg) {
+  if (msg->body.len == 0) {
+    std::string cors_response = R"(Access-Control-Allow-Origin: http://localhost:8000 
+Access-Control-Allow-Methods: GET, POST
+Access-Control-Allow-Headers: X-Custom-Header)";
+    mg_http_reply(c, 200, "", nullptr); 
+    return 0;
+  }
+  return 1;
+}
+
+
+/**
  * Handles HTTP request for initiating new uploads.
  */
 void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+  if (handlePreflight(c, msg) == 0) {
+    return;
+  }
+
   std::string body = msg->body.buf;
 
   std::cout << "Request: " << body << std::endl;
@@ -185,6 +206,10 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
  * Handles HTTP request for uploading a chunk of a file.
  */
 void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+  if (handlePreflight(c, msg) == 0) {
+    return;
+  }
+
   std::string body = msg->body.buf;
   json json_body = json::parse(body);
   int upload_id = json_body["uploadId"];
@@ -212,6 +237,10 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
  * Handles HTTP request for status of an upload.
  */
 void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+  if (handlePreflight(c, msg) == 0) {
+    return;
+  }
+
   std::string body = msg->body.buf;
   json json_body = json::parse(body);
   int upload_id = json_body["uploadId"];
@@ -242,6 +271,10 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
 }
 
 void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+  if (handlePreflight(c, msg) == 0) {
+    return;
+  }
+
   std::string body = msg->body.buf;
   json json_body = json::parse(body);
   int upload_id = json_body["uploadId"];
