@@ -22,8 +22,6 @@ const getProperUrl = (): string => {
 };
 
 export const uploadMedia = async (file: File): Promise<UploadSession> => {
-  console.log('Init upload');
-
   try {
     // Call the inititate API
     const initUrl = getProperUrl() + '/api/v1/uploads/initiate';
@@ -32,22 +30,19 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       fileSize: file.size,
     };
     const initResponse = await fetch(initUrl, {
-      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(initData),
     });
 
-    console.log(initResponse);
-
     if (!initResponse.ok) {
       throw new Error('Failed to initiate upload with server!');
     }
 
+    console.log(initResponse);
     const initResult = await initResponse.json();
-    const uploadId = initResult.uploadId;
-
     console.log(initResult);
+    const uploadId = initResult.uploadId;
 
     const status = await uploadStatus(uploadId);
 
@@ -63,7 +58,7 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       completedChunks: status.completedChunks,
       totalChunks: status.totalChunks,
     };
-    console.log('Init upload done');
+    console.log('Initialized upload with id: ', uploadId);
 
     return newSession;
   } catch {
@@ -80,7 +75,6 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
       uploadId: uploadId,
     };
     const statusResponse = await fetch(statusUrl, {
-      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(statusData),
@@ -108,45 +102,43 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
 
 // TODO: Properly handle failed uploads
 export const uploadChunks = async (uploadSession: UploadSession) => {
-  const chunkSize = 5 * 1024 * 1024; // 5 MiB
+  const chunkSize = 5 * 1024; // 5 kiB
 
   for (let i = 1; i <= uploadSession.totalChunks; i++) {
     const chunk = uploadSession.file.slice((i - 1) * chunkSize, i * chunkSize);
 
-    const uploadUrl = getProperUrl() + '/api/v1/uploads/chunks';
-    const uploadData = {
-      uploadId: uploadSession.uploadId,
-      chunkData: chunk,
-      chunkIndex: i,
-    };
-    const uploadResponse = await fetch(uploadUrl, {
+    const uploadUrl =
+      getProperUrl() +
+      '/api/v1/uploads/chunks' +
+      '?offset=' +
+      (i - 1) * chunkSize +
+      '&file=' +
+      uploadSession.file.name +
+      '&id=' +
+      uploadSession.uploadId;
+
+    await fetch(uploadUrl, {
       mode: 'no-cors',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(uploadData),
+      body: chunk,
     });
 
-    if (!uploadResponse.ok) {
-      throw new Error('Failed to upload chunk: ' + i);
-    }
-
-    const uploadResult = await uploadResponse.json();
-    if (uploadResult.status != 'Success') {
-      throw new Error('Failed to upload chunk: ' + i);
-    }
+    console.log('Uploaded chunk: ', i);
   }
+
+  // Tell server to verify that upload is complete
+  uploadComplete(uploadSession);
 };
 
-export const uploadComplete = async (uploadId: number) => {
+export const uploadComplete = async (uploadSession: UploadSession) => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
     const completeUrl = getProperUrl() + '/api/v1/uploads/complete';
     const statusData = {
-      uploadId: uploadId,
+      uploadId: uploadSession.uploadId,
     };
     const completeResponse = await fetch(completeUrl, {
-      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(statusData),
@@ -162,6 +154,7 @@ export const uploadComplete = async (uploadId: number) => {
     if (status != 'Completed') {
       throw new Error('Server returned error when finishing upload!');
     }
+    console.log('Completed upload of ', uploadSession.file.name);
   } catch {
     throw new Error('Finishing upload failed!');
   }

@@ -12,7 +12,7 @@ import {
   getDirectoryHandle,
   verifyPermission,
 } from '@/utils/projectDatabase';
-import { UploadSession, uploadMedia, uploadChunks } from '@/utils/uploadMedia';
+import { uploadMedia, uploadChunks } from '@/utils/uploadMedia';
 
 // Define types for your project data
 interface Metadata {
@@ -513,6 +513,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
       // Begin upload to server
       const uploadSession = await uploadMedia(file);
+
+      setTimeout(() => {
+        uploadChunks(uploadSession).catch(console.error);
+      }, 0);
 
       // Update state with new video
       setState((prevState) => {
