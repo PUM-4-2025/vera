@@ -130,7 +130,9 @@ void send_http_response(struct mg_connection *c, int http_code, int id, std::str
                         std::string message) {
   json response = {{"uploadId", id}, {"status", status}, {"message", message}};
   std::string response_str = response.dump();
-  mg_http_reply(c, http_code, "Content-Type: application/json\r\n", response_str.c_str());
+  mg_http_reply(c, http_code, "Access-Control-Allow-Origin: *\r\n"
+    "Content-Type: application/json\r\n"
+    "X-Content-Type-Options: nosniff\r\n", response_str.c_str());
 }
 
 /**
@@ -139,11 +141,11 @@ void send_http_response(struct mg_connection *c, int http_code, int id, std::str
  * to follow better developer practice. 
  */
 int handlePreflight(struct mg_connection *c, struct mg_http_message *msg) {
-  if (msg->body.len == 0) {
-    std::string cors_response = R"(Access-Control-Allow-Origin: * 
-Access-Control-Allow-Methods: GET, POST
-Access-Control-Allow-Headers: X-Custom-Header)";
-    mg_http_reply(c, 200, cors_response.c_str(), nullptr); 
+  if (msg->body.len == 0 || msg->method.buf == "OPTIONS") {
+    mg_http_reply(c, 204, "Access-Control-Allow-Origin: *\r\n"
+      "Access-Control-Allow-Methods: GET, POST\r\n"
+      "Access-Control-Allow-Headers: content-type\r\n"
+      "Access-Control-Allow-Credentials: false\r\n", ""); 
     return 0;
   }
   return 1;
@@ -160,8 +162,6 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
 
   try {
     std::string body = msg->body.buf;
-
-    std::cout << "Request: " << body << std::endl;
 
     json json_body = json::parse(body);
     std::string file_name = json_body["fileName"];
@@ -277,7 +277,9 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
                     {"uploadedChunks", uploaded_chunks},
                     {"totalChunks", total_chunks}};
     std::string response_str = response.dump();
-    mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+    mg_http_reply(c, 200, "Access-Control-Allow-Origin: *\r\n"
+      "Content-Type: application/json\r\n"
+      "X-Content-Type-Options: nosniff\r\n", response_str.c_str());
   } catch (...) {
     send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling status request.");
   }
