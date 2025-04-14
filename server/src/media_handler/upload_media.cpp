@@ -82,50 +82,6 @@ char **base64Decode(const std::string &in) {
 }
 */
 
-void handleChunkUpload(UploadSession &session, int index, const std::string &data) {
-  // Open file in append mode
-  std::string chunk_path = session.path;
-  chunk_path.append("_chunk_");
-  chunk_path.append(std::to_string(index));
-
-  std::ofstream of(chunk_path, std::ios::binary);
-  if (of.is_open()) {
-    of.write(data.c_str(), data.size());
-    of.close();
-  }
-
-  handler.incrementChunk(session);
-}
-
-int assembleFile(UploadSession &session) {
-  std::ofstream of(session.path, std::ios::binary);
-  if (!of.is_open()) {
-    std::cout << session.path << " not opened!" << std::endl;
-    return -1;
-  }
-
-  for (int i = 1; i <= session.total_chunks; i++) {
-    std::string chunk_path = session.path;
-    chunk_path.append("_chunk_");
-    chunk_path.append(std::to_string(i));
-
-    std::ifstream f(chunk_path, std::ios::binary);
-    if (!f.is_open()) {
-      std::cout << chunk_path << " not opened!" << std::endl;
-      of.close();
-      return -1;
-    }
-
-    of << f.rdbuf();
-    f.close();
-  }
-
-  of.close();
-
-  std::cout << "Written to: " << session.path << std::endl;
-  return 0;
-}
-
 void send_http_response(struct mg_connection *c, int http_code, int id, std::string status,
                         std::string message) {
   json response = {{"uploadId", id}, {"status", status}, {"message", message}};
@@ -170,8 +126,9 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
     int upload_id = getUploadId();
     int num_chunks = 0;
 
-    // Chunks are expected to be 5MiB
-    int total_chunks = (file_size / 5242880) + 1;
+    // Chunks are expected to be 5kiB
+    int max_chunk_size = 5 * 1024;
+    int total_chunks = (file_size / max_chunk_size) + 1;
 
     // Create new directory for downloads
     std::string path = "/tmp/vera/";
@@ -186,15 +143,11 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
     if (!std::filesystem::exists(path)) {
       std::filesystem::create_directory(path);
     }
-    path.append(file_name);
-    if (std::filesystem::exists(path)) {
-      std::filesystem::remove(path);
-    }
 
     UploadSession new_session = {};
     new_session.filename = file_name;
     new_session.file_size = file_size;
-    new_session.path = path;
+    new_session.dir = path;
     new_session.session_id = upload_id;
     new_session.completed_chunks = num_chunks;
     new_session.total_chunks = total_chunks;
@@ -216,27 +169,25 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
   }
 
   try {
-    std::string body = msg->body.buf;
-    json json_body = json::parse(body);
-    int upload_id = json_body["uploadId"];
+    char id_buf[20] = "0";
+    mg_http_get_var(&msg->query, "id", id_buf, sizeof id_buf);
 
-    UploadSession *session = handler.getSession(upload_id);
+    UploadSession *session = handler.getSession(std::stoi(id_buf));
 
     if (session == nullptr) {
-      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      send_http_response(c, 404, session->session_id, "Not found", "uploadId not found!");
       return;
     }
 
     if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+      send_http_response(c, 401, session->session_id, "Unauthorized", "Invalid session token!");
       return;
     }
 
-    std::string data = json_body["chunkData"];
-    int index = json_body["chunkIndex"];
-    handleChunkUpload(*session, index, data);
-
-    send_http_response(c, 200, upload_id, "Success", "Chunks received successfully.");
+    // Limit file sizes to 50 GiB for now
+    int max_size = 50 * 1024 * 1024 * 1024;
+    mg_http_upload(c, msg, &mg_fs_posix, session->dir.c_str(), max_size);
+    handler.incrementChunk(*session);
   } catch (...) {
     send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling chunk upload request.");
   }
@@ -280,7 +231,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
     mg_http_reply(c, 200, "Access-Control-Allow-Origin: *\r\n"
       "Content-Type: application/json\r\n"
       "X-Content-Type-Options: nosniff\r\n", response_str.c_str());
-  } catch (...) {
+  } catch ( ... ) {
     send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling status request.");
   }
 }
@@ -310,13 +261,6 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
     if (!handler.sessionCompleted(*session)) {
       send_http_response(c, 418, upload_id, "Failed",
                         "Uploaded chunks != expected number of chunks. Upload failed!");
-      handler.removeSession(*session);
-      return;
-    }
-
-    if (assembleFile(*session) != 0) {
-      send_http_response(c, 418, upload_id, "Failed",
-                        "Something went wrong while assembling all chunks!");
       handler.removeSession(*session);
       return;
     }

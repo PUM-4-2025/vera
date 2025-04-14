@@ -12,7 +12,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
 using UploadSession = struct UploadSession {
   std::string filename;
   int file_size;
-  std::string path;
+  std::string dir;
   int session_id;
   int completed_chunks;
   int total_chunks;
