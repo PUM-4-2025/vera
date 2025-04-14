@@ -14,12 +14,19 @@ export interface UploadStatus {
 
 const url = `${window.location.protocol}//${window.location.hostname}`;
 
+const getProperUrl = (): string => {
+  if (url == 'http://localhost') {
+    return url + ':8000';
+  }
+  return url;
+};
+
 export const uploadMedia = async (file: File): Promise<UploadSession> => {
   console.log('Init upload');
 
   try {
     // Call the inititate API
-    const initUrl = url + '/api/v1/uploads/initiate';
+    const initUrl = getProperUrl() + '/api/v1/uploads/initiate';
     const initData = {
       fileName: file.name,
       fileSize: file.size,
@@ -29,6 +36,8 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(initData),
     });
+
+    console.log(initResponse);
 
     if (!initResponse.ok) {
       throw new Error('Failed to initiate upload with server!');
@@ -65,7 +74,7 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
-    const statusUrl = url + '/api/v1/uploads/status';
+    const statusUrl = getProperUrl() + '/api/v1/uploads/status';
     const statusData = {
       uploadId: uploadId,
     };
@@ -102,7 +111,7 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
   for (let i = 1; i <= uploadSession.totalChunks; i++) {
     const chunk = uploadSession.file.slice((i - 1) * chunkSize, i * chunkSize);
 
-    const uploadUrl = url + '/api/v1/uploads/chunks';
+    const uploadUrl = getProperUrl() + '/api/v1/uploads/chunks';
     const uploadData = {
       uploadId: uploadSession.uploadId,
       chunkData: chunk,
@@ -129,7 +138,7 @@ export const uploadComplete = async (uploadId: number) => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
-    const completeUrl = url + '/api/v1/uploads/complete';
+    const completeUrl = getProperUrl() + '/api/v1/uploads/complete';
     const statusData = {
       uploadId: uploadId,
     };
