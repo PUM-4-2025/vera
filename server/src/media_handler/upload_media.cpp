@@ -134,19 +134,20 @@ void send_http_response(struct mg_connection *c, int http_code, int id, std::str
 }
 
 /**
- * Checks if message is preflight request.
- * Currently assumes a preflight message is an empty body.
+ * TODO: Reimplement this function. Currently doesn't work. 
+ * Currently CORS is not used in client. Could be worth enabling CORS
+ * to follow better developer practice. 
  */
 int handlePreflight(struct mg_connection *c, struct mg_http_message *msg) {
   if (msg->body.len == 0) {
-    std::string cors_response = R"(Access-Control-Allow-Origin: http://localhost:8000 
+    std::string cors_response = R"(Access-Control-Allow-Origin: * 
 Access-Control-Allow-Methods: GET, POST
 Access-Control-Allow-Headers: X-Custom-Header)";
-    mg_http_reply(c, 200, "", nullptr); 
+    mg_http_reply(c, 200, cors_response.c_str(), nullptr); 
     return 0;
   }
   return 1;
-}
+} 
 
 
 /**
@@ -157,49 +158,53 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
     return;
   }
 
-  std::string body = msg->body.buf;
+  try {
+    std::string body = msg->body.buf;
 
-  std::cout << "Request: " << body << std::endl;
+    std::cout << "Request: " << body << std::endl;
 
-  json json_body = json::parse(body);
-  std::string file_name = json_body["fileName"];
-  int file_size = json_body["fileSize"];
+    json json_body = json::parse(body);
+    std::string file_name = json_body["fileName"];
+    int file_size = json_body["fileSize"];
 
-  int upload_id = getUploadId();
-  int num_chunks = 0;
+    int upload_id = getUploadId();
+    int num_chunks = 0;
 
-  // Chunks are expected to be 5MiB
-  int total_chunks = (file_size / 5242880) + 1;
+    // Chunks are expected to be 5MiB
+    int total_chunks = (file_size / 5242880) + 1;
 
-  // Create new directory for downloads
-  std::string path = "/tmp/vera/";
+    // Create new directory for downloads
+    std::string path = "/tmp/vera/";
 
-  if (!std::filesystem::exists(path)) {
-    std::filesystem::create_directory(path);
+    if (!std::filesystem::exists(path)) {
+      std::filesystem::create_directory(path);
+    }
+
+    path.append(us->session_id);
+    path.append("/");
+
+    if (!std::filesystem::exists(path)) {
+      std::filesystem::create_directory(path);
+    }
+    path.append(file_name);
+    if (std::filesystem::exists(path)) {
+      std::filesystem::remove(path);
+    }
+
+    UploadSession new_session = {};
+    new_session.filename = file_name;
+    new_session.file_size = file_size;
+    new_session.path = path;
+    new_session.session_id = upload_id;
+    new_session.completed_chunks = num_chunks;
+    new_session.total_chunks = total_chunks;
+    new_session.us = us;
+
+    handler.newSession(new_session);
+    send_http_response(c, 200, upload_id, "initiated", "Upload session initiated successfully.");
+  } catch (...) {
+    send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling initialize request.");
   }
-
-  path.append(us->session_id);
-  path.append("/");
-
-  if (!std::filesystem::exists(path)) {
-    std::filesystem::create_directory(path);
-  }
-  path.append(file_name);
-  if (std::filesystem::exists(path)) {
-    std::filesystem::remove(path);
-  }
-
-  UploadSession new_session = {};
-  new_session.filename = file_name;
-  new_session.file_size = file_size;
-  new_session.path = path;
-  new_session.session_id = upload_id;
-  new_session.completed_chunks = num_chunks;
-  new_session.total_chunks = total_chunks;
-  new_session.us = us;
-
-  handler.newSession(new_session);
-  send_http_response(c, 200, upload_id, "initiated", "Upload session initiated successfully.");
 }
 
 /**
@@ -210,27 +215,31 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
     return;
   }
 
-  std::string body = msg->body.buf;
-  json json_body = json::parse(body);
-  int upload_id = json_body["uploadId"];
+  try {
+    std::string body = msg->body.buf;
+    json json_body = json::parse(body);
+    int upload_id = json_body["uploadId"];
 
-  UploadSession *session = handler.getSession(upload_id);
+    UploadSession *session = handler.getSession(upload_id);
 
-  if (session == nullptr) {
-    send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
-    return;
+    if (session == nullptr) {
+      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      return;
+    }
+
+    if (session->us->session_id != us->session_id) {
+      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+      return;
+    }
+
+    std::string data = json_body["chunkData"];
+    int index = json_body["chunkIndex"];
+    handleChunkUpload(*session, index, data);
+
+    send_http_response(c, 200, upload_id, "Success", "Chunks received successfully.");
+  } catch (...) {
+    send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling chunk upload request.");
   }
-
-  if (session->us->session_id != us->session_id) {
-    send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
-    return;
-  }
-
-  std::string data = json_body["chunkData"];
-  int index = json_body["chunkIndex"];
-  handleChunkUpload(*session, index, data);
-
-  send_http_response(c, 200, upload_id, "Success", "Chunks received successfully.");
 }
 
 /**
@@ -241,33 +250,37 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
     return;
   }
 
-  std::string body = msg->body.buf;
-  json json_body = json::parse(body);
-  int upload_id = json_body["uploadId"];
+  try {
+    std::string body = msg->body.buf;
+    json json_body = json::parse(body);
+    int upload_id = json_body["uploadId"];
 
-  UploadSession *session = handler.getSession(upload_id);
+    UploadSession *session = handler.getSession(upload_id);
 
-  if (session == nullptr) {
-    send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
-    return;
+    if (session == nullptr) {
+      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      return;
+    }
+
+    if (session->us->session_id != us->session_id) {
+      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+      return;
+    }
+
+    int uploaded_chunks = session->completed_chunks;
+    int total_chunks = session->total_chunks;
+
+    // Edge case, more information is expected to be returned.
+    // Therefore the send_http_response() helper function is not used here.
+    json response = {{"uploadId", upload_id},
+                    {"status", "In progress"},
+                    {"uploadedChunks", uploaded_chunks},
+                    {"totalChunks", total_chunks}};
+    std::string response_str = response.dump();
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
+  } catch (...) {
+    send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling status request.");
   }
-
-  if (session->us->session_id != us->session_id) {
-    send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
-    return;
-  }
-
-  int uploaded_chunks = session->completed_chunks;
-  int total_chunks = session->total_chunks;
-
-  // Edge case, more information is expected to be returned.
-  // Therefore the send_http_response() helper function is not used here.
-  json response = {{"uploadId", upload_id},
-                   {"status", "In progress"},
-                   {"uploadedChunks", uploaded_chunks},
-                   {"totalChunks", total_chunks}};
-  std::string response_str = response.dump();
-  mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }
 
 void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
@@ -275,36 +288,40 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
     return;
   }
 
-  std::string body = msg->body.buf;
-  json json_body = json::parse(body);
-  int upload_id = json_body["uploadId"];
+  try {
+    std::string body = msg->body.buf;
+    json json_body = json::parse(body);
+    int upload_id = json_body["uploadId"];
 
-  UploadSession *session = handler.getSession(upload_id);
+    UploadSession *session = handler.getSession(upload_id);
 
-  if (session == nullptr) {
-    send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
-    return;
-  }
+    if (session == nullptr) {
+      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      return;
+    }
 
-  if (session->us->session_id != us->session_id) {
-    send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
-    return;
-  }
+    if (session->us->session_id != us->session_id) {
+      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+      return;
+    }
 
-  if (!handler.sessionCompleted(*session)) {
-    send_http_response(c, 418, upload_id, "Failed",
-                       "Uploaded chunks != expected number of chunks. Upload failed!");
+    if (!handler.sessionCompleted(*session)) {
+      send_http_response(c, 418, upload_id, "Failed",
+                        "Uploaded chunks != expected number of chunks. Upload failed!");
+      handler.removeSession(*session);
+      return;
+    }
+
+    if (assembleFile(*session) != 0) {
+      send_http_response(c, 418, upload_id, "Failed",
+                        "Something went wrong while assembling all chunks!");
+      handler.removeSession(*session);
+      return;
+    }
+
+    send_http_response(c, 200, upload_id, "Completed", "Upload completed successfully");
     handler.removeSession(*session);
-    return;
+  } catch (...) {
+    send_http_response(c, 500, 0, "Failure", "Server experienced an exception while handling complete request.");
   }
-
-  if (assembleFile(*session) != 0) {
-    send_http_response(c, 418, upload_id, "Failed",
-                       "Something went wrong while assembling all chunks!");
-    handler.removeSession(*session);
-    return;
-  }
-
-  send_http_response(c, 200, upload_id, "Completed", "Upload completed successfully");
-  handler.removeSession(*session);
 }
