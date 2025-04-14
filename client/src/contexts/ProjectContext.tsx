@@ -481,9 +481,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         return undefined;
       }
 
-      // Begin upload to server
-      const uploadSession = await uploadMedia(file);
-
       // At this point, TypeScript should know file is not null
       // Get the file name and make sure it exists
       const fileName = file.name;

@@ -32,6 +32,7 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       fileSize: file.size,
     };
     const initResponse = await fetch(initUrl, {
+      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(initData),
@@ -79,6 +80,7 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
       uploadId: uploadId,
     };
     const statusResponse = await fetch(statusUrl, {
+      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(statusData),
@@ -118,6 +120,7 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
       chunkIndex: i,
     };
     const uploadResponse = await fetch(uploadUrl, {
+      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(uploadData),
@@ -143,6 +146,7 @@ export const uploadComplete = async (uploadId: number) => {
       uploadId: uploadId,
     };
     const completeResponse = await fetch(completeUrl, {
+      mode: 'no-cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(statusData),
