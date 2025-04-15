@@ -28,9 +28,9 @@ TEST_CASE("extract creates a .wav file from video input", "[extract]") {
     extract(input_path);
 
     cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << endl;
-
+ 
     // Verifiera att .wav-filen nu finns
-    REQUIRE(fs::exists(PATH + wav_file));
+    REQUIRE(fs::exists(wav_file));
 
     // Städa upp
     fs::remove(wav_file);
