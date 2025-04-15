@@ -5,745 +5,534 @@ import React, {
   useContext,
   useEffect,
   ReactNode,
+  useRef,
 } from 'react';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { addRecentProject } from '@/utils/recentProjects';
 import {
   storeDirectoryHandle,
   getDirectoryHandle,
   verifyPermission,
 } from '@/utils/projectDatabase';
+import { useFFmpeg } from './FFmpegContext';
 
-// Define types for your project data
-interface Metadata {
-  name: string;
-  projectDescription: string;
-  projectCreated: string;
-  projectUpdated: string;
+// Import types from the dedicated types file
+import {
+  Metadata,
+  VideoEntry,
+  BookmarkData,
+  ProjectState,
+  ProjectContextType,
+} from '@/types/project';
 
-  videoFiles: string[];
-}
+// Import utility functions
+import {
+  loadProjectLogic,
+  createProjectLogic,
+  saveProjectLogic,
+  uploadVideoLogic,
+} from '@/utils/projectUtils';
 
-interface VideoData {
-  name: string;
-  objectURL: string;
-  fileHandle: FileSystemFileHandle;
-}
+const defaultMetadata: Metadata = {
+  name: 'Untitled Project',
+  projectDescription: '',
+  projectCreated: new Date().toISOString(),
+  projectUpdated: new Date().toISOString(),
+  videos: {},
+  annotationFiles: [],
+  bookmarkFiles: [],
+  analysisFiles: [],
+};
 
-interface BookmarkData {
-  name: string;
-  description: string;
-  objectURL: string;
-  fileHandle: FileSystemFileHandle;
-}
-
-interface ProjectState {
-  projectDirectoryHandle: FileSystemDirectoryHandle | null;
-  metadata: Metadata | null;
-  videos: Record<string, VideoData>;
-  bookmarks: Record<string, BookmarkData>;
-  isLoading: boolean;
-  error: string | null;
-  currentVideoId: string | null;
-}
-
-interface ProjectContextType extends ProjectState {
-  loadProject: () => Promise<void>;
-  loadProjectFromHandle: (path: string) => Promise<void>;
-  saveProject: () => Promise<void>;
-  uploadVideo: () => Promise<string | undefined>;
-  createProject: (
-    name: string,
-    description: string,
-    dirHandle?: FileSystemDirectoryHandle
-  ) => Promise<void>;
-  updateBookmark: (videoId: string, newBookmarkData: BookmarkData) => void;
-  setCurrentVideoId: (videoId: string | null) => void;
-  selectProjectLocation: () => Promise<FileSystemDirectoryHandle | null>;
-}
-
-// Create initial state
+// Create initial state (conforms to ProjectState type)
 const initialState: ProjectState = {
   projectDirectoryHandle: null,
-  metadata: null,
+  metadata: defaultMetadata,
   videos: {},
   bookmarks: {},
+  annotations: {},
+  analysis: {},
   isLoading: false,
   error: null,
   currentVideoId: null,
+  isSaved: true,
 };
 
 // Create the context
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 // Provider component
-export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<ProjectState>(initialState);
-
-  // Clean up object URLs when unmounting or when videos change
-  useEffect(() => {
+  const { ffmpeg } = useFFmpeg();
+  const justSavedRef = useRef(false);
+  const justLoadedRef = useRef(false);
+  // Helper function to manage object URL cleanup
+  const manageObjectUrlCleanup = useCallback(() => {
+    // Store the object URLs currently in state when the component mounts
+    const initialObjectUrls = Object.values(state.videos)
+                                    .map(v => v.objectURL)
+                                    .filter(url => !!url) as string[];
     return () => {
-      Object.values(state.videos).forEach((video) => {
-        if (video.objectURL) URL.revokeObjectURL(video.objectURL);
-      });
+      // Revoke any URLs that were present initially or created during the component's lifetime
+      // This is a broad cleanup; more precise cleanup happens in loadProjectLogic
+      console.log('ProjectContext unmounting, revoking Object URLs');
+      const currentObjectUrls = Object.values(state.videos)
+                                      .map(v => v.objectURL)
+                                      .filter(url => !!url) as string[];
+      // Combine initial and current in case state cleared without revocation
+      const allUrls = new Set([...initialObjectUrls, ...currentObjectUrls]);
+      allUrls.forEach(url => URL.revokeObjectURL(url));
     };
-  }, []); // Only run on unmount, not when videos change
+  }, [state.videos]);
 
-  const loadProject = useCallback(async () => {
-    setState((s) => ({ ...s, isLoading: true, error: null }));
-    try {
-      // Check if File System Access API is supported
-      if (!('showDirectoryPicker' in window)) {
-        throw new Error(
-          'Your browser does not support the File System Access API'
-        );
-      }
+  // Clean up object URLs when unmounting
+  // This useEffect should ONLY run on unmount, so its dependency array is empty.
+  // Object URLs are now created/revoked within the logic functions.
+  useEffect(() => {
+    const cleanup = manageObjectUrlCleanup();
+    return cleanup;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array: Run only on mount and unmount
 
-      const dirHandle = await window.showDirectoryPicker();
+  /**
+   * Updates the state with loaded project data.
+   * @param loadedData - The data loaded from the project directory.
+   * @param dirHandle - The directory handle of the loaded project.
+   */
+  const updateStateWithLoadedData = useCallback((loadedData: {
+    metadata: Metadata | null;
+    videos: Record<string, VideoEntry>;
+    currentVideoId: string | null;
+  }, dirHandle: FileSystemDirectoryHandle) => {
+    setState((s) => ({
+      ...s, // Start with the previous state
+      // Explicitly update fields from loaded data or reset them
+      projectDirectoryHandle: dirHandle,
+      metadata: loadedData.metadata ?? defaultMetadata, // Use default if loaded is null
+      videos: loadedData.videos,
+      bookmarks: {}, // TODO: Add bookmarks
+      annotations: {}, // TODO: Add annotations
+      analysis: {}, // TODO: Add analysis
+      currentVideoId: loadedData.currentVideoId,
+      isLoading: false,
+      error: null,     // Clear any previous errors
+      isSaved: true,
+    }));
+  }, []);
 
-      // Reset state for new project
-      const newState = {
-        ...initialState,
-        projectDirectoryHandle: dirHandle,
-        isLoading: true,
-      };
-
-      // 1. Load Metadata
+  /**
+   * Performs post-load actions such as storing the directory handle and updating recent projects.
+   * @param dirHandle - The directory handle of the loaded project.
+   * @param metadata - The metadata of the loaded project.
+   * @param path - The path or name used as the key in IndexedDB.
+   */
+  const performPostLoadActions = useCallback(async (dirHandle: FileSystemDirectoryHandle, metadata: Metadata | null, path: string) => {
+    if (metadata) {
       try {
-        const metadataFileHandle =
-          await dirHandle.getFileHandle('metadata.json');
-        const metadataFile = await metadataFileHandle.getFile();
-        const metadataText = await metadataFile.text();
-        newState.metadata = JSON.parse(metadataText);
-      } catch (e) {
-        console.error('Failed to load metadata.json:', e);
-        throw new Error('Could not load essential metadata.json');
-      }
-
-      const videoFiles = newState.metadata?.videoFiles || [];
-      const videos: Record<string, VideoData> = {};
-      const bookmarks: Record<string, BookmarkData> = {};
-
-      // Get subdirectory handles
-      let videosDirHandle: FileSystemDirectoryHandle | undefined;
-      let bookmarksDirHandle: FileSystemDirectoryHandle | undefined;
-
-      try {
-        videosDirHandle = await dirHandle.getDirectoryHandle('videos');
-      } catch (e) {
-        console.warn('Videos directory not found:', e);
-      }
-      try {
-        bookmarksDirHandle = await dirHandle.getDirectoryHandle('bookmarks');
-      } catch (e) {
-        console.warn('Bookmarks directory not found:', e);
-      }
-
-      // 2. Load Videos, Annotations, Bookmarks, Analysis concurrently
-      await Promise.all(
-        videoFiles.map(async (videoFilename) => {
-          const videoId = videoFilename.split('.').slice(0, -1).join('.');
-
-          // Load Video file
-          if (videosDirHandle) {
-            try {
-              const fileHandle =
-                await videosDirHandle.getFileHandle(videoFilename);
-              const file = await fileHandle.getFile();
-              // Revoke previous URL if reloading same video ID
-              if (state.videos[videoId]?.objectURL) {
-                URL.revokeObjectURL(state.videos[videoId].objectURL);
-              }
-              const objectURL = URL.createObjectURL(file);
-              videos[videoId] = {
-                name: videoFilename,
-                objectURL,
-                fileHandle,
-              };
-            } catch (e) {
-              console.warn(`Could not load video ${videoFilename}:`, e);
-            }
-          }
-          // Load Bookmarks
-          if (bookmarksDirHandle) {
-            try {
-              const bmFileName = `${videoId}_bookmarks.json`;
-              const bmFileHandle =
-                await bookmarksDirHandle.getFileHandle(bmFileName);
-              const bmFile = await bmFileHandle.getFile();
-              bookmarks[videoId] = JSON.parse(await bmFile.text());
-            } catch (e) {
-              /* Expected if no bookmarks exist yet */
-            }
-          }
-        })
-      );
-
-      newState.videos = videos;
-      newState.bookmarks = bookmarks;
-
-      // Select first video by default if any are loaded
-      const firstVideoId = Object.keys(videos)[0];
-      if (firstVideoId) {
-        newState.currentVideoId = firstVideoId;
-      }
-
-      console.log('Project Loaded Successfully:', newState.metadata?.name);
-
-      // Store directory handle in IndexedDB
-      if (newState.metadata && dirHandle) {
-        try {
-          await storeDirectoryHandle(dirHandle.name, dirHandle);
-        } catch (error) {
-          console.warn('Could not store directory handle in IndexedDB:', error);
-        }
-
-        // Add to recent projects
+        await storeDirectoryHandle(dirHandle.name, dirHandle);
         addRecentProject({
-          name: newState.metadata.name,
-          path: dirHandle.name,
-          description: newState.metadata.projectDescription,
+          name: metadata.name,
+          path: path,
+          description: metadata.projectDescription,
           lastOpened: new Date().toISOString(),
         });
+      } catch (postLoadError) {
+        console.warn("Post-load actions failed (IndexedDB/RecentProjects):", postLoadError);
       }
+    }
+  }, []);
 
-      setState({ ...newState, isLoading: false });
+  /**
+   * Prompts the user to select a project directory and loads the project.
+   */
+  const loadProject = useCallback(async () => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    let dirHandle: FileSystemDirectoryHandle | null = null;
+    try {
+      if (!('showDirectoryPicker' in window)) {
+        throw new Error('File System Access API is not supported in your browser.');
+      }
+      dirHandle = await window.showDirectoryPicker();
+      if (!dirHandle) throw new Error("No directory selected."); // Should not happen unless API changes
+
+      // Call the utility function to perform loading logic
+      const loadedData = await loadProjectLogic(dirHandle, state.videos);
+
+      // Update state with the loaded data
+      updateStateWithLoadedData(loadedData, dirHandle);
+
+      // Update the ref to indicate that we just loaded
+      justLoadedRef.current = true;
+
+      // Post-load actions
+      await performPostLoadActions(dirHandle, loadedData.metadata, dirHandle.name);
+
+      console.log('Project Loaded Successfully:', loadedData.metadata?.name);
+
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Error loading project:', err);
-        setState((_) => ({
-          ...initialState,
-          error: err.message || 'Failed to load project.',
-        }));
+        setState((_) => ({ ...initialState, error: err.message || 'Failed to load project.' }));
       } else {
-        setState((s) => ({ ...s, isLoading: false })); // User cancelled
+        // User cancelled the directory picker or another AbortError
+        setState((s) => ({ ...s, isLoading: false }));
       }
     }
-  }, [state.videos]);
+  // state.videos is passed to loadProjectLogic to handle URL revocation, but
+  // loadProject itself shouldn't re-run just because videos change in state.
+  // It runs on user action.
+  }, [state.videos, updateStateWithLoadedData, performPostLoadActions]);
 
-  const loadProjectFromHandle = useCallback(
-    async (path: string) => {
-      setState((s) => ({ ...s, isLoading: true, error: null }));
-      try {
-        // Get directory handle from IndexedDB
-        const dirHandle = await getDirectoryHandle(path);
-
-        if (!dirHandle) {
-          throw new Error('Project directory not found in storage');
-        }
-
-        // Verify we have permission to access this directory
-        const hasPermission = await verifyPermission(dirHandle);
-        if (!hasPermission) {
-          throw new Error('Permission denied to access project directory');
-        }
-
-        // Reset state for new project
-        const newState = {
-          ...initialState,
-          projectDirectoryHandle: dirHandle,
-          isLoading: true,
-        };
-
-        // 1. Load Metadata
-        try {
-          const metadataFileHandle =
-            await dirHandle.getFileHandle('metadata.json');
-          const metadataFile = await metadataFileHandle.getFile();
-          const metadataText = await metadataFile.text();
-          newState.metadata = JSON.parse(metadataText);
-        } catch (e) {
-          console.error('Failed to load metadata.json:', e);
-          throw new Error('Could not load essential metadata.json');
-        }
-
-        const videoFiles = newState.metadata?.videoFiles || [];
-        const videos: Record<string, VideoData> = {};
-        const bookmarks: Record<string, BookmarkData> = {};
-
-        // Get subdirectory handles
-        let videosDirHandle: FileSystemDirectoryHandle | undefined;
-        let bookmarksDirHandle: FileSystemDirectoryHandle | undefined;
-
-        try {
-          videosDirHandle = await dirHandle.getDirectoryHandle('videos');
-        } catch (e) {
-          console.warn('Videos directory not found:', e);
-        }
-        try {
-          bookmarksDirHandle = await dirHandle.getDirectoryHandle('bookmarks');
-        } catch (e) {
-          console.warn('Bookmarks directory not found:', e);
-        }
-
-        // 2. Load Videos, Annotations, Bookmarks, Analysis concurrently
-        await Promise.all(
-          videoFiles.map(async (videoFilename) => {
-            const videoId = videoFilename.split('.').slice(0, -1).join('.');
-
-            // Load Video file
-            if (videosDirHandle) {
-              try {
-                const fileHandle =
-                  await videosDirHandle.getFileHandle(videoFilename);
-                const file = await fileHandle.getFile();
-                // Revoke previous URL if reloading same video ID
-                if (state.videos[videoId]?.objectURL) {
-                  URL.revokeObjectURL(state.videos[videoId].objectURL);
-                }
-                const objectURL = URL.createObjectURL(file);
-                videos[videoId] = {
-                  name: videoFilename,
-                  objectURL,
-                  fileHandle,
-                };
-              } catch (e) {
-                console.warn(`Could not load video ${videoFilename}:`, e);
-              }
-            }
-            // Load Bookmarks
-            if (bookmarksDirHandle) {
-              try {
-                const bmFileName = `${videoId}_bookmarks.json`;
-                const bmFileHandle =
-                  await bookmarksDirHandle.getFileHandle(bmFileName);
-                const bmFile = await bmFileHandle.getFile();
-                bookmarks[videoId] = JSON.parse(await bmFile.text());
-              } catch (e) {
-                /* Expected if no bookmarks exist yet */
-              }
-            }
-          })
-        );
-
-        newState.videos = videos;
-        newState.bookmarks = bookmarks;
-
-        // Select first video by default if any are loaded
-        const firstVideoId = Object.keys(videos)[0];
-        if (firstVideoId) {
-          newState.currentVideoId = firstVideoId;
-        }
-
-        console.log(
-          'Project Loaded Successfully from handle:',
-          newState.metadata?.name
-        );
-
-        // Add to recent projects (updates the lastOpened timestamp)
-        if (newState.metadata) {
-          addRecentProject({
-            name: newState.metadata.name,
-            path: path,
-            description: newState.metadata.projectDescription,
-            lastOpened: new Date().toISOString(),
-          });
-        }
-
-        setState({ ...newState, isLoading: false });
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          console.error('Error loading project from handle:', err);
-          setState((_) => ({
-            ...initialState,
-            error: err.message || 'Failed to load project from handle.',
-          }));
-        } else {
-          setState((s) => ({ ...s, isLoading: false }));
-        }
-      }
-    },
-    [state.videos]
-  );
-
-  const saveProject = useCallback(async () => {
-    if (!state.projectDirectoryHandle) {
-      setState((s) => ({
-        ...s,
-        error: 'No project directory loaded to save to.',
-      }));
-      return;
-    }
-
-    if (state.isLoading) return;
-
+  /**
+   * Loads a project from a previously stored directory handle path (IndexedDB).
+   * @param path - The name/path used as the key in IndexedDB.
+   */
+  const loadProjectFromHandle = useCallback(async (path: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
-
     try {
-      const dirHandle = state.projectDirectoryHandle;
+      const dirHandle = await getDirectoryHandle(path);
+      if (!dirHandle) {
+        throw new Error(`Project directory "${path}" not found in storage. It may have been moved or deleted.`);
+      }
 
-      // 1. Save Metadata
-      const metaFileHandle = await dirHandle.getFileHandle('metadata.json', {
-        create: true,
+      // Verify permission - this might re-prompt the user
+      const hasPermission = await verifyPermission(dirHandle);
+      if (!hasPermission) {
+        throw new Error(`Permission denied to access project directory "${path}". Please grant access.`);
+      }
+
+      // Reuse the main loading logic function
+      const loadedData = await loadProjectLogic(dirHandle, state.videos);
+
+      // Update state with the loaded data
+      updateStateWithLoadedData(loadedData, dirHandle);
+
+      // Update the ref to indicate that we just loaded
+      justLoadedRef.current = true;
+
+      // Update recent projects timestamp
+      await performPostLoadActions(dirHandle, loadedData.metadata, path);
+
+      console.log('Project Loaded Successfully from handle:', loadedData.metadata?.name);
+
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Error loading project from handle:', err);
+        setState((_) => ({ ...initialState, error: err.message || 'Failed to load project from stored handle.' }));
+      } else {
+        setState((s) => ({ ...s, isLoading: false })); // Should not happen
+      }
+    }
+  // Dependency justification similar to loadProject
+  }, [state.videos, updateStateWithLoadedData, performPostLoadActions]);
+
+  /**
+   * Saves the current project state (metadata, bookmarks) to disk.
+   * Returns the updated metadata or null if saving failed.
+   */
+  const saveProject = useCallback(async (): Promise<Metadata | null> => {
+    if (!state.projectDirectoryHandle) {
+      const errorMsg = 'No project directory loaded to save to.';
+      setState((s) => ({ ...s, error: errorMsg }));
+      console.error(errorMsg);
+      return null;
+    }
+    if (state.isLoading) {
+        console.warn("Save operation skipped: Another operation is in progress.");
+        return state.metadata;
+    }
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      const result = await saveProjectLogic({
+        ...state,
+        projectDirectoryHandle: state.projectDirectoryHandle,
+        metadata: state.metadata,
       });
-      const metaWritable = await metaFileHandle.createWritable();
-      await metaWritable.write(JSON.stringify(state.metadata, null, 2));
-      await metaWritable.close();
-
-      // 2. Create subdirectories if they don't exist
-      const bookmarksDirHandle = await dirHandle.getDirectoryHandle(
-        'bookmarks',
-        { create: true }
-      );
-
-      // Create a videos directory if it doesn't exist
-      try {
-        await dirHandle.getDirectoryHandle('videos');
-      } catch (e) {
-        await dirHandle.getDirectoryHandle('videos', {
-          create: true,
-        });
-      }
-
-      // 3. Save Bookmarks
-      for (const [videoId, bookmarkData] of Object.entries(state.bookmarks)) {
-        const bmFileName = `${videoId}_bookmarks.json`;
-        const bmFileHandle = await bookmarksDirHandle.getFileHandle(
-          bmFileName,
-          { create: true }
-        );
-        const bmWritable = await bmFileHandle.createWritable();
-        await bmWritable.write(JSON.stringify(bookmarkData, null, 2));
-        await bmWritable.close();
-      }
-
-      console.log('Project saved successfully');
       setState((s) => ({
         ...s,
+        metadata: result.updatedMetadata,
         isLoading: false,
+        isSaved: true,
       }));
+      justSavedRef.current = true;
+      console.log('Project saved successfully');
+      return result.updatedMetadata;
     } catch (err: unknown) {
       console.error('Error saving project:', err);
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to save project.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save project.';
       setState((s) => ({ ...s, isLoading: false, error: errorMessage }));
+      return null;
     }
-  }, [state]);
+  }, [state.projectDirectoryHandle, state.metadata, state.isLoading, state.videos, state.bookmarks, state.annotations, state.analysis]);
 
+  /**
+   * Updates the state with a new video entry after upload.
+   * @param videoId - The ID of the uploaded video.
+   * @param videoEntry - The video entry data.
+   */
+  const updateVideoState = useCallback((videoId: string, videoEntry: VideoEntry) => {
+    setState((s) => ({
+      ...s,
+      videos: {
+        ...s.videos,
+        [videoId]: videoEntry,
+      },
+      currentVideoId: videoId,
+      isLoading: false,
+      error: null,
+    }));
+  }, []);
+
+  /**
+   * Prompts the user to select a video file, processes it, and adds it to the project state.
+   * @returns The videoId of the uploaded video, or undefined on failure/cancellation.
+   */
   const uploadVideo = useCallback(async (): Promise<string | undefined> => {
-    if (!state.projectDirectoryHandle) {
-      setState((s) => ({
-        ...s,
-        error: 'No project directory loaded to upload to.',
-      }));
-      return undefined;
-    }
-
-    if (state.isLoading) return undefined;
-
     setState((s) => ({ ...s, isLoading: true, error: null }));
+    let file: File | null = null;
 
     try {
-      // Create file input element
+      // --- Simplified File Picker Logic ---
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.accept = 'video/*';
+      fileInput.style.display = 'none'; // Keep it hidden
 
-      // Create promise that will resolve with the selected file
       const filePromise = new Promise<File | null>((resolve) => {
-        // Handle file selection
-        fileInput.addEventListener('change', () => {
+        const onChange = () => {
           const files = fileInput.files;
-          if (files && files.length > 0) {
-            // TypeScript needs this assertion to be sure the file exists
-            const file = files[0] as File;
-            resolve(file);
+          if (files && files.length > 0 && files[0]) {
+            console.log('File selected:', files[0].name);
+            resolve(files[0]);
           } else {
+            // No file selected, or user cancelled the dialog
+            console.log('File selection dialog closed without selection (onChange triggered).');
             resolve(null);
           }
-        });
+          cleanup(); // Clean up listeners and input element
+        };
 
-        // Handle cancellation
-        window.addEventListener(
-          'focus',
-          () => {
-            setTimeout(() => {
-              if (!fileInput.files || fileInput.files.length === 0) {
-                resolve(null);
-              }
-            }, 300);
-          },
-          { once: true }
-        );
+        // Function to remove listeners and the input element
+        const cleanup = () => {
+          fileInput.removeEventListener('change', onChange);
+          // No longer need focus listener or its check
+          if (document.body.contains(fileInput)) {
+            document.body.removeChild(fileInput);
+          }
+          console.log('File input cleaned up.');
+        };
+
+        // IMPORTANT: Add the change listener *before* clicking
+        fileInput.addEventListener('change', onChange);
+
+        // Add the input to the DOM temporarily to allow click()
+        document.body.appendChild(fileInput);
+        fileInput.click();
+
+        // Note: If the user closes the dialog without selecting *anything*,
+        // the 'change' event might not fire reliably across all browsers.
+        // However, resolving with null in the onChange when files.length is 0
+        // covers the most common cancellation/no-selection scenario.
       });
 
-      // Show file dialog
-      fileInput.click();
+      file = await filePromise;
+      // --- End File Picker Logic ---
 
-      // Wait for user to select a file
-      const file = await filePromise;
-
-      // If no file was selected, stop here
       if (!file) {
+        // This log message should now only appear if the promise genuinely resolved with null
+        console.log("Video upload cancelled by user or no file selected.");
         setState((s) => ({ ...s, isLoading: false }));
         return undefined;
       }
 
-      // At this point, TypeScript should know file is not null
-      // Get the file name and make sure it exists
-      const fileName = file.name;
-
-      // Create video ID from filename (without extension)
-      const videoId = fileName.split('.').slice(0, -1).join('.');
-      // Extract file extension (or use mp4 as default)
-      const extension = fileName.split('.').pop() || 'mp4';
-
-      // Create final filename
-      const videoFileName = `${videoId}.${extension}`;
-
-      // Get videos directory
-      const videosDirHandle =
-        await state.projectDirectoryHandle.getDirectoryHandle('videos', {
-          create: true,
-        });
-
-      // Save file to videos directory
-      const videoFileHandle = await videosDirHandle.getFileHandle(
-        videoFileName,
-        { create: true }
+      // --- Process Video and Update State ---
+      const result = await uploadVideoLogic(
+        file,
+        ffmpeg as FFmpeg,
+        state.metadata as Metadata
       );
-      const writable = await videoFileHandle.createWritable();
-      await writable.write(file);
-      await writable.close();
 
-      // Create URL for video preview
-      const objectURL = URL.createObjectURL(file);
+      // Set the updated metadata in the state *before* calling updateVideoState
+      setState(s => ({ ...s, metadata: result.updatedMetadata }));
 
-      // Update state with new video
-      setState((prevState) => {
-        // Update metadata to include new video
-        const updatedMetadata = prevState.metadata
-          ? {
-              ...prevState.metadata,
-              videoFiles: [
-                ...(prevState.metadata.videoFiles || []),
-                videoFileName,
-              ],
-              projectUpdated: new Date().toISOString(),
-            }
-          : null;
+      // Update state with the new video
+      updateVideoState(result.videoId, result.videoEntry);
+      console.log('Video added to state:', result.videoId);
+      console.log('videos', state.videos);
+      return result.videoId;
 
-        // Preserve existing videos and their blob URLs
-        // Add the new video to the videos object without affecting existing ones
-        return {
-          ...prevState,
-          metadata: updatedMetadata,
-          videos: {
-            ...prevState.videos,
-            [videoId]: {
-              name: videoFileName,
-              objectURL,
-              fileHandle: videoFileHandle,
-            },
-          },
-          currentVideoId: videoId,
-          isLoading: false,
-        };
-      });
-
-      // Save changes to disk
-      await saveProject();
-      console.log('Video uploaded successfully:', videoId);
-
-      return videoId;
     } catch (err: unknown) {
       console.error('Error uploading video:', err);
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to upload video.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload video.';
+
+      // Revoke object URL if it was created before the error occurred
+      if (file) {
+        const videoId = getVideoIdFromFilename(file.name);
+        const videoEntry = state.videos[videoId];
+        if (videoEntry?.objectURL) {
+          try {
+            console.log(`Attempting to revoke object URL for failed upload: ${videoEntry.objectURL}`);
+            URL.revokeObjectURL(videoEntry.objectURL);
+          } catch (revokeError) {
+            console.warn(`Error revoking object URL for ${videoId} during error handling:`, revokeError);
+          }
+        }
+      }
+
       setState((s) => ({ ...s, isLoading: false, error: errorMessage }));
       return undefined;
     }
-  }, [
-    state.projectDirectoryHandle,
-    state.isLoading,
-    state.metadata,
-    saveProject,
-  ]);
+  }, [state.projectDirectoryHandle, state.metadata, state.videos, ffmpeg, updateVideoState]);
 
-  // Action to update bookmark data
-  const updateBookmark = useCallback(
-    (videoId: string, newBookmarkData: BookmarkData) => {
-      setState((s) => ({
-        ...s,
-        bookmarks: {
-          ...s.bookmarks,
-          [videoId]: newBookmarkData,
-        },
-      }));
-    },
-    []
-  );
-
-  // Action to set current video
-  const setCurrentVideoId = useCallback((videoId: string | null) => {
-    setState((s) => ({ ...s, currentVideoId: videoId }));
-  }, []);
-
-  // Add this new function inside the ProjectProvider component
-  const createProject = useCallback(
-    async (
+  /**
+   * Creates a new project directory and initializes it with metadata.
+   * @param name - Project name.
+   * @param description - Project description.
+   * @param dirHandle - Optional: A pre-selected directory handle to create the project folder within.
+   */
+  const createProject = useCallback(async (
       name: string,
       description: string,
-      projectDirHandle?: FileSystemDirectoryHandle
+      projectDirHandle: FileSystemDirectoryHandle 
     ) => {
-      setState((s) => ({ ...s, isLoading: true, error: null }));
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      let parentDirHandle = projectDirHandle;
 
+      // Call utility function to handle directory/file creation
+      const result = await createProjectLogic(parentDirHandle, name, description, state);
+
+      // Update state with the newly created project data
+      setState((prev) => ({
+        ...prev,
+        projectDirectoryHandle: result.projectDirectoryHandle,
+        metadata: result.metadata,
+        isLoading: false,
+        error: null,
+        isSaved: true,
+      }));
+      
+      await saveProjectLogic({
+        ...state,
+        projectDirectoryHandle: result.projectDirectoryHandle,
+        metadata: result.metadata,
+      });
+
+      // Update the ref to indicate that we just saved
+      justSavedRef.current = true;
+
+      // Post-creation actions: Store handle and add to recent projects
       try {
-        // Check if File System Access API is supported
-        if (!('showDirectoryPicker' in window)) {
-          throw new Error(
-            'Your browser does not support the File System Access API'
-          );
-        }
-
-        // If no directory handle is provided, prompt user to select one
-        let parentDirHandle = projectDirHandle;
-        if (!parentDirHandle) {
-          parentDirHandle = await window.showDirectoryPicker({
-            id: 'veraProject',
-            mode: 'readwrite',
-          });
-        }
-
-        // Create a sanitized project name for the directory
-        const projectDirName = name
-          .trim()
-          .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric with underscore
-          .toLowerCase(); // Convert to lowercase
-
-        if (projectDirName === '') {
-          throw new Error(
-            'Project name must contain at least one alphanumeric character'
-          );
-        }
-
-        // Create a subdirectory with the project name
-        let projectSubDirHandle;
-        try {
-          projectSubDirHandle = await parentDirHandle.getDirectoryHandle(
-            projectDirName,
-            { create: true }
-          );
-        } catch (e) {
-          console.error('Failed to create project subdirectory:', e);
-          throw new Error(
-            `Could not create project folder "${projectDirName}"`
-          );
-        }
-
-        // Create basic metadata
-        const metadata: Metadata = {
-          name,
-          projectDescription: description || '',
-          projectCreated: new Date().toISOString(),
-          projectUpdated: new Date().toISOString(),
-          videoFiles: [],
-        };
-
-        // Create project structure inside the subdirectory
-        try {
-          await projectSubDirHandle.getDirectoryHandle('videos', {
-            create: true,
-          });
-          await projectSubDirHandle.getDirectoryHandle('bookmarks', {
-            create: true,
-          });
-        } catch (e) {
-          console.error('Failed to create project subdirectories:', e);
-          throw new Error('Could not create project structure');
-        }
-
-        // Save metadata file
-        try {
-          const metadataFileHandle = await projectSubDirHandle.getFileHandle(
-            'metadata.json',
-            { create: true }
-          );
-          const metadataWritable = await metadataFileHandle.createWritable();
-          await metadataWritable.write(JSON.stringify(metadata, null, 2));
-          await metadataWritable.close();
-        } catch (e) {
-          console.error('Failed to write metadata.json:', e);
-          throw new Error('Could not create metadata.json');
-        }
-
-        // Update application state with the new project
-        setState((_) => ({
-          ...initialState,
-          projectDirectoryHandle: projectSubDirHandle,
-          metadata,
-          isLoading: false,
-        }));
-
-        console.log('Project Created Successfully:', name);
-
-        // Store directory handle in IndexedDB
-        if (projectSubDirHandle) {
-          try {
-            await storeDirectoryHandle(
-              projectSubDirHandle.name,
-              projectSubDirHandle
-            );
-          } catch (error) {
-            console.warn(
-              'Could not store directory handle in IndexedDB:',
-              error
-            );
-          }
-
-          // Add to recent projects
+          await storeDirectoryHandle(result.projectDirectoryHandle.name, result.projectDirectoryHandle); // Use correct handle
           addRecentProject({
-            name,
-            path: projectSubDirHandle.name,
-            description: description,
+            name: result.metadata.name,
+            path: result.projectDirectoryHandle.name, // Use correct path/name
+            description: result.metadata.projectDescription,
             lastOpened: new Date().toISOString(),
           });
-        }
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          console.error('Error creating project:', err);
-          setState((_) => ({
-            ...initialState,
-            error: err.message || 'Failed to create project.',
-          }));
-        } else {
-          setState((s) => ({ ...s, isLoading: false })); // User cancelled
+      } catch (postCreateError) {
+          console.warn("Post-creation actions failed (IndexedDB/RecentProjects):", postCreateError);
+      }
+
+
+
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Error creating project:', err);
+        setState((_) => ({ ...initialState, error: err.message || 'Failed to create project.' }));
+      } else {
+        // User cancelled directory picker
+        setState((s) => ({ ...s, isLoading: false }));
+      }
+    }
+  }, [state]);
+
+  /**
+   * Sets the currently active video ID.
+   */
+  const setCurrentVideoId = useCallback((videoId: string | null) => {
+    if (videoId === null || state.videos[videoId]) {
+        setState((s) => ({ ...s, currentVideoId: videoId,}));
+    } else {
+        console.warn(`Attempted to set currentVideoId to non-existent video: ${videoId}`);
+    }
+  }, [state.videos]);
+
+  /**
+   * Prompts the user to select a directory, intended for use *before* creating a project.
+   * @returns The selected directory handle or null if cancelled.
+   */
+  const selectProjectLocation = useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
+    try {
+      if (!('showDirectoryPicker' in window)) {
+        throw new Error('File System Access API not supported.');
+      }
+      const dirHandle = await window.showDirectoryPicker({
+        id: 'veraProject',
+        mode: 'readwrite',
+      });
+      return dirHandle;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Error selecting project location:', err);
+        // Re-throw the error to be handled by the caller (e.g., UI)
+        throw err;
+      }
+      // User cancelled - return null
+      return null;
+    }
+  }, []);
+
+
+  // useEffect to set isSaved to false when project state changes (except isSaved, isLoading, error)
+  useEffect(() => {
+    // If the ref is true, it means we just saved or loaded. Reset the ref and skip.
+    if (justSavedRef.current || justLoadedRef.current) {
+      justSavedRef.current = false; // Reset the flag
+      justLoadedRef.current = false; // Reset the flag
+      return; 
+    }
+
+    // Only set isSaved to false if any of the main project data changes
+    // and the project was previously considered saved.
+    if (state.isSaved) {
+      console.log('setting isSaved to false due to data change');
+      setState(s => ({ ...s, isSaved: false }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.metadata, state.videos, state.bookmarks, state.annotations, state.analysis, state.projectDirectoryHandle]);
+
+  /**
+   * Resets the entire project context to its initial state
+   * and revokes any active video object URLs.
+   */
+  const resetProject = useCallback(() => {
+    console.log("Resetting project context...");
+
+    // --- Memory Cleanup: Revoke Object URLs ---
+    const currentVideos = state.videos;
+    Object.values(currentVideos).forEach(video => {
+      if (video.objectURL) {
+        try {
+          console.log(`Revoking Object URL: ${video.objectURL}`);
+          URL.revokeObjectURL(video.objectURL);
+        } catch (revokeError) {
+          console.warn(`Error revoking object URL during reset: ${video.objectURL}`, revokeError);
         }
       }
-    },
-    []
-  );
+    });
+    // --- End Memory Cleanup ---
 
-  // Add new selectProjectLocation function
-  const selectProjectLocation =
-    useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
-      try {
-        // Check if File System Access API is supported
-        if (!('showDirectoryPicker' in window)) {
-          throw new Error(
-            'Your browser does not support the File System Access API'
-          );
-        }
+    // --- Reset State ---
+    setState(initialState);
+    console.log("Project context reset to initial state.");
+    // --- End Reset State ---
 
-        // Show directory picker to select a location
-        const dirHandle = await window.showDirectoryPicker({
-          id: 'veraProjectLocation',
-          mode: 'readwrite',
-        });
+  }, [state.videos]);
 
-        return dirHandle;
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          console.error('Error selecting project location:', err);
-          throw err;
-        }
-        // User cancelled - return null
-        return null;
-      }
-    }, []);
-
-  // Value provided to consumers
+  // --- Value Provided to Consumers ---
+  // Ensure this matches the ProjectContextType interface
   const contextValue: ProjectContextType = {
     ...state,
     loadProject,
@@ -751,9 +540,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     saveProject,
     uploadVideo,
     createProject,
-    updateBookmark,
     setCurrentVideoId,
     selectProjectLocation,
+    resetProject,
   };
 
   return (
@@ -763,7 +552,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   );
 };
 
-// Custom hook for consuming the context
+// --- Custom Hook for Consuming Context ---
 export const useProject = (): ProjectContextType => {
   const context = useContext(ProjectContext);
   if (context === undefined) {
@@ -771,3 +560,8 @@ export const useProject = (): ProjectContextType => {
   }
   return context;
 };
+// Helper function
+function getVideoIdFromFilename(filename: string): string {
+    return filename.split('/').pop()?.split('.').slice(0, -1).join('.') || '';
+}
+

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ import {
   Info,
   Headphones,
   Menu,
+  ArrowLeft,
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import veraLogo from '../assets/vera_blagul.svg';
@@ -121,10 +123,17 @@ const helpMenuItems: HeaderMenuItemProps[] = [
 interface HeaderProps {
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
+  onInitiateSaveAs: () => void;
+  onGoBackRequest: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
-  const { saveProject, loadProject, uploadVideo } = useProject();
+const Header: React.FC<HeaderProps> = ({ 
+  toggleSidebar, 
+  isSidebarOpen, 
+  onInitiateSaveAs, 
+  onGoBackRequest,
+}) => {
+  const { saveProject, loadProject, uploadVideo, projectDirectoryHandle } = useProject();
 
   const fileMenuItems: HeaderMenuItemProps[] = [
     {
@@ -132,11 +141,16 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
       label: 'Save Project',
       shortcut: '⌘S',
       onClick: async () => {
-        try {
-          await saveProject();
-          toast.success('Project saved successfully');
-        } catch (error) {
-          toast.error(`Failed to save project: ${error}`);
+        if (projectDirectoryHandle) {
+          try {
+            await saveProject();
+            toast.success('Project saved successfully');
+          } catch (error) {
+            toast.error(`Failed to save project: ${error}`);
+          }
+        } else {
+          onInitiateSaveAs();
+          toast.info('Please specify project details to save.');
         }
       },
     },
@@ -176,7 +190,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
       <div className="flex items-center gap-1 sm:gap-2">
         <button
           onClick={toggleSidebar}
-          className="p-2 rounded-md hover:bg-vera-highlight/50 transition-colors md:hidden"
+          className="p-2 rounded-md hover:bg-vera-highlight/50 transition-colors"
           aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
         >
           <Menu size={20} />
@@ -193,7 +207,14 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isSidebarOpen }) => {
           <HeaderMenu label="Help" items={helpMenuItems} />
         </div>
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onGoBackRequest}
+          className="p-2 rounded-md hover:bg-vera-highlight/50 transition-colors"
+          aria-label="Go back to welcome page"
+        >
+          <ArrowLeft size={20} />
+        </button>
         <ThemeToggle />
       </div>
     </header>

@@ -159,7 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   // Convert the videos object to the format needed for the Folder component
   const videoFiles = Object.entries(videos).map(([id, video]) => ({
     id,
-    name: video.name,
+    name: video.metadata.filename,
     type: 'video' as const,
   }));
 
