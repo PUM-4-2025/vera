@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
+#include "visual.h"
 
 #pragma pack(push, 1)
 
@@ -25,8 +26,8 @@ struct FMTSubchunk {
 
 #pragma pack(pop)
 
-int main() {
-    const std::string inputPath = "C:\\Users\\oscar\\Desktop\\PUM4\\ljud\\Nature.webm.wav";
+int visual(const std::string in_wav){
+    const std::string inputPath = PATH + "Nature.webm.wav";
     const std::string outputPath = inputPath + ".txt";
 
     std::ifstream file(inputPath, std::ios::binary);
