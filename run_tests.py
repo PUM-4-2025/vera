@@ -20,4 +20,4 @@ subprocess.run(["cmake", "--build", ".", "--target", "tests"], cwd=build_dir, ch
 
 # Steg 3: Kör binary filen
 test_binary = os.path.join(build_dir, "bin", "tests")
-subprocess.run([test_binary])
+subprocess.run([test_binary], check=True)
