@@ -1,7 +1,12 @@
 import React from 'react';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import cv from '@techstark/opencv-js';
-import video from '../ungso.mp4';
+import cv, {
+  FONT_HERSHEY_COMPLEX,
+  FONT_HERSHEY_PLAIN,
+} from '@techstark/opencv-js';
+//import video from '../ungso.mp4';
+import video from './VID_20200422_124032.mp4';
+//import InputField from './InputField';
 
 const LINE_THICKNESS = 2;
 const SELECTED_COLOR = [0, 255, 0, 255];
@@ -18,11 +23,12 @@ interface Point {
 
 interface Shape {
   id: string;
-  type: 'circle' | 'arrow';
+  type: 'circle' | 'arrow' | 'textbox';
   startPoint: Point;
-  endPoint?: Point; // for arrows
+  endPoint?: Point; // for arrows and textbox
   radius?: number; // for circles
   selected: boolean;
+  text: string; // for textbox
 }
 
 function generateId() {
@@ -73,9 +79,9 @@ function isPointNearShape(
 }
 
 function DrawPage() {
-  const [drawMode, setDrawMode] = useState<'select' | 'circle' | 'arrow'>(
-    'select'
-  );
+  const [drawMode, setDrawMode] = useState<
+    'select' | 'circle' | 'arrow' | 'textbox'
+  >('select');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -92,6 +98,8 @@ function DrawPage() {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+
+  const [inputText, setInputText] = useState('');
 
   useEffect(() => {
     // fult sätt att kolla om opencv har laddat, måste snyggas till, finns säkert en bättre lösning. se onRuntimeInitialized
@@ -188,6 +196,49 @@ function DrawPage() {
           LINE_THICKNESS,
           cv.LINE_AA
         );
+      } else if (shape.type === 'textbox' && shape.endPoint) {
+        const vectorEndX = shape.endPoint.x - centerX;
+        const vectorEndY = shape.endPoint.y - centerY;
+        const scaledVectorEndX = vectorEndX * scale;
+        const scaledVectorEndY = vectorEndY * scale;
+        const finalEndX = centerX + scaledVectorEndX - offset.x * scale;
+        const finalEndY = centerY + scaledVectorEndY - offset.y * scale;
+
+        const startPointCV = new cv.Point(finalX, finalY);
+        const endPointCV = new cv.Point(finalEndX, finalEndY);
+
+        cv.rectangle(
+          mat,
+          startPointCV,
+          endPointCV,
+          color,
+          LINE_THICKNESS,
+          cv.LINE_AA
+        );
+
+        const shapeWidth = Math.abs(startPointCV.x - endPointCV.x);
+        const shapeHeight = Math.abs(startPointCV.y - endPointCV.y);
+
+        const shapeMat = new cv.Mat(
+          shapeWidth,
+          shapeHeight,
+          cv.CV_8UC4,
+          [0, 0, 0, 0]
+        );
+        const TEXT_SCALE = 0.7;
+        //const txt = inputText;
+        const txt = 'EDVIN';
+
+        cv.putText(
+          mat,
+          txt,
+          startPointCV,
+          FONT_HERSHEY_COMPLEX,
+          TEXT_SCALE,
+          color,
+          LINE_THICKNESS / 2,
+          cv.LINE_AA
+        );
       }
     });
 
@@ -220,6 +271,25 @@ function DrawPage() {
         const endPointCV = new cv.Point(finalEndX, finalEndY);
 
         cv.line(
+          mat,
+          startPointCV,
+          endPointCV,
+          TEMP_DRAW_COLOR,
+          LINE_THICKNESS,
+          cv.LINE_AA
+        );
+      } else if (drawMode === 'textbox') {
+        const vectorEndX = currentPoint.x - centerX;
+        const vectorEndY = currentPoint.y - centerY;
+        const scaledVectorEndX = vectorEndX * scale;
+        const scaledVectorEndY = vectorEndY * scale;
+        const finalEndX = centerX + scaledVectorEndX - offset.x * scale;
+        const finalEndY = centerY + scaledVectorEndY - offset.y * scale;
+
+        const startPointCV = new cv.Point(finalX, finalY);
+        const endPointCV = new cv.Point(finalEndX, finalEndY);
+
+        cv.rectangle(
           mat,
           startPointCV,
           endPointCV,
@@ -368,7 +438,11 @@ function DrawPage() {
       const canvas = canvasRef.current;
       const mousePos = getMousePosition(canvas, event);
 
-      if (drawMode === 'circle' || drawMode === 'arrow') {
+      if (
+        drawMode === 'circle' ||
+        drawMode === 'arrow' ||
+        drawMode === 'textbox'
+      ) {
         setDrawing(true);
         setStartPoint(mousePos);
         setCurrentPoint(mousePos);
@@ -430,6 +504,7 @@ function DrawPage() {
               startPoint: { ...startPoint },
               radius,
               selected: false,
+              text: '',
             },
           ]);
         }
@@ -448,6 +523,27 @@ function DrawPage() {
               startPoint: { ...startPoint },
               endPoint: { ...currentPoint },
               selected: false,
+              text: '',
+            },
+          ]);
+        }
+      } else if (drawMode === 'textbox') {
+        const distance = Math.sqrt(
+          Math.pow((currentPoint.x - startPoint.x) * scale, 2) +
+            Math.pow((currentPoint.y - startPoint.y) * scale, 2)
+        );
+
+        if (distance > 3) {
+          setShapes((prevShapes) => [
+            ...prevShapes,
+            {
+              id: generateId(),
+              type: 'textbox',
+              startPoint: { ...startPoint },
+              endPoint: { ...currentPoint },
+              selected: false,
+              //text: inputText
+              text: '',
             },
           ]);
         }
@@ -523,6 +619,16 @@ function DrawPage() {
           () => setDrawMode('arrow'),
           drawMode === 'arrow'
         )}
+        {createButton(
+          'Text',
+          () => setDrawMode('textbox'),
+          drawMode === 'textbox'
+        )}
+
+        <textarea
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+        />
 
         {/* Add spacer to push undo button to the right */}
         <div style={{ flexGrow: 1 }}></div>
