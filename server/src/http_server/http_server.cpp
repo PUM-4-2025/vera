@@ -1,6 +1,7 @@
-#include <mongoose.h>
 #include "http_server.h"
+
 #include <iostream>
+#include <mongoose.h>
 #include <utility>
 
 HttpServer::HttpServer() {
@@ -47,31 +48,31 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
   auto *server = static_cast<HttpServer *>(c->fn_data);
 
   // TODO: Replace with proper user session handling
-  UserSession test_us = UserSession{ "abc123" };
+  UserSession test_us = UserSession{"abc123"};
 
   if (ev == MG_EV_HTTP_MSG) {
     auto *hm = (struct mg_http_message *)ev_data;  // Parsed HTTP request
 
-    // Handle normal requests      
+    // Handle normal requests
     for (const auto &handler_info : server->m_handlers_) {
       std::string uri(hm->uri.buf, hm->uri.len);
       if (uri == handler_info.path || uri.find(handler_info.path + "/") == 0) {
 
-        // Probably a poor way to handle errors, but 
+        // Probably a poor way to handle errors, but
         // this will currently ensure that the server
         // does not crash in case an error occurs in the
         // request handler.
         try {
-          handler_info.handler( c, hm, &test_us);
-        } catch(...) {
+          handler_info.handler(c, hm, &test_us);
+        } catch (...) {
           std::cout << "Handler crash occured!" << std::endl;
         }
         return;
       }
     }
 
-    struct mg_http_serve_opts opts = {};                                                   // Zero-initialize all fields
-    opts.root_dir = server->m_static_dir_.c_str();                                        // For all other URLs,
-    mg_http_serve_dir(c, hm, &opts);                                                      // Serve static files
+    struct mg_http_serve_opts opts = {};            // Zero-initialize all fields
+    opts.root_dir = server->m_static_dir_.c_str();  // For all other URLs,
+    mg_http_serve_dir(c, hm, &opts);                // Serve static files
   }
 }
