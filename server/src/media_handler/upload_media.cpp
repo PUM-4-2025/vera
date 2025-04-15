@@ -7,7 +7,8 @@ using json = nlohmann::json;
 #include <ios>
 #include <ostream>
 #include <cmath>
-#include <bits/stdc++.h>
+#include <fstream>
+#include <iostream>
 #include <filesystem>
 
 UploadHandler handler;

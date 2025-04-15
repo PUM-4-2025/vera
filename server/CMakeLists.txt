@@ -77,6 +77,7 @@ target_compile_options(mongoose_includes INTERFACE
 
 file(GLOB_RECURSE CORE_SOURCES 
      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+     #${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp
 )
 
 set(UTIL_SOURCES
@@ -90,6 +91,18 @@ set(ALL_SOURCES
 )
 
 add_executable(server ${ALL_SOURCES})
+
+# Tests.o skapas, lägg till alla .cpp filer ditt test använder här
+add_executable(tests
+    tests/tests.cpp
+    src/anlysis/audio/extract.cpp
+    src/anlysis/audio/path.cpp
+)
+
+target_include_directories(tests PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/catch2/single_include
+)
 
 # Compiler flags - platform specific definitions
 if(MSVC)

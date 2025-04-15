@@ -25,3 +25,6 @@ __pycache__
 *.MOV
 
 *.log
+
+# Allow 
+!server/tests/samplefiles/*
