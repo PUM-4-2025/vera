@@ -1,0 +1,38 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main, testing, dev]
+    # Om man vill att den ska trigga bara på ändringar, borde alltid trigga
+    #paths:
+    #  - "run_tests.py"
+    #  - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [main, testing, dev]
+    #paths:
+    #  - "run_tests.py"
+    #  - ".github/workflows/tests.yml"
+
+jobs:
+  test-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./  # Roten
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.13"  # Adjust Python version as necessary
+
+      #- name: Install dependencies
+      #  run: |
+      #    python -m pip install --upgrade pip
+      #    pip install -r requirements.txt  # Install dependencies from requirements.txt
+
+      - name: Run tests
+        run: |
+          python run_tests.py  # Adjust the path to your run_tests.py file
