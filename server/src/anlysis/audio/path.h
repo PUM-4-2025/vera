@@ -1,6 +1,9 @@
 #ifndef PATH_H
 #define PATH_H
 
-std::string PATH = "C:\\Users\\oscar\\Desktop\\PUM4\\ljud\\";
+#include <string>
+
+// Declaration only (no assignment here)
+extern std::string PATH;
 
 #endif
