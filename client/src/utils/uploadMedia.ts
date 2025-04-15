@@ -99,7 +99,7 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
 
 // TODO: Properly handle failed uploads
 export const uploadChunks = async (uploadSession: UploadSession) => {
-  const chunkSize = 5 * 1024; // 5 kiB
+  const chunkSize = 16 * 1024; // 16 kiB
 
   for (let i = 1; i <= uploadSession.totalChunks; i++) {
     const chunk = uploadSession.file.slice((i - 1) * chunkSize, i * chunkSize);
@@ -120,7 +120,7 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
       body: chunk,
     });
 
-    console.log('Uploaded chunk: ', i);
+    //console.log('Uploaded chunk: ', i);
   }
 
   // Tell server to verify that upload is complete

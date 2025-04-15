@@ -83,8 +83,8 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
     int upload_id = getUploadId();
     int num_chunks = 0;
 
-    // Chunks are expected to be 5kiB
-    int max_chunk_size = 5 * 1024;
+    // Chunks are expected to be 16 kiB
+    int max_chunk_size = 16 * 1024;
     int total_chunks = (file_size / max_chunk_size) + 1;
 
     // Create new directory for downloads
