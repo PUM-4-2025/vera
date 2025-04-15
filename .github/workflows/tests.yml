@@ -28,8 +28,10 @@ jobs:
         with:
           python-version: "3.13"  # Adjust Python version as necessary
 
-      #- name: Install dependencies
-      #  run: |
+      - name: Install dependencies
+        run: |
+          git submodule init
+          git submodule update --remote
       #    python -m pip install --upgrade pip
       #    pip install -r requirements.txt  # Install dependencies from requirements.txt
 
