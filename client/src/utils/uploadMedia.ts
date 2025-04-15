@@ -12,19 +12,16 @@ export interface UploadStatus {
   totalChunks: number;
 }
 
-const url = `${window.location.protocol}//${window.location.hostname}`;
-
-const getProperUrl = (): string => {
-  if (url == 'http://localhost') {
-    return url + ':8000';
-  }
-  return url;
-};
+const url =
+  `${window.location.protocol}//${window.location.hostname}` ==
+  'http://localhost'
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : `${window.location.protocol}//${window.location.hostname}`;
 
 export const uploadMedia = async (file: File): Promise<UploadSession> => {
   try {
     // Call the inititate API
-    const initUrl = getProperUrl() + '/api/v1/uploads/initiate';
+    const initUrl = url + '/api/v1/uploads/initiate';
     const initData = {
       fileName: file.name,
       fileSize: file.size,
@@ -70,7 +67,7 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
-    const statusUrl = getProperUrl() + '/api/v1/uploads/status';
+    const statusUrl = url + '/api/v1/uploads/status';
     const statusData = {
       uploadId: uploadId,
     };
@@ -108,7 +105,7 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
     const chunk = uploadSession.file.slice((i - 1) * chunkSize, i * chunkSize);
 
     const uploadUrl =
-      getProperUrl() +
+      url +
       '/api/v1/uploads/chunks' +
       '?offset=' +
       (i - 1) * chunkSize +
@@ -134,7 +131,7 @@ export const uploadComplete = async (uploadSession: UploadSession) => {
   try {
     // Call the status API to get information about how many chunks
     // are expected.
-    const completeUrl = getProperUrl() + '/api/v1/uploads/complete';
+    const completeUrl = url + '/api/v1/uploads/complete';
     const statusData = {
       uploadId: uploadSession.uploadId,
     };
