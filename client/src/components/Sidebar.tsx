@@ -159,7 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   // Convert the videos object to the format needed for the Folder component
   const videoFiles = Object.entries(videos).map(([id, video]) => ({
     id,
-    name: video.name,
+    name: video.metadata.filename,
     type: 'video' as const,
   }));
 
@@ -248,13 +248,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   return (
     <aside
       className={cn(
-        'h-[calc(100vh-3.5rem)] border-r transition-all bg-sidebar relative',
+        'h-[calc(100vh-3.5rem)] border-r transition-all bg-sidebar relative flex flex-col',
         isOpen
           ? 'w-full md:w-72 opacity-100 translate-x-0'
           : 'w-0 md:w-0 opacity-0 -translate-x-full md:opacity-0 md:-translate-x-full'
       )}
     >
-      <ScrollArea className="h-full">
+      <ScrollArea className="flex-1">
         <div className="p-3 space-y-6">
           <div className="text-sm font-semibold text-sidebar-foreground/60 px-2 mb-2">
             PROJECT FILES
@@ -308,6 +308,61 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           )}
         </div>
       </ScrollArea>
+
+      {/* Video Metadata Section - Always at bottom */}
+      {currentVideoId && videos[currentVideoId] && (
+        <div className="border-t border-border/30 p-3 bg-sidebar/50">
+          <div className="text-xs font-semibold text-sidebar-foreground/60 px-2 mb-1">
+            VIDEO INFO
+          </div>
+          <div className="space-y-1 text-xs text-muted-foreground px-2">
+            <div className="flex justify-between">
+              <span>Resolution:</span>
+              <span className="text-foreground">
+                {videos[currentVideoId].metadata.width} ×{' '}
+                {videos[currentVideoId].metadata.height}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>FPS:</span>
+              <span className="text-foreground">
+                {videos[currentVideoId].metadata.fps.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Video Codec:</span>
+              <span className="text-foreground">
+                {videos[currentVideoId].metadata.videoCodec}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Audio Codec:</span>
+              <span className="text-foreground">
+                {videos[currentVideoId].metadata.audioCodec || 'N/A'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Duration:</span>
+              <span className="text-foreground">
+                {Math.floor(videos[currentVideoId].metadata.duration / 60)}:
+                {Math.floor(videos[currentVideoId].metadata.duration % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Size:</span>
+              <span className="text-foreground">
+                {(
+                  videos[currentVideoId].metadata.sizeBytes /
+                  (1024 * 1024)
+                ).toFixed(2)}{' '}
+                MB
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

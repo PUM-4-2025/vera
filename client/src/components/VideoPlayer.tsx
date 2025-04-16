@@ -176,7 +176,7 @@ const VideoPlayer: React.FC = () => {
         </h3>
         <div className="text-sm text-muted-foreground">
           {currentVideo
-            ? `Video: ${currentVideo.name} | Duration: ${Math.floor(videoDuration / 60)}:${Math.floor(
+            ? `Video: ${currentVideo.metadata.filename} | Duration: ${Math.floor(videoDuration / 60)}:${Math.floor(
                 videoDuration % 60
               )
                 .toString()

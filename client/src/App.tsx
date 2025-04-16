@@ -6,22 +6,25 @@ import { ProjectProvider } from './contexts/ProjectContext';
 import Index from './pages/Index';
 import Welcome from './pages/Welcome';
 import NotFound from './pages/NotFound';
+import { FFmpegProvider } from './contexts/FFmpegContext';
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <ProjectProvider>
-        <Sonner />
-        <BrowserRouter>
+      <FFmpegProvider>
+        <ProjectProvider>
+          <Sonner />
+          <BrowserRouter>
           <Routes>
             <Route path="/" element={<Welcome />} />
             <Route path="/editor" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </ProjectProvider>
+          </BrowserRouter>
+        </ProjectProvider>
+      </FFmpegProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
