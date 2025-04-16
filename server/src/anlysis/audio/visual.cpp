@@ -30,8 +30,8 @@ int visual(const std::string in_wav){
     const std::string input_path = PATH + "Nature.webm.wav";
     const std::string output_path = input_path + ".txt";
 
-    std::ifstream file(input_path, std::ios::binary);
-    if (!file) {
+    std::ifstream input_file(input_path, std::ios::binary);
+    if (!input_file) {
         std::cerr << "Failed to open " << input_path << "\n";
         return 1;
     }
@@ -39,8 +39,8 @@ int visual(const std::string in_wav){
     RIFFHeader riff_header;
     FMTSubchunk fmt_chunk;
 
-    file.read(reinterpret_cast<char*>(&riff_header), sizeof(riff_header));
-    file.read(reinterpret_cast<char*>(&fmt_chunk), sizeof(fmt_chunk));
+    input_file.read(reinterpret_cast<char*>(&riff_header), sizeof(riff_header));
+    input_file.read(reinterpret_cast<char*>(&fmt_chunk), sizeof(fmt_chunk));
 
     if (std::string(riff_header.riff, 4) != "RIFF" ||
         std::string(riff_header.wave, 4) != "WAVE" ||
@@ -54,29 +54,29 @@ int visual(const std::string in_wav){
     }
 
     if (fmt_chunk.subchunk1_size > 16) {
-        file.seekg(fmt_chunk.subchunk1_size - 16, std::ios::cur);
+        input_file.seekg(fmt_chunk.subchunk1_size - 16, std::ios::cur);
     }
 
     char chunkId[4];
     uint32_t chunk_size;
-    while (file.read(chunkId, 4)) {
-        file.read(reinterpret_cast<char*>(&chunk_size), sizeof(chunk_size));
+    while (input_file.read(chunkId, 4)) {
+        input_file.read(reinterpret_cast<char*>(&chunk_size), sizeof(chunk_size));
         if (std::string(chunkId, 4) == "data") {
             break;
         }
-        file.seekg(chunk_size, std::ios::cur);
+        input_file.seekg(chunk_size, std::ios::cur);
     }
 
     size_t total_samples = chunk_size / sizeof(int16_t);
     std::vector<int16_t> samples(total_samples);
-    file.read(reinterpret_cast<char*>(samples.data()), chunk_size);
-    file.close();
+    input_file.read(reinterpret_cast<char*>(samples.data()), chunk_size);
+    input_file.close();
 
     const int group_size = 160;
     size_t num_groups = total_samples / group_size;
 
-    std::ofstream out_file(output_path);
-    if (!out_file) {
+    std::ofstream output_file(output_path);
+    if (!output_file) {
         std::cerr << "Failed to write to " << output_path << "\n";
         return 1;
     }
@@ -90,10 +90,10 @@ int visual(const std::string in_wav){
         double rms = std::sqrt(sum_squares / group_size);
         double db = (rms > 0.0) ? 20.0 * std::log10(rms / 32768.0) : -100.0;
         double rounded_db = std::round(db * 10.0) / 10.0 + 100;
-        out_file << rounded_db << "\n";
+        output_file << rounded_db << "\n";
     }
 
-    out_file.close();
+    output_file.close();
     std::cout << "Wrote " << num_groups << " rounded dB values to " << output_path << "\n";
     return 0;
 }
