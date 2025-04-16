@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,13 +126,14 @@ interface HeaderProps {
   onGoBackRequest: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-  toggleSidebar, 
-  isSidebarOpen, 
-  onInitiateSaveAs, 
+const Header: React.FC<HeaderProps> = ({
+  toggleSidebar,
+  isSidebarOpen,
+  onInitiateSaveAs,
   onGoBackRequest,
 }) => {
-  const { saveProject, loadProject, uploadVideo, projectDirectoryHandle } = useProject();
+  const { saveProject, loadProject, uploadVideo, projectDirectoryHandle } =
+    useProject();
 
   const fileMenuItems: HeaderMenuItemProps[] = [
     {

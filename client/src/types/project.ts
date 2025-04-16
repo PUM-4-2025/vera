@@ -1,5 +1,3 @@
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-
 // Core project metadata structure stored in metadata.json
 export interface Metadata {
   name: string;
@@ -39,7 +37,6 @@ export interface VideoMetadata {
   isTransmuxed: boolean;
 }
 
-
 // Preliminary types for bookmarks, annotations and analysis
 export interface BookmarkData {
   name: string;
@@ -67,7 +64,7 @@ export interface ProjectState {
   bookmarks: Record<string, BookmarkData>;
   annotations: Record<string, AnnotationData>;
   analysis: Record<string, AnalysisData>;
-  isLoading: boolean; 
+  isLoading: boolean;
   error: string | null;
   currentVideoId: string | null;
   isSaved: boolean;
@@ -113,5 +110,5 @@ export interface UploadVideoResult {
 
 // Data returned by saveProjectLogic
 export interface SaveProjectResult {
-    updatedMetadata: Metadata;
-} 
+  updatedMetadata: Metadata;
+}
