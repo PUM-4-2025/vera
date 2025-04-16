@@ -5,7 +5,8 @@ import sys
 def run(in_video, threshold_db, min_sec):
     extract(in_video= in_video)
     wav_to_db_csv(in_wav= in_video + ".wav")
-    find_threshold_crossings(in_csv= in_video + ".wav.csv", threshold_db= threshold_db, min_duration_seconds= min_sec)
+    find_threshold_crossings(in_csv= in_video + ".wav.txt", threshold_db= threshold_db, min_duration_seconds= min_sec)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:

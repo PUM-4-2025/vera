@@ -6,18 +6,22 @@ from path import path
 PATH = path().PATH 
 
 def find_threshold_crossings(in_csv, threshold_db, min_duration_seconds):
-    with open(PATH + in_csv, 'r') as csvfile:
-        reader = csv.DictReader(csvfile)
-        data = [(float(row['Time (s)']), float(row['Amplitude (dB)'])) for row in reader]
+    with open(PATH + in_csv, 'r') as txt:
+        #reader = csv.DictReader(csvfile)
+        data = [float(value) for value in txt.read().split(", ") if value.strip()]
+        #data = [float(value) for value in txt.read().split(", ")]
+        #data = [(float(row['Time (s)']), float(row['Amplitude (dB)'])) for row in reader]
 
     segments = []
     inside_segment = False
     segment_start = None
     previous_time = None
-
+    time = 0.00
     for i in range(1, len(data)):
-        time, db = data[i]
-        prev_time, prev_db = data[i - 1]
+        db = data[i]
+        prev_db = data[i - 1]
+        prev_time = time
+        time += 0.01
         # Crossing UP
         if not inside_segment and prev_db <= float(threshold_db) < db:
             if not segments or time - segments[-1][1] >= float(min_duration_seconds):
@@ -27,7 +31,7 @@ def find_threshold_crossings(in_csv, threshold_db, min_duration_seconds):
         # Crossing DOWN
         elif inside_segment and prev_db >= float(threshold_db) > db:
             segment_end = prev_time  # one step before going below
-            segments.append((segment_start, segment_end))
+            segments.append((round(segment_start, 4), round(segment_end, 4)))
             inside_segment = False
 
     # Om CSV slutar medan vi fortfarande är över tröskeln
@@ -37,7 +41,8 @@ def find_threshold_crossings(in_csv, threshold_db, min_duration_seconds):
     # Skriv till CSV
     with open(PATH + in_csv + ".csv", 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['Time (s)', 'Amplitude (dB)'])
+        writer.writerow(['Start', 'Stop'])
+
         for start, end in segments:
             writer.writerow([start, end])
 
