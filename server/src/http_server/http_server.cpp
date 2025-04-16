@@ -1,8 +1,8 @@
-#include <mongoose.h>
 #include "http_server.h"
-#include "project_config.h"
+
 #include <iostream>
-#include <algorithm>
+#include <mongoose.h>
+#include <utility>
 
 HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
@@ -14,11 +14,11 @@ HttpServer::~HttpServer() {
 }
 
 void HttpServer::listenTo(std::string address) {
-  m_address_ = address;
+  m_address_ = std::move(address);
 }
 
 void HttpServer::setStaticFilesPath(std::string path) {
-  m_static_dir_ = path;
+  m_static_dir_ = std::move(path);
 }
 
 void HttpServer::start() {
@@ -43,28 +43,36 @@ void HttpServer::registerHandler(const std::string &api_path, RequestHandler han
 }
 
 /**
- * Currently the eventhandler can only server static index.html for VERA.
  */
 void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
-  auto *server = static_cast<HttpServer*>(c->fn_data);
-  
+  auto *server = static_cast<HttpServer *>(c->fn_data);
+
+  // TODO: Replace with proper user session handling
+  UserSession test_us = UserSession{"abc123"};
+
   if (ev == MG_EV_HTTP_MSG) {
-    auto *hm = (struct mg_http_message *)ev_data;         // Parsed HTTP request
-    
-    bool handled = false;
+    auto *hm = (struct mg_http_message *)ev_data;  // Parsed HTTP request
+
+    // Handle normal requests
     for (const auto &handler_info : server->m_handlers_) {
       std::string uri(hm->uri.buf, hm->uri.len);
       if (uri == handler_info.path || uri.find(handler_info.path + "/") == 0) {
-        handler_info.handler(c, hm);
-        handled = true;
-        break;
+
+        // Probably a poor way to handle errors, but
+        // this will currently ensure that the server
+        // does not crash in case an error occurs in the
+        // request handler.
+        try {
+          handler_info.handler(c, hm, &test_us);
+        } catch (...) {
+          std::cout << "Handler crash occured!" << std::endl;
+        }
+        return;
       }
     }
-  
-    if (!handled) {
-      struct mg_http_serve_opts opts = {};                                                   // Zero-initialize all fields
-      opts.root_dir = server->m_static_dir_.c_str();                                        // For all other URLs,
-      mg_http_serve_dir(c, hm, &opts);                                                      // Serve static files
-    }
+
+    struct mg_http_serve_opts opts = {};            // Zero-initialize all fields
+    opts.root_dir = server->m_static_dir_.c_str();  // For all other URLs,
+    mg_http_serve_dir(c, hm, &opts);                // Serve static files
   }
 }

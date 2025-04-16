@@ -42,6 +42,7 @@ def find_threshold_crossings(in_csv, threshold_db, min_duration_seconds):
     with open(PATH + in_csv + ".csv", 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Start', 'Stop'])
+
         for start, end in segments:
             writer.writerow([start, end])
 

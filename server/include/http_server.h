@@ -11,6 +11,10 @@
 #include <string>
 #include <vector>
 
+using UserSession = struct Session {
+  std::string session_id;
+};
+
 class HttpServer {
 public:
   /**
@@ -24,11 +28,7 @@ public:
   void start();
   void stop();
 
-  // TODO: Come back and iterate on function below. This is meant
-  // to be a function to allow other modules, like the audio
-  // analysis to register a handler for a specific api path,
-  // e.g. ("/api/audio", audio_analysis_func).
-  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, UserSession *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
@@ -43,6 +43,7 @@ private:
   };
 
   std::vector<HandlerInfo> m_handlers_;
+  std::vector<UserSession> m_active_sessions_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
 };

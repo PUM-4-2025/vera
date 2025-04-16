@@ -15,6 +15,8 @@ __pycache__
 *.njsproj
 *.sln
 *.sw?
+.clangd
+.cache
 
 # Just in case, we ingore any video files that show up in the project files
 *.mp4
@@ -23,3 +25,6 @@ __pycache__
 *.MOV
 
 *.log
+
+# Allow 
+!server/tests/samplefiles/*

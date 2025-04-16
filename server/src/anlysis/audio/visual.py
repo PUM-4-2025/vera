@@ -59,6 +59,7 @@ def wav_to_db_csv(in_wav):
 
     sys.stdout.write(f"Saved dB data to: {PATH + in_wav + ".txt"}")
 
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python3 visual.py input.wav")

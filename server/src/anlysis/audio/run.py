@@ -7,6 +7,7 @@ def run(in_video, threshold_db, min_sec):
     wav_to_db_csv(in_wav= in_video + ".wav")
     find_threshold_crossings(in_csv= in_video + ".wav.txt", threshold_db= threshold_db, min_duration_seconds= min_sec)
 
+
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print("Usage: python run.py <input_video> [threshold_db] [min_sec]")
