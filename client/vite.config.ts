@@ -11,10 +11,17 @@ export default defineConfig(() => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
+  },
   server: {
     port: parseInt(process.env.VITE_PORT ?? '3000'),
     hmr: {
       overlay: true,
     },
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    }
   },
 }));
