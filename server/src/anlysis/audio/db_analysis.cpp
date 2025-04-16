@@ -4,13 +4,6 @@
 #include "db_analysis.h"
 using namespace std;
 
-int main(int argc, char const *argv[])
-{
-    db_analysis("Nature.webm.wav.txt", 60, 180);
-    return 0;
-}
-
-
 int db_analysis(const string in_txt, int threshold_db, int min_duration_seconds){
     string input_path = PATH + in_txt;
     string output_path = input_path + ".csv";
