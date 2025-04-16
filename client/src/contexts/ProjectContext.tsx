@@ -15,6 +15,7 @@ import {
   verifyPermission,
 } from '@/utils/projectDatabase';
 import { useFFmpeg } from './FFmpegContext';
+import { uploadMedia, uploadChunks } from '@/utils/uploadMedia';
 
 // Import types from the dedicated types file
 import {
