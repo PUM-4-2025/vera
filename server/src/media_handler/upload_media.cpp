@@ -7,6 +7,8 @@
 using json = nlohmann::json;
 
 #include <cmath>
+#include <fstream>
+#include <iostream>
 #include <filesystem>
 
 UploadHandler handler;
