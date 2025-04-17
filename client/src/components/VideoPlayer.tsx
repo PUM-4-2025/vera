@@ -69,17 +69,19 @@ const VideoPlayer: React.FC = () => {
 
   const stepBackward = () => {
     if (videoRef.current) {
-      const newTime = Math.max(0, videoRef.current.currentTime - 5);
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
+      videoRef.current.currentTime = Math.max(
+        0,
+        videoRef.current.currentTime - 5
+      );
     }
   };
 
   const stepForward = () => {
     if (videoRef.current) {
-      const newTime = Math.min(videoDuration, videoRef.current.currentTime + 5);
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
+      videoRef.current.currentTime = Math.min(
+        videoDuration,
+        videoRef.current.currentTime + 5
+      );
     }
   };
 
