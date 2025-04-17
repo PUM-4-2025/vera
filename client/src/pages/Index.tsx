@@ -20,7 +20,13 @@ import { Button } from '@/components/ui/button';
 const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { projectDirectoryHandle, createProject, selectProjectLocation, isSaved, resetProject } = useProject();
+  const {
+    projectDirectoryHandle,
+    createProject,
+    selectProjectLocation,
+    isSaved,
+    resetProject,
+  } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
@@ -28,12 +34,12 @@ const Index = () => {
     projectName: '',
     projectDescription: '',
   });
-  const [selectedLocation, setSelectedLocation] = useState<{ 
-    dirHandle: FileSystemDirectoryHandle | null; 
-    displayPath: string 
-  }>({ 
-    dirHandle: null, 
-    displayPath: '' 
+  const [selectedLocation, setSelectedLocation] = useState<{
+    dirHandle: FileSystemDirectoryHandle | null;
+    displayPath: string;
+  }>({
+    dirHandle: null,
+    displayPath: '',
   });
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
@@ -120,14 +126,13 @@ const Index = () => {
     setIsConfirmDialogOpen(false);
   };
 
-
   return (
     <ThemeProvider>
       <div className="h-screen w-screen overflow-hidden flex flex-col">
-        <Header 
-          toggleSidebar={toggleSidebar} 
-          isSidebarOpen={sidebarOpen} 
-          onInitiateSaveAs={initiateSaveAs} 
+        <Header
+          toggleSidebar={toggleSidebar}
+          isSidebarOpen={sidebarOpen}
+          onInitiateSaveAs={initiateSaveAs}
           onGoBackRequest={handleGoBackRequest}
         />
 
@@ -135,7 +140,7 @@ const Index = () => {
           <Sidebar isOpen={sidebarOpen} />
 
           <main
-            className={`flex-1 p-6 transition-all ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'} overflow-y-auto`}
+            className={`flex-1 p-3 transition-all ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'} overflow-y-auto`}
             ref={mainContentRef}
           >
             <VideoPlayer />
@@ -145,13 +150,14 @@ const Index = () => {
 
       <Dialog open={isSaveAsModalOpen} onOpenChange={setIsSaveAsModalOpen}>
         <DialogContent className="sm:max-w-[525px]">
-          <DialogHeader className="sr-only"> 
+          <DialogHeader className="sr-only">
             <DialogTitle>Create New Project</DialogTitle>
             <DialogDescription>
-              Provide details for your new VERA project to save your current work.
+              Provide details for your new VERA project to save your current
+              work.
             </DialogDescription>
           </DialogHeader>
-          <CreateProjectCard 
+          <CreateProjectCard
             formData={formData}
             selectedLocation={selectedLocation}
             onFormChange={handleFormChange}
@@ -167,13 +173,20 @@ const Index = () => {
           <DialogHeader>
             <DialogTitle>Unsaved Changes</DialogTitle>
             <DialogDescription>
-              You have unsaved changes. Are you sure you want to close the project?
-              Your changes will be lost.
+              You have unsaved changes. Are you sure you want to close the
+              project? Your changes will be lost.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmGoBack}>Close Anyway</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsConfirmDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmGoBack}>
+              Close Anyway
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
