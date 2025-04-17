@@ -1,11 +1,13 @@
 #include <iostream>
 #include <fstream>
 #include "audio.h"
+#include "files.h"
+#include "http_server.h"
 
-std::string DB_PATH;
+int db_analysis(const std::string in_txt, int threshold_db, int min_duration_seconds, UserSession &us){
+    std::string session_path = getUserMediaDir(us);
 
-int db_analysis(const std::string in_txt, int threshold_db, int min_duration_seconds){
-    std::string input_path = DB_PATH + in_txt;
+    std::string input_path = session_path + in_txt;
     std::string output_path = input_path + ".csv";
     std::ifstream input_file(input_path, std::ios::binary);
     if (!input_file) {

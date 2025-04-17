@@ -8,27 +8,31 @@
 // ./server/build/bin/tests    efter du kört Vera med python3 run.py
 
 
+#include "http_server.h"
 #define CATCH_CONFIG_MAIN  // This creates a main() function automatically
 
 #include "../extern/catch2/single_include/catch2/catch.hpp"
 #include "audio.h"
+#include "files.h"
 
 #include <filesystem>
-
-std::string PATH;
 
 TEST_CASE("extract creates a .wav file from video input", "[extract]") {
     std::string video_file = "sample_video";
     std::string input_path = video_file + ".mp4";
     std::string wav_file = input_path + ".wav";
 
+    std::filesystem::path path = getTestingDir();
+    path.append(wav_file);
+
     // Kör funktionen
-    extract(input_path);
+    UserSession test_session = UserSession { "test" };
+    extract(input_path, test_session);
 
     std::cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << std::endl;
  
     // Verifiera att .wav-filen nu finns
-    REQUIRE(std::filesystem::exists(PATH + wav_file));
+    REQUIRE(std::filesystem::exists(path));
 
     // Städa upp
     std::filesystem::remove(wav_file);

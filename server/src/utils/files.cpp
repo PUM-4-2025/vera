@@ -1,8 +1,9 @@
 #include "files.h"
 #include "http_server.h"
 
-#include <filesystem>
 #include <fstream>
+
+
 #include <iostream>
 
 /**
@@ -78,4 +79,15 @@ std::string readTextFile(std::string path, UserSession &us) {
                     std::istreambuf_iterator<char>());
     f.close();
     return out;
+}
+
+
+/**
+ * Returns the VERA uses in temporary files directory to store 
+ * uploaded or generated files.
+ */
+std::filesystem::path getTestingDir() {
+    std::filesystem::path path = std::filesystem::temp_directory_path();
+    path.append("vera-testing");
+    return path;
 }
