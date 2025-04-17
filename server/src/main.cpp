@@ -21,6 +21,7 @@ int main() {
 
   // TODO: Replace with proper user session handling
   UserSession test_us = UserSession{"abc123"};
+  server.appendUserSession(test_us);
 
   // Register relevant handlers
   registerMediaHandlers(server);
