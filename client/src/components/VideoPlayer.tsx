@@ -96,18 +96,20 @@ const VideoPlayer: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6">
-      <div className="relative bg-vera-muted rounded-lg flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
+    <div className="h-full flex flex-col space-y-4">
+      <div className="relative bg-vera-muted flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
         {videoSrc ? (
-          <video
-            ref={videoRef}
-            src={videoSrc}
-            className="w-full h-full object-contain"
-            controls={false}
-            onLoadedMetadata={handleMetadataLoaded}
-            onEnded={() => setIsPlaying(false)}
-            onClick={togglePlay}
-          />
+          <>
+            <video
+              ref={videoRef}
+              src={videoSrc}
+              className="w-full h-full object-contain"
+              controls={false}
+              onLoadedMetadata={handleMetadataLoaded}
+              onEnded={() => setIsPlaying(false)}
+              onClick={togglePlay}
+            />
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center text-muted-foreground">
             <FilmIcon size={48} className="mb-3 text-vera" strokeWidth={1.5} />
@@ -118,37 +120,45 @@ const VideoPlayer: React.FC = () => {
         )}
       </div>
 
-      <div className="flex justify-center gap-4">
-        <Button
-          variant="outline"
-          size="icon"
-          className="hover-effect rounded-full w-12 h-12 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-          aria-label="Step backward"
-          onClick={stepBackward}
-          disabled={!videoSrc}
-        >
-          <SkipBack size={18} />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="hover-effect rounded-full w-12 h-12 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          onClick={togglePlay}
-          disabled={!videoSrc}
-        >
-          {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="hover-effect rounded-full w-12 h-12 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-          aria-label="Step forward"
-          onClick={stepForward}
-          disabled={!videoSrc}
-        >
-          <SkipForward size={18} />
-        </Button>
+      <div className="flex justify-between items-center gap-4 px-2">
+        <div className="text-sm font-mono text-muted-foreground tabular-nums">
+          {formatTime(currentTime)} / {formatTime(videoDuration)}
+        </div>
+
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+            aria-label="Step backward"
+            onClick={stepBackward}
+            disabled={!videoSrc}
+          >
+            <SkipBack size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+            onClick={togglePlay}
+            disabled={!videoSrc}
+          >
+            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+            aria-label="Step forward"
+            onClick={stepForward}
+            disabled={!videoSrc}
+          >
+            <SkipForward size={16} />
+          </Button>
+        </div>
+
+        <div className="w-[calc(7ch+1rem)]"></div>
       </div>
 
       <VideoTimeSlider
@@ -165,10 +175,6 @@ const VideoPlayer: React.FC = () => {
         onTimeChange={handleTimeChange}
         onZoomChange={handleZoomChange}
       />
-
-      <div className="time-display">
-        {formatTime(currentTime)} / {formatTime(videoDuration)}
-      </div>
     </div>
   );
 };
