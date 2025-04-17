@@ -3,9 +3,6 @@
 
 #include <fstream>
 
-
-#include <iostream>
-
 /**
  * Returns the VERA uses in temporary files directory to store 
  * uploaded or generated files.

@@ -12,6 +12,9 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
     // TODO: REPLACE_TOKEN
     UserSession *us = hs->getUserSession("");
     std::string us_folder = getUserMediaDir(*us);
+
+    // TODO: Fill with proper order for audio analysis
+    // Requires some help from Oscar.
     
     mg_http_reply(c, 200, "Content-Type: application/json", "");
 }
