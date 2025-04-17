@@ -1,12 +1,12 @@
 #include "upload_media.h"
 #include "upload_handler.h"
+#include "files.h"
 
 #include "mongoose.h"
 #include <json.hpp>
 using json = nlohmann::json;
 
 #include <cmath>
-#include <filesystem>
 
 UploadHandler UPLOAD_HANDLER;
 
@@ -89,19 +89,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     int max_chunk_size = 16 * 1024;
     int total_chunks = (file_size / max_chunk_size) + 1;
 
-    // Create new directory for downloads
-    std::string path = "/tmp/vera/";
-
-    if (!std::filesystem::exists(path)) {
-      std::filesystem::create_directory(path);
-    }
-
-    path.append(us->session_id);
-    path.append("/");
-
-    if (!std::filesystem::exists(path)) {
-      std::filesystem::create_directory(path);
-    }
+    std::string path = getUserMediaDir(*us);
 
     UploadSession new_session = {};
     new_session.filename = file_name;

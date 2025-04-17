@@ -3,13 +3,25 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+
+/**
+ * Returns the VERA uses in temporary files directory to store 
+ * uploaded or generated files.
+ */
+std::filesystem::path getVeraPath() {
+    std::filesystem::path path = std::filesystem::temp_directory_path();
+    path.append("vera");
+    return path;
+}
 
 /**
  * Checks whether or not a session has permission to access
  * a file/directory.
  */
 bool userHasPermission(UserSession &us, std::string path) {
-    std::string us_path = "/tmp/vera/" + us.session_id;
+    std::filesystem::path us_path = getVeraPath();
+    us_path.append(us.session_id);
     return path.find(us_path) != std::string::npos;
 }
 
@@ -18,11 +30,14 @@ bool userHasPermission(UserSession &us, std::string path) {
  * session has access to.
  */
 std::string getUserMediaDir(UserSession &us) {
-    std::string path = "/tmp/vera/" + us.session_id;
-    if (!std::filesystem::exists("/tmp/vera/") || !std::filesystem::exists(path)) {
+    std::filesystem::path path = getVeraPath();
+    path.append(us.session_id);
+
+    if (!std::filesystem::exists(path)) {
         std::filesystem::create_directories(path);
     }
-    return path;
+
+    return path.string();
 }
 
 /**
