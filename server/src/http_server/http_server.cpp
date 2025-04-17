@@ -42,6 +42,14 @@ void HttpServer::registerHandler(const std::string &api_path, RequestHandler han
   m_handlers_.push_back({api_path, handler});
 }
 
+UserSession HttpServer::getUserSession(std::string sessionToken) {
+  m_session_guard_.lock();
+  // TODO: Replace with proper getting of UserSessions
+  // Do something in here with the m_active_sessions_ vector
+  m_session_guard_.unlock();
+  return UserSession { "abc123" };
+}
+
 /**
  */
 void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {

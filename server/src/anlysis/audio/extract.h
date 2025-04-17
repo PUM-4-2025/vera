@@ -1,7 +1,8 @@
 #ifndef EXTRACT_H
 #define EXTRACT_H
-#include "path.h"
 
-void extract(const std::string);
+#include <string>
+
+void extract(std::string);
 
 #endif

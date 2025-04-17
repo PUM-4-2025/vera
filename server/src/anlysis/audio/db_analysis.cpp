@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #include "db_analysis.h"

@@ -1,8 +1,8 @@
+#include "common.h"
 #include "upload_media.h"
-
-#include "mongoose.h"
 #include "upload_handler.h"
 
+#include "mongoose.h"
 #include <json.hpp>
 using json = nlohmann::json;
 
@@ -10,8 +10,6 @@ using json = nlohmann::json;
 #include <fstream>
 #include <iostream>
 #include <filesystem>
-
-UploadHandler handler;
 
 /**
  * Registers all the file upload handlers to the HttpServer.
