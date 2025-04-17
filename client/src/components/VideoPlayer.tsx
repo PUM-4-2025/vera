@@ -1,5 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  FilmIcon,
+  Waves,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
 import { VideoTimeSlider } from './VideoTimeSlider';
@@ -12,9 +19,19 @@ const VideoPlayer: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [showWaveform, setShowWaveform] = useState(true);
+  const [hasAudio, setHasAudio] = useState(true);
 
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
+
+  // runs when video changed
+  useEffect(() => {
+    if (currentVideoId && videos[currentVideoId]) {
+      setHasAudio(!!videos[currentVideoId].metadata?.audioCodec);
+      setVideoDuration(videos[currentVideoId].metadata?.duration || 0);
+    }
+  }, [currentVideoId, videos]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -48,12 +65,6 @@ const VideoPlayer: React.FC = () => {
       cancelAnimationFrame(animationFrameId);
     };
   }, [isPlaying]);
-
-  const handleMetadataLoaded = () => {
-    if (videoRef.current) {
-      setVideoDuration(videoRef.current.duration);
-    }
-  };
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -95,6 +106,10 @@ const VideoPlayer: React.FC = () => {
     setZoomLevel(newZoomLevel);
   };
 
+  const toggleWaveform = () => {
+    setShowWaveform(!showWaveform);
+  };
+
   return (
     <div className="h-full flex flex-col space-y-4">
       <div className="relative bg-vera-muted flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
@@ -105,9 +120,7 @@ const VideoPlayer: React.FC = () => {
               src={videoSrc}
               className="w-full h-full object-contain"
               controls={false}
-              onLoadedMetadata={handleMetadataLoaded}
               onEnded={() => setIsPlaying(false)}
-              onClick={togglePlay}
             />
           </>
         ) : (
@@ -120,8 +133,17 @@ const VideoPlayer: React.FC = () => {
         )}
       </div>
 
+      <VideoTimeSlider
+        currentTime={currentTime}
+        videoDuration={videoDuration}
+        zoomLevel={zoomLevel}
+        onTimeChange={handleTimeChange}
+        onZoomChange={handleZoomChange}
+        showWaveform={showWaveform}
+      />
+
       <div className="flex justify-between items-center gap-4 px-2">
-        <div className="text-sm font-mono text-muted-foreground tabular-nums">
+        <div className="text-sm font-mono text-muted-foreground tabular-nums w-28">
           {formatTime(currentTime)} / {formatTime(videoDuration)}
         </div>
 
@@ -158,23 +180,29 @@ const VideoPlayer: React.FC = () => {
           </Button>
         </div>
 
-        <div className="w-[calc(7ch+1rem)]"></div>
+        <div className="w-28 flex justify-end">
+          <Button
+            variant={showWaveform ? 'secondary' : 'outline'}
+            size="icon"
+            className={`hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera ${!hasAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+            aria-label={showWaveform ? 'Hide waveform' : 'Show waveform'}
+            onClick={toggleWaveform}
+            disabled={!videoSrc || !hasAudio}
+          >
+            <Waves size={16} />
+          </Button>
+        </div>
       </div>
 
-      <VideoTimeSlider
-        currentTime={currentTime}
-        videoDuration={videoDuration}
-        zoomLevel={zoomLevel}
-        onTimeChange={handleTimeChange}
-        onZoomChange={handleZoomChange}
-      />
-      <SoundWaveform
-        currentTime={currentTime}
-        videoDuration={videoDuration}
-        zoomLevel={zoomLevel}
-        onTimeChange={handleTimeChange}
-        onZoomChange={handleZoomChange}
-      />
+      {showWaveform && (
+        <SoundWaveform
+          currentTime={currentTime}
+          videoDuration={videoDuration}
+          zoomLevel={zoomLevel}
+          onTimeChange={handleTimeChange}
+          onZoomChange={handleZoomChange}
+        />
+      )}
     </div>
   );
 };
