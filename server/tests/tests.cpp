@@ -9,29 +9,27 @@
 
 
 #define CATCH_CONFIG_MAIN  // This creates a main() function automatically
+
 #include "../extern/catch2/single_include/catch2/catch.hpp"
 #include "../src/anlysis/audio/extract.h"
 
-#include <fstream>
 #include <filesystem>
 
-using namespace std;
-namespace fs = std::filesystem;
-
+std::string PATH;
 
 TEST_CASE("extract creates a .wav file from video input", "[extract]") {
-    string video_file = "sample_video";
-    string input_path = video_file + ".mp4";
-    string wav_file = input_path + ".wav";
+    std::string video_file = "sample_video";
+    std::string input_path = video_file + ".mp4";
+    std::string wav_file = input_path + ".wav";
 
     // Kör funktionen
     extract(input_path);
 
-    cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << endl;
+    std::cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << std::endl;
  
     // Verifiera att .wav-filen nu finns
-    REQUIRE(fs::exists(PATH + wav_file));
+    REQUIRE(std::filesystem::exists(PATH + wav_file));
 
     // Städa upp
-    fs::remove(wav_file);
+    std::filesystem::remove(wav_file);
 }

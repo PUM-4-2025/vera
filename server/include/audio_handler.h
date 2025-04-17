@@ -5,6 +5,6 @@
 
 void registerAudioHandlers(HttpServer &server);
 
-void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, UserSession *us);
+void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
 
 #endif

@@ -1,10 +1,10 @@
 #include <cstdlib>
-#include <fstream>
-#include <iostream>
 #include "extract.h"
-using namespace std;
+#include <string>
 
-void extract(const string in_video){
-    string cmd = "ffmpeg -i " + PATH + in_video +  " -vn -ac 1 -ar 16000 -y " + PATH + in_video + ".wav"; 
+std::string E_PATH;
+
+void extract(std::string in_video){
+    std::string cmd = "ffmpeg -i " + E_PATH + in_video +  " -vn -ac 1 -ar 16000 -y " + E_PATH + in_video + ".wav"; 
     system(cmd.c_str());
 }

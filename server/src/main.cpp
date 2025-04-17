@@ -1,8 +1,6 @@
-#include "common.h"
 #include "audio_handler.h"
 #include "http_server.h"
 #include "upload_media.h"
-#include "project_config.h"
 
 #include <iostream>
 
@@ -17,8 +15,12 @@ int main() {
   std::string url = "http://127.0.0.1:" + std::to_string(port);
 
   // Set up server properties
+  HttpServer server;
   server.listenTo(url);
   server.setStaticFilesPath(STATIC_FILES_PATH);
+
+  // TODO: Replace with proper user session handling
+  UserSession test_us = UserSession{"abc123"};
 
   // Register relevant handlers
   registerMediaHandlers(server);

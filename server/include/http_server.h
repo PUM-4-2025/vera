@@ -28,9 +28,11 @@ public:
   void setStaticFilesPath(std::string path);
   void start();
   void stop();
-  UserSession getUserSession(std::string sessionToken);
+  UserSession *getUserSession(std::string sessionToken); 
+  void appendUserSession(UserSession us);
+  void removeUserSession(UserSession us);
 
-  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, UserSession *)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:

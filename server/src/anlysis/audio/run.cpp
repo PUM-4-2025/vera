@@ -1,11 +1,8 @@
 #include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include "run.h"
-using namespace std;
+#include <string>
 
-void run(string in_video, int threshold_db, int min_sec){
-    string prefix = "py run.py ";
-    string run = prefix + in_video + " " + to_string(threshold_db) + " " + to_string(min_sec);
+void run(std::string in_video, int threshold_db, int min_sec){
+    std::string prefix = "py run.py ";
+    std::string run = prefix + in_video + " " + std::to_string(threshold_db) + " " + std::to_string(min_sec);
     system(run.c_str());
 }

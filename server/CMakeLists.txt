@@ -96,7 +96,6 @@ add_executable(server ${ALL_SOURCES})
 add_executable(tests
     tests/tests.cpp
     src/anlysis/audio/extract.cpp
-    src/anlysis/audio/path.cpp
 )
 
 target_include_directories(tests PRIVATE 

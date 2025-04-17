@@ -7,6 +7,8 @@
 
 #pragma pack(push, 1)
 
+std::string V_PATH;
+
 struct RIFFHeader {
     char riff[4];
     uint32_t chunk_size;
@@ -27,7 +29,7 @@ struct FMTSubchunk {
 #pragma pack(pop)
 
 int visual(const std::string in_wav){
-    const std::string input_path = PATH + "Nature.webm.wav";
+    const std::string input_path = V_PATH + "Nature.webm.wav";
     const std::string output_path = input_path + ".txt";
 
     std::ifstream input_file(input_path, std::ios::binary);
