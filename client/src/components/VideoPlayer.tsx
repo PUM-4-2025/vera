@@ -1,5 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, FilmIcon } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  FilmIcon,
+  RotateCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
 import { VideoTimeSlider } from './VideoTimeSlider';
@@ -12,6 +19,7 @@ const VideoPlayer: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [rotation, setRotation] = useState(0);
 
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
@@ -93,6 +101,10 @@ const VideoPlayer: React.FC = () => {
     setZoomLevel(newZoomLevel);
   };
 
+  const handleRotate = () => {
+    setRotation((prev) => prev + 90);
+  };
+
   return (
     <div className="h-full flex flex-col space-y-6">
       <div className="relative bg-vera-muted rounded-lg flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
@@ -101,6 +113,7 @@ const VideoPlayer: React.FC = () => {
             ref={videoRef}
             src={videoSrc}
             className="w-full h-full object-contain"
+            style={{ transform: `rotate(${rotation}deg)` }}
             controls={false}
             onLoadedMetadata={handleMetadataLoaded}
             onEnded={() => setIsPlaying(false)}
@@ -146,6 +159,16 @@ const VideoPlayer: React.FC = () => {
           disabled={!videoSrc}
         >
           <SkipForward size={18} />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="hover-effect rounded-full w-12 h-12 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+          aria-label="Rotate 90 degrees"
+          onClick={handleRotate}
+          disabled={!videoSrc}
+        >
+          <RotateCw size={18} />
         </Button>
       </div>
 
