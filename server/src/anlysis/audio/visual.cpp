@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
-#include "visual.h"
+#include "audio.h"
 
 #pragma pack(push, 1)
 

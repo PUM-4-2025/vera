@@ -11,7 +11,7 @@
 #define CATCH_CONFIG_MAIN  // This creates a main() function automatically
 
 #include "../extern/catch2/single_include/catch2/catch.hpp"
-#include "../src/anlysis/audio/extract.h"
+#include "audio.h"
 
 #include <filesystem>
 

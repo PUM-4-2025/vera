@@ -72,6 +72,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     return;
   }
 
+  // TODO: REPLACE_TOKEN
   UserSession *us = hs->getUserSession("");
 
   try {
@@ -127,6 +128,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     return;
   }
 
+  // TODO: REPLACE_TOKEN
   UserSession *us = hs->getUserSession("");
 
   try {
@@ -163,6 +165,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
     return;
   }
 
+  // TODO: REPLACE_TOKEN
   UserSession *us = hs->getUserSession("");
 
   try {
@@ -208,6 +211,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     return;
   }
 
+  // TODO: REPLACE_TOKEN
   UserSession *us = hs->getUserSession("");
 
   try {
