@@ -111,7 +111,7 @@ const VideoPlayer: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-4">
+    <div className="h-full flex flex-col space-y-1">
       <div className="relative bg-vera-muted flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
         {videoSrc ? (
           <>
@@ -141,6 +141,16 @@ const VideoPlayer: React.FC = () => {
         onZoomChange={handleZoomChange}
         showWaveform={showWaveform}
       />
+
+      {showWaveform && (
+        <SoundWaveform
+          currentTime={currentTime}
+          videoDuration={videoDuration}
+          zoomLevel={zoomLevel}
+          onTimeChange={handleTimeChange}
+          onZoomChange={handleZoomChange}
+        />
+      )}
 
       <div className="flex justify-between items-center gap-4 px-2">
         <div className="text-sm font-mono text-muted-foreground tabular-nums w-28">
@@ -193,16 +203,6 @@ const VideoPlayer: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      {showWaveform && (
-        <SoundWaveform
-          currentTime={currentTime}
-          videoDuration={videoDuration}
-          zoomLevel={zoomLevel}
-          onTimeChange={handleTimeChange}
-          onZoomChange={handleZoomChange}
-        />
-      )}
     </div>
   );
 };
