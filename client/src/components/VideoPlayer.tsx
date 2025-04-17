@@ -169,21 +169,6 @@ const VideoPlayer: React.FC = () => {
       <div className="time-display">
         {formatTime(currentTime)} / {formatTime(videoDuration)}
       </div>
-
-      <div className="bg-vera-muted/50 rounded-lg p-4 border border-border/30 min-h-[10vh] max-h-[10vh] overflow-y-auto">
-        <h3 className="text-sm font-medium mb-2 text-foreground/70">
-          Annotations & Analysis
-        </h3>
-        <div className="text-sm text-muted-foreground">
-          {currentVideo
-            ? `Video: ${currentVideo.metadata.filename} | Duration: ${Math.floor(videoDuration / 60)}:${Math.floor(
-                videoDuration % 60
-              )
-                .toString()
-                .padStart(2, '0')}`
-            : 'No annotations available. Select a video and use the tools to begin annotating.'}
-        </div>
-      </div>
     </div>
   );
 };
