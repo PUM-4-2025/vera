@@ -26,16 +26,16 @@ void registerMediaHandlers(HttpServer &server) {
  */
 int getUploadId() {
   srand(time(0));
-  int id;
+  int id = rand();
 
-  do {
+  while (!UPLOAD_HANDLER.isUniqueId(id)) {
     id = rand();
-  } while (!UPLOAD_HANDLER.isUniqueId(id));
+  }
 
   return id;
 }
 
-void send_http_response(struct mg_connection *c, int http_code, int id, std::string status,
+void sendHttpResponse(struct mg_connection *c, int http_code, std::string status, int id, 
                         std::string message) {
   json response = {{"uploadId", id}, {"status", status}, {"message", message}};
   std::string response_str = response.dump();
@@ -101,9 +101,9 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     new_session.us = us;
 
     UPLOAD_HANDLER.newSession(new_session);
-    send_http_response(c, 200, upload_id, "initiated", "Upload session initiated successfully.");
+    sendHttpResponse(c, 200, "initiated", upload_id, "Upload session initiated successfully.");
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
+    sendHttpResponse(c, 500, "Failure", 0, 
                        "Server experienced an exception while handling initialize request.");
   }
 }
@@ -120,18 +120,18 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
   UserSession *us = hs->getUserSession("");
 
   try {
-    char id_buf[20] = "0";
-    mg_http_get_var(&msg->query, "id", id_buf, sizeof id_buf);
+    std::string id_buf; 
+    mg_http_get_var(&msg->query, "id", id_buf.data(), id_buf.size());
 
     UploadSession *session = UPLOAD_HANDLER.getSession(std::stoi(id_buf));
 
     if (session == nullptr) {
-      send_http_response(c, 404, session->session_id, "Not found", "uploadId not found!");
+      sendHttpResponse(c, 404, "Not found", session->session_id, "uploadId not found!");
       return;
     }
 
     if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, session->session_id, "Unauthorized", "Invalid session token!");
+      sendHttpResponse(c, 401, "Unauthorized",session->session_id,  "Invalid session token!");
       return;
     }
 
@@ -140,7 +140,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     mg_http_upload(c, msg, &mg_fs_posix, session->dir.c_str(), max_size);
     UPLOAD_HANDLER.incrementChunk(*session);
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
+    sendHttpResponse(c, 500, "Failure", 0, 
                        "Server experienced an exception while handling chunk upload request.");
   }
 }
@@ -164,12 +164,12 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
     UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
 
     if (session == nullptr) {
-      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      sendHttpResponse(c, 404, "Not found",  upload_id,"uploadId not found!");
       return;
     }
 
     if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+      sendHttpResponse(c, 401, "Unauthorized",upload_id,  "Invalid session token!");
       return;
     }
 
@@ -189,7 +189,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
                   "X-Content-Type-Options: nosniff\r\n",
                   response_str.c_str());
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
+    sendHttpResponse(c, 500, "Failure", 0, 
                        "Server experienced an exception while handling status request.");
   }
 }
@@ -210,26 +210,26 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
 
     if (session == nullptr) {
-      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      sendHttpResponse(c, 404, "Not found", upload_id, "uploadId not found!");
       return;
     }
 
     if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+      sendHttpResponse(c, 401, "Unauthorized", upload_id, "Invalid session token!");
       return;
     }
 
     if (!UPLOAD_HANDLER.sessionCompleted(*session)) {
-      send_http_response(c, 418, upload_id, "Failed",
+      sendHttpResponse(c, 418, "Failed", upload_id, 
                          "Uploaded chunks != expected number of chunks. Upload failed!");
       UPLOAD_HANDLER.removeSession(*session);
       return;
     }
 
-    send_http_response(c, 200, upload_id, "Completed", "Upload completed successfully");
+    sendHttpResponse(c, 200, "Completed", upload_id, "Upload completed successfully");
     UPLOAD_HANDLER.removeSession(*session);
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
+    sendHttpResponse(c, 500, "Failure", 0, 
                        "Server experienced an exception while handling complete request.");
   }
 }
