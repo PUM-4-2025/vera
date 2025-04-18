@@ -31,7 +31,7 @@ struct FMTSubchunk {
 int visual(const std::string in_wav, UserSession &us){
     std::string session_path = getUserMediaDir(us);
 
-    const std::string input_path = session_path + "Nature.webm.wav";
+    const std::string input_path = session_path + in_wav;
     const std::string output_path = input_path + ".txt";
 
     std::ifstream input_file(input_path, std::ios::binary);
