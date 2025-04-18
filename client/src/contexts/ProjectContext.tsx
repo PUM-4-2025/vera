@@ -15,7 +15,8 @@ import {
   verifyPermission,
 } from '@/utils/projectDatabase';
 import { useFFmpeg } from './FFmpegContext';
-import { uploadMedia, uploadChunks } from '@/utils/uploadMedia';
+import { uploadMedia, uploadChunks, uploadStatus } from '@/utils/uploadMedia';
+import { toast } from 'sonner';
 
 // Import types from the dedicated types file
 import {
@@ -416,8 +417,35 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       // Begin upload to server
       const uploadSession = await uploadMedia(file);
 
-      setTimeout(() => {
+      setTimeout(async () => {
+        const sleep = (ms: number) =>
+          new Promise((resolve) => setTimeout(resolve, ms));
+
         uploadChunks(uploadSession).catch(console.error);
+
+        for (;;) {
+          try {
+            const status = await uploadStatus(uploadSession.uploadId);
+
+            const uploadProgress =
+              100 * (status.completedChunks / status.totalChunks);
+
+            const progressMessage =
+              'Uploading ' +
+              uploadSession.file.name +
+              ': ' +
+              uploadProgress.toFixed(1) +
+              '%';
+
+            toast.info(progressMessage);
+
+            // Sleep for 1 second
+            await sleep(2000);
+          } catch {
+            // Keep getting status until it fails and assume that upload was completed
+            break;
+          }
+        }
       }, 0);
 
       return result.videoId;

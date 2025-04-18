@@ -11,7 +11,7 @@ public:
   UploadHandler();
   ~UploadHandler();
 
-  void newSession(const UploadSession &session);
+  void newSession(UploadSession session);
   void removeSession(const UploadSession &session);
   UploadSession* getSession(int upload_id);
   bool isUniqueId(int id);

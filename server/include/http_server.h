@@ -8,6 +8,7 @@
 #include <atomic>
 #include <functional>
 #include <mongoose.h>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -27,8 +28,11 @@ public:
   void setStaticFilesPath(std::string path);
   void start();
   void stop();
+  UserSession *getUserSession(std::string sessionToken); 
+  void appendUserSession(UserSession us);
+  void removeUserSession(UserSession us);
 
-  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, UserSession *)>;
+  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
@@ -43,6 +47,7 @@ private:
   };
 
   std::vector<HandlerInfo> m_handlers_;
+  std::mutex m_session_guard_;
   std::vector<UserSession> m_active_sessions_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
