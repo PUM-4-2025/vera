@@ -18,8 +18,8 @@
 #include <filesystem>
 
 TEST_CASE("extract creates a .wav file from video input", "[extract]") {
-    std::string video_file = "sample_video";
-    std::string input_path = video_file + ".mp4";
+    std::string video_file = "sample_video.mp4";
+    std::string input_path = video_file;
     std::string wav_file = input_path + ".wav";
 
     std::filesystem::path path = getTestingDir();
