@@ -11,6 +11,14 @@ using json = nlohmann::json;
 
 UploadHandler handler;
 
+
+/*
+  TODO: 
+  1. Clienten tar fram en cookie/token som id för användaren/webbläsare
+  2. skapa API endpoint/funktion som tar emot en vår session-id skapad av klienten
+  3. Lägg till sessionid i activesesions i HTTPServer klassen
+  4. Ersätta UserSession i parametrar (upload_media.cpp) med fält i json kroppen
+*/
 /**
  * Registers all the file upload handlers to the HttpServer.
  */

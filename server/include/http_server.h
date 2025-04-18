@@ -43,7 +43,7 @@ private:
   };
 
   std::vector<HandlerInfo> m_handlers_;
-  std::vector<UserSession> m_active_sessions_;
+  std::vector<UserSession> m_active_sessions_; // push usersession to this object
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
 };
