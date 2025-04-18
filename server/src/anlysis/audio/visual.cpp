@@ -3,7 +3,9 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
-#include "visual.h"
+#include "audio.h"
+#include "files.h"
+#include "http_server.h"
 
 #pragma pack(push, 1)
 
@@ -26,8 +28,10 @@ struct FMTSubchunk {
 
 #pragma pack(pop)
 
-int visual(const std::string in_wav){
-    const std::string input_path = PATH + "Nature.webm.wav";
+int visual(const std::string in_wav, UserSession &us){
+    std::string session_path = getUserMediaDir(us);
+
+    const std::string input_path = session_path + in_wav;
     const std::string output_path = input_path + ".txt";
 
     std::ifstream input_file(input_path, std::ios::binary);
