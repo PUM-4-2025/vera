@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   Play,
   Pause,
@@ -6,6 +6,7 @@ import {
   SkipForward,
   FilmIcon,
   Waves,
+  RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
@@ -21,6 +22,7 @@ const VideoPlayer: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showWaveform, setShowWaveform] = useState(true);
   const [hasAudio, setHasAudio] = useState(true);
+  const [rotationDegree, setRotationDegree] = useState(0);
 
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
@@ -30,6 +32,7 @@ const VideoPlayer: React.FC = () => {
     if (currentVideoId && videos[currentVideoId]) {
       setHasAudio(!!videos[currentVideoId].metadata?.audioCodec);
       setVideoDuration(videos[currentVideoId].metadata?.duration || 0);
+      setRotationDegree(0); // Reset rotation on video change
     }
   }, [currentVideoId, videos]);
 
@@ -72,19 +75,17 @@ const VideoPlayer: React.FC = () => {
 
   const stepBackward = () => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(
-        0,
-        videoRef.current.currentTime - 5
-      );
+      const newTime = Math.max(0, videoRef.current.currentTime - 5);
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
     }
   };
 
   const stepForward = () => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.min(
-        videoDuration,
-        videoRef.current.currentTime + 5
-      );
+      const newTime = Math.min(videoDuration, videoRef.current.currentTime + 5);
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
     }
   };
 
@@ -110,99 +111,235 @@ const VideoPlayer: React.FC = () => {
     setShowWaveform(!showWaveform);
   };
 
+  // Calculate displayed aspect ratio based on rotation
+  const originalWidth = currentVideo?.metadata?.width;
+  const originalHeight = currentVideo?.metadata?.height;
+  const displayedAR = useMemo(() => {
+    if (!originalWidth || !originalHeight) return 1;
+    return rotationDegree % 180 === 0
+      ? originalWidth / originalHeight
+      : (1.75 * originalHeight) / originalWidth;
+  }, [rotationDegree, originalWidth, originalHeight]);
+  const isPortrait = displayedAR < 1;
+
   return (
-    <div className="h-full flex flex-col space-y-1">
-      <div className="relative bg-vera-muted flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
-        {videoSrc ? (
-          <>
-            <video
-              ref={videoRef}
-              src={videoSrc}
-              className="w-full h-full object-contain"
-              controls={false}
-              onEnded={() => setIsPlaying(false)}
-            />
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center text-muted-foreground">
-            <FilmIcon size={48} className="mb-3 text-vera" strokeWidth={1.5} />
-            <span className="text-sm font-medium">
-              Select a video from the sidebar to begin
-            </span>
+    <div className="h-full">
+      {videoSrc ? (
+        isPortrait ? (
+          // Portrait Mode: Row Layout
+          <div className="flex flex-row h-full space-x-1">
+            <div
+              className="relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30"
+              style={{ aspectRatio: displayedAR, height: '100%' }}
+            >
+              <video
+                ref={videoRef}
+                src={videoSrc}
+                className="w-full h-full object-contain"
+                style={{ transform: `rotate(${rotationDegree}deg)` }}
+                controls={false}
+                onEnded={() => setIsPlaying(false)}
+              />
+            </div>
+            <div className="flex-1 h-full flex flex-col space-y-1">
+              <VideoTimeSlider
+                currentTime={currentTime}
+                videoDuration={videoDuration}
+                zoomLevel={zoomLevel}
+                onTimeChange={handleTimeChange}
+                onZoomChange={handleZoomChange}
+                showWaveform={showWaveform}
+              />
+              {showWaveform && (
+                <SoundWaveform
+                  currentTime={currentTime}
+                  videoDuration={videoDuration}
+                  zoomLevel={zoomLevel}
+                  onTimeChange={handleTimeChange}
+                  onZoomChange={handleZoomChange}
+                />
+              )}
+              <div className="flex justify-between items-center gap-4 px-2">
+                <div className="text-sm font-mono text-muted-foreground tabular-nums w-28">
+                  {formatTime(currentTime)} / {formatTime(videoDuration)}
+                </div>
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                    aria-label="Step backward"
+                    onClick={stepBackward}
+                    disabled={!videoSrc}
+                  >
+                    <SkipBack size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                    aria-label={isPlaying ? 'Pause' : 'Play'}
+                    onClick={togglePlay}
+                    disabled={!videoSrc}
+                  >
+                    {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                    aria-label="Step forward"
+                    onClick={stepForward}
+                    disabled={!videoSrc}
+                  >
+                    <SkipForward size={16} />
+                  </Button>
+                </div>
+                <div className="w-28 flex justify-end">
+                  <Button
+                    variant={showWaveform ? 'secondary' : 'outline'}
+                    size="icon"
+                    className={`hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera ${!hasAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    aria-label={
+                      showWaveform ? 'Hide waveform' : 'Show waveform'
+                    }
+                    onClick={toggleWaveform}
+                    disabled={!videoSrc || !hasAudio}
+                  >
+                    <Waves size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                    aria-label="Rotate video"
+                    onClick={() =>
+                      setRotationDegree((prev) => (prev + 90) % 360)
+                    }
+                    disabled={!videoSrc}
+                  >
+                    <RotateCw size={16} />
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        ) : (
+          // Landscape Mode: Column Layout
+          <div className="flex flex-col space-y-1">
+            <div
+              className="relative bg-vera-muted flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30 self-center"
+              style={{ aspectRatio: displayedAR, width: '70%' }}
+            >
+              <video
+                ref={videoRef}
+                src={videoSrc}
+                className="w-full h-full object-contain"
+                style={{ transform: `rotate(${rotationDegree}deg)` }}
+                controls={false}
+                onEnded={() => setIsPlaying(false)}
+              />
+            </div>
 
-      <VideoTimeSlider
-        currentTime={currentTime}
-        videoDuration={videoDuration}
-        zoomLevel={zoomLevel}
-        onTimeChange={handleTimeChange}
-        onZoomChange={handleZoomChange}
-        showWaveform={showWaveform}
-      />
+            <VideoTimeSlider
+              currentTime={currentTime}
+              videoDuration={videoDuration}
+              zoomLevel={zoomLevel}
+              onTimeChange={handleTimeChange}
+              onZoomChange={handleZoomChange}
+              showWaveform={showWaveform}
+            />
 
-      {showWaveform && (
-        <SoundWaveform
-          currentTime={currentTime}
-          videoDuration={videoDuration}
-          zoomLevel={zoomLevel}
-          onTimeChange={handleTimeChange}
-          onZoomChange={handleZoomChange}
-        />
+            {showWaveform && (
+              <SoundWaveform
+                currentTime={currentTime}
+                videoDuration={videoDuration}
+                zoomLevel={zoomLevel}
+                onTimeChange={handleTimeChange}
+                onZoomChange={handleZoomChange}
+              />
+            )}
+
+            <div className="flex justify-between items-center gap-4 px-2">
+              <div className="text-sm font-mono text-muted-foreground tabular-nums w-28">
+                {formatTime(currentTime)} / {formatTime(videoDuration)}
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                  aria-label="Step backward"
+                  onClick={stepBackward}
+                  disabled={!videoSrc}
+                >
+                  <SkipBack size={16} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                  onClick={togglePlay}
+                  disabled={!videoSrc}
+                >
+                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                  aria-label="Step forward"
+                  onClick={stepForward}
+                  disabled={!videoSrc}
+                >
+                  <SkipForward size={16} />
+                </Button>
+              </div>
+
+              <div className="w-28 flex justify-end">
+                <Button
+                  variant={showWaveform ? 'secondary' : 'outline'}
+                  size="icon"
+                  className={`hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera ${!hasAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label={showWaveform ? 'Hide waveform' : 'Show waveform'}
+                  onClick={toggleWaveform}
+                  disabled={!videoSrc || !hasAudio}
+                >
+                  <Waves size={16} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                  aria-label="Rotate video"
+                  onClick={() => setRotationDegree((prev) => (prev + 90) % 360)}
+                  disabled={!videoSrc}
+                >
+                  <RotateCw size={16} />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      ) : (
+        // No Video Selected: Placeholder
+        <div className="flex flex-col space-y-1">
+          <div className="relative bg-vera-muted flex-1 min-h-[30vh] lg:min-h-[40vh] overflow-hidden flex items-center justify-center border border-border/30">
+            <div className="flex flex-col items-center justify-center text-muted-foreground">
+              <FilmIcon
+                size={48}
+                className="mb-3 text-vera"
+                strokeWidth={1.5}
+              />
+              <span className="text-sm font-medium">
+                Select a video from the sidebar to begin
+              </span>
+            </div>
+          </div>
+        </div>
       )}
-
-      <div className="flex justify-between items-center gap-4 px-2">
-        <div className="text-sm font-mono text-muted-foreground tabular-nums w-28">
-          {formatTime(currentTime)} / {formatTime(videoDuration)}
-        </div>
-
-        <div className="flex gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-            aria-label="Step backward"
-            onClick={stepBackward}
-            disabled={!videoSrc}
-          >
-            <SkipBack size={16} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-            onClick={togglePlay}
-            disabled={!videoSrc}
-          >
-            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-            aria-label="Step forward"
-            onClick={stepForward}
-            disabled={!videoSrc}
-          >
-            <SkipForward size={16} />
-          </Button>
-        </div>
-
-        <div className="w-28 flex justify-end">
-          <Button
-            variant={showWaveform ? 'secondary' : 'outline'}
-            size="icon"
-            className={`hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera ${!hasAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
-            aria-label={showWaveform ? 'Hide waveform' : 'Show waveform'}
-            onClick={toggleWaveform}
-            disabled={!videoSrc || !hasAudio}
-          >
-            <Waves size={16} />
-          </Button>
-        </div>
-      </div>
     </div>
   );
 };

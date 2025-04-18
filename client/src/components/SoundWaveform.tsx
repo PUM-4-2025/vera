@@ -1,5 +1,9 @@
 import React, { useRef, useEffect } from 'react';
 
+const samples = [
+  -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
+]; //insert samples here
+
 interface SoundWaveformProps {
   currentTime: number;
   videoDuration: number;
@@ -39,7 +43,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     const timePerPixel = videoDuration / width;
     const clickedTime = clickX * timePerPixel; // Time corresponding to click position
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
-    
+
     onTimeChange(newTime); // Update video time
   };
 
@@ -67,8 +71,8 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     // Clear the canvas
     ctx.clearRect(0, 0, effectiveWidth, height);
 
-    // Draw waveform bars
-    const numBars = 100; // Number of bars = number of samples
+    // Waveform parameters
+    const numBars = samples.length; // number of samples
     const totalWaveformWidth = effectiveWidth * zoomLevel;
     const timePerPixel = videoDuration / totalWaveformWidth;
     const currentPixel = currentTime / timePerPixel;
@@ -77,20 +81,55 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     // Calculate scroll offset to center the current time when zoomed in
     if (totalWaveformWidth > effectiveWidth) {
       scrollOffset = currentPixel - effectiveWidth / 2;
-      scrollOffset = Math.max(0, Math.min(scrollOffset, totalWaveformWidth - effectiveWidth));
+      scrollOffset = Math.max(
+        0,
+        Math.min(scrollOffset, totalWaveformWidth - effectiveWidth)
+      );
     }
 
     const barWidth = totalWaveformWidth / numBars;
     const startBar = Math.floor(scrollOffset / barWidth);
     const visibleBars = Math.ceil(effectiveWidth / barWidth);
-    
-    // Draw waveform data using samples
+
+    // Draw waveform bars
     for (let i = startBar; i < startBar + visibleBars && i < numBars; i++) {
-      const barHeight = 
-      Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5;
-      const x = i * barWidth - scrollOffset;
-      ctx.fillStyle = 'yellow';
-      ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
+      const sample_min = 5977; // sampleFactor is 1 around 1 min
+      const sample_max = 404212; // sampleFactor is 100 around 1 hour
+      let sampleFactor = Math.round(
+        1 +
+          99 *
+            (Math.log(
+              ((Number(numBars) - sample_min) / (sample_max - sample_min)) * 9 +
+                1
+            ) /
+              Math.log(10))
+      );
+      if (sampleFactor < 1) {
+        sampleFactor = 1;
+      }
+      if (i % sampleFactor == 0) {
+        // If video is near 1h we only draw mod 100 of the amount of bars
+        let data = samples[i]; // Read the sample
+
+        // Normalize sound data amplitude to fit in grapth (dB)
+        const minVal = -80;
+        const maxVal = 0; // Assume 0 dB as max for audio waveforms
+        if (data == undefined || data == null) {
+          data = minVal;
+        }
+        const barHeight = ((data - minVal) / (maxVal - minVal)) * height; // Normalize
+        //const barHeight = Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5; //old sinewave test
+
+        //Draw the bar
+        const x = i * barWidth - scrollOffset;
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(
+          x,
+          height - barHeight,
+          Math.max(1, barWidth - 1),
+          barHeight
+        );
+      }
     }
 
     // Draw red line indicating current video time
