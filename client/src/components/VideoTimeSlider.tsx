@@ -6,6 +6,7 @@ interface VideoTimeSliderProps {
   zoomLevel: number; // Zoom level for the waveform (1 = normal, >1 = zoomed in)
   onTimeChange: (time: number) => void; // Callback to update video time when slider changes
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
+  showWaveform: boolean;
 }
 
 export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
@@ -14,6 +15,7 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
   zoomLevel,
   onTimeChange,
   onZoomChange,
+  showWaveform,
 }) => {
   const timeSliderRef = useRef<HTMLInputElement>(null); // Reference to the range input
   const zoomIndicatorRef = useRef<HTMLDivElement>(null); // Reference to the zoom indicator overlay
@@ -101,19 +103,21 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
         }}
       />
       {/* Zoom indicator showing the visible portion of the waveform */}
-      <div
-        ref={zoomIndicatorRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          height: '8px',
-          background: 'rgba(0, 128, 255, 0.3)',
-          borderLeft: '1px solid blue',
-          borderRight: '1px solid blue',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
+      {showWaveform && (
+        <div
+          ref={zoomIndicatorRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            height: '8px',
+            background: 'rgba(0, 128, 255, 0.3)',
+            borderLeft: '1px solid blue',
+            borderRight: '1px solid blue',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+      )}
     </div>
   );
 };
