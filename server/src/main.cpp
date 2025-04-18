@@ -6,7 +6,7 @@
 
 int main() {
   #ifdef __cplusplus
-  std::cout << 'C++ version: ' << __cplusplus << std::endl;
+  std::cout << 'C++ version: ' << __cplusplus << '\n';
   #endif
 
   const char *portEnv = std::getenv("PORT");
