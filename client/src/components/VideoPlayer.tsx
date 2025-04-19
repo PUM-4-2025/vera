@@ -14,12 +14,16 @@ import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
 import { VideoTimeSlider } from './VideoTimeSlider';
 import { SoundWaveform } from './SoundWaveform';
+import VideoElement, { VideoElementRef } from './VideoElement';
 
 const VideoPlayer: React.FC = () => {
   const { videos, currentVideoId } = useProject();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoElementRef = useRef<VideoElementRef>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const canSeekRef = useRef<boolean>(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -38,8 +42,10 @@ const VideoPlayer: React.FC = () => {
   // runs when video changed
   useEffect(() => {
     if (currentVideoId && videos[currentVideoId]) {
-      setHasAudio(!!videos[currentVideoId].metadata?.audioCodec);
-      setVideoDuration(videos[currentVideoId].metadata?.duration || 0);
+      const videoData = videos[currentVideoId];
+      setHasAudio(!!videoData.metadata?.audioCodec);
+      setCurrentTime(0);
+      setIsPlaying(false);
       setManualLayout('auto');
     }
   }, [currentVideoId, videos]);
@@ -116,70 +122,115 @@ const VideoPlayer: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [effectiveLayout, videoSrc]); // Depend on effectiveLayout and videoSrc
 
-  useEffect(() => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.play().catch((error) => {
-          console.error('Error playing video:', error);
-          setIsPlaying(false);
-        });
-      } else {
-        videoRef.current.pause();
-      }
-    }
-  }, [isPlaying]);
-
-  // Smooth time updates using requestAnimationFrame
+  // Restore requestAnimationFrame for smooth time updates during playback
   useEffect(() => {
     let animationFrameId: number;
-    const updateTime = () => {
-      if (videoRef.current && isPlaying) {
-        const newTime = videoRef.current.currentTime;
+
+    const updateTimeSmoothly = () => {
+      if (videoElementRef.current && isPlaying) {
+        const newTime = videoElementRef.current.getCurrentTime();
         setCurrentTime(newTime);
+        animationFrameId = requestAnimationFrame(updateTimeSmoothly);
       }
-      animationFrameId = requestAnimationFrame(updateTime);
     };
 
     if (isPlaying) {
-      animationFrameId = requestAnimationFrame(updateTime);
+      animationFrameId = requestAnimationFrame(updateTimeSmoothly);
     }
 
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
+    // Depend on isPlaying and the ref being available (though ref itself doesn't trigger updates)
   }, [isPlaying]);
 
+  // Control Functions (using videoElementRef)
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+    if (!videoElementRef.current) return;
+    const newState = !isPlaying;
+    if (newState) {
+      videoElementRef.current.play();
+    } else {
+      videoElementRef.current.pause();
+    }
+    setIsPlaying(newState);
   };
 
   const stepBackward = () => {
-    if (videoRef.current) {
-      const newTime = Math.max(0, videoRef.current.currentTime - 5);
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
-    }
+    videoElementRef.current?.prevFrame();
   };
 
   const stepForward = () => {
-    if (videoRef.current) {
-      const newTime = Math.min(videoDuration, videoRef.current.currentTime + 5);
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
+    videoElementRef.current?.nextFrame();
+  };
+
+  const handleTimeChange = (time: number) => {
+    // Always update the state immediately for UI responsiveness
+    setCurrentTime(time);
+
+    if (isSeeking) {
+      // Throttle seeks during drag
+      if (canSeekRef.current && videoElementRef.current) {
+        videoElementRef.current.seek(time);
+        canSeekRef.current = false;
+        // Clear previous timeout if it exists
+        if (throttleTimeoutRef.current) {
+          clearTimeout(throttleTimeoutRef.current);
+        }
+        // Set new timeout to allow seeking again after delay
+        throttleTimeoutRef.current = setTimeout(() => {
+          canSeekRef.current = true;
+        }, 100); // Throttle delay: 100ms
+      }
+    } else {
+      // Seek immediately if not dragging (e.g., click)
+      if (videoElementRef.current) {
+        videoElementRef.current.seek(time);
+      }
     }
+  };
+
+  // Handlers for slider drag state
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+    canSeekRef.current = true; // Allow immediate seek on drag start
+    // Clear any lingering timeout from previous interactions
+    if (throttleTimeoutRef.current) {
+      clearTimeout(throttleTimeoutRef.current);
+      throttleTimeoutRef.current = null;
+    }
+  };
+
+  const handleSeekEnd = () => {
+    setIsSeeking(false);
+    // Clear throttle timeout
+    if (throttleTimeoutRef.current) {
+      clearTimeout(throttleTimeoutRef.current);
+      throttleTimeoutRef.current = null;
+    }
+    // Perform the final accurate seek operation when dragging stops
+    if (videoElementRef.current) {
+      videoElementRef.current.seek(currentTime);
+    }
+  };
+
+  // Callbacks for VideoElement
+  const handleVideoTimeUpdate = (time: number) => {
+    setCurrentTime(time);
+  };
+
+  const handleVideoEnded = () => {
+    setIsPlaying(false);
+  };
+
+  const handleVideoLoadedMetadata = (duration: number) => {
+    setVideoDuration(duration);
   };
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const handleTimeChange = (time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
   };
 
   const handleZoomChange = (delta: number) => {
@@ -251,12 +302,17 @@ const VideoPlayer: React.FC = () => {
             }}
           >
             <SizeInfoPanel />
-            <video
-              ref={videoRef}
+            <VideoElement
+              ref={videoElementRef}
               src={videoSrc}
-              className="w-full h-full object-contain"
-              controls={false}
-              onEnded={() => setIsPlaying(false)}
+              containerWidth={containerSize.width}
+              containerHeight={containerSize.height}
+              videoWidth={originalWidth || 1920}
+              videoHeight={originalHeight || 1080}
+              initialFrameRate={currentVideo?.metadata?.fps || 30}
+              onTimeUpdate={handleVideoTimeUpdate}
+              onEnded={handleVideoEnded}
+              onLoadedMetadata={handleVideoLoadedMetadata}
             />
           </div>
 
@@ -270,6 +326,8 @@ const VideoPlayer: React.FC = () => {
               onTimeChange={handleTimeChange}
               onZoomChange={handleZoomChange}
               showWaveform={showWaveform}
+              onSeekStart={handleSeekStart}
+              onSeekEnd={handleSeekEnd}
             />
 
             {showWaveform && (
