@@ -5,3 +5,6 @@
 	path = server/extern/catch2
 	url = https://github.com/catchorg/Catch2.git
 	branch = v2.x
+[submodule "server/extern/opencv"]
+	path = server/extern/opencv
+	url = git@github.com:opencv/opencv.git
