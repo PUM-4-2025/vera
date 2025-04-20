@@ -22,13 +22,16 @@
     "@techstark/opencv-js": "^4.10.0-release.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "konva": "^9.3.20",
     "lucide-react": "^0.479.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-konva": "^19.0.3",
     "shadcn": "^2.4.0-canary.12",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.13",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

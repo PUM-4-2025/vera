@@ -1,10 +1,11 @@
 import './App.css';
-import DrawPage from '../components/ui/DrawPage.tsx';
+//import DrawPage from '../components/ui/DrawPage.tsx';
+import DrawComponent from '../components/ui/DrawComponent.tsx'
 
 function App() {
   return (
     <div>
-      <DrawPage />
+      <DrawComponent/>
     </div>
   );
 }

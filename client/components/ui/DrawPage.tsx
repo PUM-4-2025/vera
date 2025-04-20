@@ -6,7 +6,8 @@ import cv, {
 } from '@techstark/opencv-js';
 //import video from '../ungso.mp4';
 import video from './VID_20200422_124032.mp4';
-//import InputField from './InputField';
+import konva from 'konva';
+import { Stage, Layer, Label, Tag, Text, Rect, Circle, Arrow, Group } from 'react-konva';
 
 const LINE_THICKNESS = 2;
 const SELECTED_COLOR = [0, 255, 0, 255];
@@ -15,11 +16,20 @@ const TEMP_DRAW_COLOR = [0, 0, 255, 255];
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.1;
+const DEFAULT_TEXT = "Video på gärningsmannen som stal min elsparkcykel!"
 
 interface Point {
   x: number;
   y: number;
 }
+
+// /** Initialize a stage. Stages are used to contain multiple layers */
+// const stage = new konva.Stage({
+//   container: 'container',
+//   width: window.innerWidth,
+//   height: window.innerHeight
+// });
+
 
 interface Shape {
   id: string;
@@ -77,6 +87,8 @@ function isPointNearShape(
   }
   return false;
 }
+
+
 
 function DrawPage() {
   const [drawMode, setDrawMode] = useState<
@@ -652,6 +664,7 @@ function DrawPage() {
 
       {/* Video and Canvas Container */}
       <div
+        id={'container'}
         ref={containerRef}
         style={{
           position: 'relative',
@@ -703,6 +716,36 @@ function DrawPage() {
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         />
+        <Stage container={'container'} width={640} height={480} >
+          <Layer ref={layerRef}>
+
+            <Group x={180} y={150} draggable={true}>
+              <Rect
+                id={'testLabel'}
+                x={20} 
+                y={50} 
+                width={135} 
+                height={100} 
+                fill="yellow" 
+                opacity={0.75} 
+                shadowBlur={10}>
+              </Rect>
+
+              <Text
+                container={'testLabel'}
+                x={25}
+                y={55}
+                width={135}
+                text={DEFAULT_TEXT}
+                fontFamily="Calibri"
+                fontSize={18}
+                padding={5}
+                fill="black"
+              /> 
+            </Group>
+
+          </Layer>
+        </Stage>
       </div>
 
       {/* Controls */}
