@@ -12,7 +12,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(BUILD_TESTING "Build the tests" OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(OpenCV_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/opencv-install")
+# set(OpenCV_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/opencv-install")
 
 if(WIN32)
   set(PLATFORM_SPECIFIC_LIBS ws2_32)
