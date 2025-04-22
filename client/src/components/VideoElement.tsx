@@ -6,21 +6,61 @@ import React, {
   forwardRef,
 } from 'react';
 
-import AnnotationCanvas from './AnnotationCanvas';
-
 import Konva from 'konva';
 import {
   Stage,
   Layer,
   Circle,
   Rect,
-  Line,
-  Text,
-  Image,
-  Transformer,
-  Group,
+  Arrow,
 } from 'react-konva';
-import { KonvaEventObject } from 'konva/lib/Node';
+
+import { v4 as uuidv4 } from 'uuid';
+import { Button } from '@/components/ui/button';
+import {
+  Circle as CircleIcon,
+  ArrowUpRight,
+  Square,
+  Undo2,
+  Trash2,
+} from 'lucide-react';
+
+
+// Discriminated union for different shape types
+type RectShape = {
+  id: string;
+  type: 'rect';
+  // Top left corner of the rectangle
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  stroke: string;
+  strokeWidth: number;
+};
+
+type CircleShape = {
+  id: string;
+  type: 'circle';
+  // Center of the circle
+  x: number;
+  y: number;
+  radius: number;
+  stroke: string;
+  strokeWidth: number;
+};
+
+type ArrowShape = {
+  id: string;
+  type: 'arrow';
+  // Start point of the arrow
+  points: [number, number, number, number];
+  stroke: string;
+  strokeWidth: number;
+};
+
+
+type ShapeData = RectShape | CircleShape | ArrowShape;
 
 // Define the interface for the functions/properties we want to expose
 export interface VideoElementRef {
@@ -43,6 +83,162 @@ interface VideoElementProps {
   initialFrameRate: number;
   onTimeUpdate: (time: number) => void;
 }
+
+// --- Shape Rendering Components ---
+
+interface ExistingShapesProps {
+  shapes: ShapeData[];
+  selectedId: string | null;
+  currentShapeType: 'rect' | 'circle' | 'arrow' | 'none';
+  getStagePointFromOriginalVideoCoords: (
+    videoCoords: { x: number; y: number } | null | undefined
+  ) => { x: number; y: number } | null;
+  scale: number;
+}
+
+const ExistingShapes: React.FC<ExistingShapesProps> = ({
+  shapes,
+  selectedId,
+  currentShapeType,
+  getStagePointFromOriginalVideoCoords,
+  scale,
+}) => {
+  return (
+    <>
+      {shapes.map(shape => {
+        const commonProps = {
+          key: shape.id,
+          id: shape.id,
+          stroke: shape.stroke,
+          strokeWidth: shape.strokeWidth,
+        };
+        if (shape.type === 'rect') {
+            const stagePoint = getStagePointFromOriginalVideoCoords({
+            x: shape.x,
+            y: shape.y,
+          });
+          if (!stagePoint) return null;
+          return (
+            <Rect
+              {...commonProps}
+              x={stagePoint.x}
+              y={stagePoint.y}
+              width={shape.width * scale}
+              height={shape.height * scale}
+            />
+          )
+        }
+        if (shape.type === 'circle') {
+          const stagePoint = getStagePointFromOriginalVideoCoords({
+            x: shape.x,
+            y: shape.y,
+          });
+          if (!stagePoint) return null;
+          return (
+            <Circle
+              {...commonProps}
+              x={stagePoint.x}
+              y={stagePoint.y}
+              radius={shape.radius * scale}
+            />
+          );
+        }
+        if (shape.type === 'arrow') {
+          const stagePoint = getStagePointFromOriginalVideoCoords({
+            x: shape.points[0],
+            y: shape.points[1],
+          });
+          const stagePoint2 = getStagePointFromOriginalVideoCoords({
+            x: shape.points[2],
+            y: shape.points[3],
+          });
+          if (!stagePoint || !stagePoint2) return null;
+          return (
+            <Arrow
+              {...commonProps}
+              points={[stagePoint.x, stagePoint.y, stagePoint2.x, stagePoint2.y]}
+              pointerLength={10}
+              pointerWidth={10}
+            />
+          )
+        }
+        // Add rendering logic for other shape types here
+        return null; // Placeholder for other shapes
+      })}
+    </>
+  );
+};
+
+
+interface NewShapePreviewProps {
+  newShape: ShapeData | null;
+  getStagePointFromOriginalVideoCoords: (
+    videoCoords: { x: number; y: number } | null | undefined
+  ) => { x: number; y: number } | null;
+  scale: number;
+}
+
+const NewShapePreview: React.FC<NewShapePreviewProps> = ({ newShape, getStagePointFromOriginalVideoCoords, scale }) => {
+  if (!newShape) return null;
+
+  if (newShape.type === 'rect') {
+    const stagePoint = getStagePointFromOriginalVideoCoords({
+      x: newShape.x,
+      y: newShape.y,
+    });
+    if (!stagePoint) return null;
+    return (
+      <Rect
+        x={stagePoint.x}
+        y={stagePoint.y}
+        width={newShape.width * scale}
+        height={newShape.height * scale}
+        stroke={newShape.stroke}
+        strokeWidth={newShape.strokeWidth}
+        dash={[5, 5]}
+      />
+    );
+  }
+  if (newShape.type === 'circle') {
+    const stagePoint = getStagePointFromOriginalVideoCoords({
+      x: newShape.x,
+      y: newShape.y,
+    });
+    if (!stagePoint) return null;
+    return (
+      <Circle
+        x={stagePoint.x}
+        y={stagePoint.y}
+        radius={newShape.radius * scale}
+        stroke={newShape.stroke}
+        strokeWidth={newShape.strokeWidth}
+        dash={[5, 5]}
+      />
+    );
+  }
+  if (newShape.type === 'arrow') {
+    const stagePoint = getStagePointFromOriginalVideoCoords({
+      x: newShape.points[0],
+      y: newShape.points[1],
+    });
+
+    const stagePoint2 = getStagePointFromOriginalVideoCoords({
+      x: newShape.points[2],
+      y: newShape.points[3],
+    });
+    if (!stagePoint || !stagePoint2) return null;
+    return (
+      <Arrow {...newShape} 
+        points={[stagePoint.x, stagePoint.y, stagePoint2.x, stagePoint2.y]}
+        pointerLength={10}
+        pointerWidth={10}
+        dash={[5, 5]}
+      />
+    );
+  }
+  // Add rendering logic for other new shape types here
+  return null; // Placeholder for other shapes
+};
 
 // Define zoom constants
 const MIN_ZOOM = 0.5;
@@ -74,6 +270,16 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     const [scale, setScale] = useState(1); // Video scale
     const [offset, setOffset] = useState({ x: 0, y: 0 }); // Video translation offset
 
+    // --- Annotation State ---
+    const [shapes, setShapes] = useState<ShapeData[]>([]);
+    const [currentShapeType, setCurrentShapeType] = useState<'rect' | 'circle' | 'arrow' | 'none'>('rect');
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [newShape, setNewShape] = useState<ShapeData | null>(null);
+    const [drawStartX, setDrawStartX] = useState<number | null>(null); // Store initial X for drawing
+    const [drawStartY, setDrawStartY] = useState<number | null>(null); // Store initial Y for drawing
+
+
+
     const getOriginalVideoCoordsFromStagePoint = (
       stagePoint: { x: number; y: number } | null | undefined
     ): { x: number; y: number } | null => {
@@ -95,14 +301,47 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       return { x: videoX, y: videoY };
     };
 
-    const printPos = () => {
-      const stagePoint = stageRef.current?.getRelativePointerPosition();
-      if (!stagePoint) return;
-      const videoCoords = getOriginalVideoCoordsFromStagePoint(stagePoint);
-      if (!videoCoords) return;
-      console.log({ ...videoCoords, videoWidth, videoHeight });
+    // Inverse: Convert original video coordinates to stage coordinates
+    const getStagePointFromOriginalVideoCoords = (
+      videoCoords: { x: number; y: number } | null | undefined
+    ): { x: number; y: number } | null => {
+      if (!videoCoords || scale === 0) {
+        // Return null if input is invalid or scale is zero
+        return null;
+      }
+
+      // Convert video coordinates to ratios
+      const ratioX = videoCoords.x / videoWidth;
+      const ratioY = videoCoords.y / videoHeight;
+
+      // Convert ratios to container coordinates
+      const containerX = ratioX * containerWidth;
+      const containerY = ratioY * containerHeight;
+
+      // Convert container coordinates to stage coordinates
+      const stageX = containerX * scale + offset.x;
+      const stageY = containerY * scale + offset.y;
+
+      return { x: stageX, y: stageY };
     };
+
+
     // --- Effects ---
+
+    // Effect to reset state when video source changes
+    useEffect(() => {
+      setShapes([]); // Clear existing shapes
+      setScale(1); // Reset zoom
+      setOffset({ x: 0, y: 0 }); // Reset pan
+    }, [src]); // Dependency array includes src
+
+    // Effect to reset annotations when video is playing
+    useEffect(() => {
+      if (isPlaying) {
+        setShapes([]); // Clear existing shapes
+        setCurrentShapeType('none');
+      }
+    }, [isPlaying]);
 
     // Effect to update internal frame rate if prop changes
     useEffect(() => {
@@ -212,6 +451,140 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       setFrameRate: (rate: number) => setFrameRate(rate),
     }));
 
+    // --- Event Handlers for Annotations ---
+    const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (currentShapeType === 'none') return;
+
+      setSelectedId(null);
+
+      const stagePoint = stageRef.current?.getRelativePointerPosition();
+      if (!stagePoint) return;
+      const videoCoords = getOriginalVideoCoordsFromStagePoint(stagePoint);
+      if (!videoCoords) return;
+
+      setDrawStartX(videoCoords.x);
+      setDrawStartY(videoCoords.y);
+      const id = uuidv4();
+
+      if (currentShapeType === 'rect') {
+        setNewShape({
+          id,
+          type: 'rect',
+          x: videoCoords.x,
+          y: videoCoords.y,
+          width: 0,
+          height: 0,
+          stroke: 'red',
+          strokeWidth: 4,
+        });
+      }
+      if (currentShapeType === 'circle') {
+        setNewShape({
+          id,
+          type: 'circle',
+          x: videoCoords.x,
+          y: videoCoords.y,
+          radius: 0,
+          stroke: 'red',
+          strokeWidth: 4,
+        });
+      }
+      if (currentShapeType === 'arrow') {
+        setNewShape({
+          id,
+          type: 'arrow',
+          points: [videoCoords.x, videoCoords.y, videoCoords.x, videoCoords.y] as [number, number, number, number],
+          stroke: 'red',
+          strokeWidth: 4,
+        });
+      }
+
+    };
+
+    const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Only proceed if we have a shape and, if it's a circle, a starting point
+      if (!newShape || (newShape.type === 'circle' && (drawStartX === null || drawStartY === null))) return;
+
+      const stagePoint = stageRef.current?.getRelativePointerPosition();
+      if (!stagePoint) return;
+      const videoCoords = getOriginalVideoCoordsFromStagePoint(stagePoint);
+      if (!videoCoords) return;
+
+      setNewShape(prev => {
+        if (!prev) return null;
+
+        if (prev.type === 'rect') {
+          return {
+            id: prev.id,
+            type: 'rect',
+            x: prev.x,
+            y: prev.y,
+            width: videoCoords.x - prev.x,
+            height: videoCoords.y - prev.y,
+            stroke: prev.stroke,
+            strokeWidth: prev.strokeWidth,
+          }
+        }
+        if (prev.type === 'circle') {
+          // Calculate center and radius based on the two diagonal points
+          const x1 = drawStartX as number; // Use fixed start X
+          const y1 = drawStartY as number; // Use fixed start Y
+          const x2 = videoCoords.x;
+          const y2 = videoCoords.y;
+
+          const centerX = (x1 + x2) / 2;
+          const centerY = (y1 + y2) / 2;
+          const radius = Math.hypot(x2 - x1, y2 - y1) / 2;
+
+          return {
+            id: prev.id,
+            type: 'circle',
+            x: centerX, // Update x to be the calculated center
+            y: centerY, // Update y to be the calculated center
+            radius,
+            stroke: prev.stroke,
+            strokeWidth: prev.strokeWidth,
+          }
+        }
+        if (prev.type === 'arrow') {
+          const [x0, y0] = prev.points;
+          return {
+            id: prev.id,
+            type: 'arrow',
+            points: [x0, y0, videoCoords.x, videoCoords.y] as [number, number, number, number],
+            stroke: prev.stroke,
+            strokeWidth: prev.strokeWidth,
+          }
+        }
+        return prev;
+      });
+    };
+
+    const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+      const shape = newShape;
+      if (shape) {
+        setShapes(prev => [...prev, shape]);
+      }
+      setNewShape(null);
+      setDrawStartX(null); // Reset drawing start point
+      setDrawStartY(null); // Reset drawing start point
+    };
+
+    // --- Undo Handler ---
+    const handleUndo = () => {
+      setShapes(prevShapes => {
+        if (prevShapes.length === 0) {
+          return prevShapes; // Nothing to undo
+        }
+        return prevShapes.slice(0, -1); // Return array without the last element
+      });
+    };
+
+    // --- Clear All Handler ---
+    const handleClearAll = () => {
+      setShapes([]); // Set shapes to an empty array
+    };
+
     // --- Render ---
     return (
       <div
@@ -224,6 +597,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           backgroundColor: 'black', // Background visible when video is smaller than container
         }}
       >
+        
+
         <video
           ref={videoRef}
           src={src}
@@ -238,31 +613,89 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             left: 0,
           }}
         />
+
+        {/* Annotation Tool Buttons - Only show when video is paused */}
+        {!isPlaying && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 10,
+              left: 10,
+              zIndex: 10,
+              display: 'flex',
+              gap: 4,
+              // flexDirection: 'column' // Keep horizontal for now, or adjust as needed
+            }}
+          >
+            <Button
+              size="icon"
+              variant={currentShapeType === 'rect' ? 'secondary' : 'outline'}
+              onClick={() => setCurrentShapeType('rect')}
+            >
+              <Square size={16} />
+            </Button>
+            <Button
+              size="icon"
+              variant={currentShapeType === 'circle' ? 'secondary' : 'outline'}
+              onClick={() => setCurrentShapeType('circle')}
+            >
+              <CircleIcon size={16} />
+            </Button>
+            <Button
+              size="icon"
+              variant={currentShapeType === 'arrow' ? 'secondary' : 'outline'}
+              onClick={() => setCurrentShapeType('arrow')}
+            >
+              <ArrowUpRight size={16} />
+            </Button>
+            {/* Undo Button */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleUndo}
+              disabled={shapes.length === 0} // Disable if no shapes exist
+            >
+              <Undo2 size={16} />
+            </Button>
+            {/* Clear All Button */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleClearAll}
+              disabled={shapes.length === 0} // Disable if no shapes exist
+              className={shapes.length > 0 ? "hover:bg-red-100" : ""} // Optional: Add red hover if active
+            >
+              <Trash2 size={16} />
+            </Button>
+          </div>
+        )}
         {/* Konva Stage for annotations - stays fixed, NOT scaled/translated */}
         <Stage
           ref={stageRef}
           width={containerWidth}
           height={containerHeight}
           style={{ position: 'absolute', top: 0, left: 0 }}
-          onClick={printPos}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
           <Layer ref={annotationLayerRef} style={{ pointerEvents: 'auto' }}>
-            {/* Example Annotation Shape - Position is relative to the video */}
-            <Rect
-              x={20}
-              y={20}
-              width={100}
-              height={100}
-              fill="rgba(0, 255, 0, 0.5)"
-              draggable
+            {/* Render existing shapes */}
+            <ExistingShapes
+              shapes={shapes}
+              selectedId={selectedId}
+              currentShapeType={currentShapeType}
+              getStagePointFromOriginalVideoCoords={getStagePointFromOriginalVideoCoords}
+              scale={scale}
             />
-            <Text
-              text="Annotations here (video zooms behind)"
-              x={150}
-              y={50}
-              fill="white"
-              draggable
+
+            {/* Render new shape preview */}
+            <NewShapePreview
+              newShape={newShape}
+              getStagePointFromOriginalVideoCoords={getStagePointFromOriginalVideoCoords}
+              scale={scale}
             />
+            
           </Layer>
         </Stage>
       </div>
