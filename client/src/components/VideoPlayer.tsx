@@ -47,6 +47,7 @@ const VideoPlayer: React.FC = () => {
       setHasAudio(!!videoData.metadata?.audioCodec);
       setCurrentTime(0);
       setIsPlaying(false);
+      setVideoDuration(videoData.metadata?.duration || 0);
       setManualLayout('auto');
     }
   }, [currentVideoId, videos]);
@@ -254,8 +255,6 @@ const VideoPlayer: React.FC = () => {
       containerSize.height * window.devicePixelRatio
     );
 
-
-
     return (
       <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white p-2 rounded text-xs z-10 font-mono">
         <div>
@@ -278,7 +277,6 @@ const VideoPlayer: React.FC = () => {
       </div>
     );
   };
-
 
   const getActualContainerSize = () => {
     const actualContainerWidth = Math.round(
@@ -306,16 +304,14 @@ const VideoPlayer: React.FC = () => {
             className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${isPortraitLayout ? 'h-full' : 'flex-1 min-h-[30vh] lg:min-h-[40vh] self-center'}`}
             style={{
               aspectRatio: displayedAR,
-              maxWidth: isPortraitLayout ? '90%' : '95%',
-              maxHeight: isPortraitLayout ? '100%' : '85vh',
             }}
           >
             <SizeInfoPanel />
             <VideoElement
               ref={videoElementRef}
               src={videoSrc}
-              containerWidth={getActualContainerSize().width}
-              containerHeight={getActualContainerSize().height}
+              containerWidth={containerSize.width}
+              containerHeight={containerSize.height}
               videoWidth={originalWidth || 1920}
               videoHeight={originalHeight || 1080}
               initialFrameRate={currentVideo?.metadata?.fps || 30}
