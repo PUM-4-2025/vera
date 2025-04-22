@@ -24,13 +24,13 @@ public:
   HttpServer();
   ~HttpServer();
 
-  void listenTo(std::string address);
-  void setStaticFilesPath(std::string path);
+  void listenTo(const std::string &address);
+  void setStaticFilesPath(const std::string &path);
   void start();
   void stop();
-  UserSession *getUserSession(std::string sessionToken); 
-  void appendUserSession(UserSession us);
-  void removeUserSession(UserSession us);
+  UserSession *getUserSession(const std::string &session_token); 
+  void appendUserSession(const UserSession &us);
+  void removeUserSession(const UserSession &us);
 
   using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);

@@ -1,6 +1,7 @@
 #include "upload_handler.h"
 #include "upload_media.h"
 #include <vector>
+#include <utility>
 
 /*
  * A lot of methods are written in here to stop race conditions
@@ -18,7 +19,7 @@ UploadHandler::~UploadHandler() {
 
 void UploadHandler::newSession(UploadSession session) {
   m_uploads_guard_.lock();
-  m_uploads_.push_back(session);
+  m_uploads_.push_back(std::move(session));
   m_uploads_guard_.unlock();
 }
 

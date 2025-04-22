@@ -17,7 +17,7 @@ std::filesystem::path getVeraPath() {
  * Checks whether or not a session has permission to access
  * a file/directory.
  */
-bool userHasPermission(UserSession &us, std::string path) {
+bool userHasPermission(UserSession &us, const std::string &path) {
     std::filesystem::path us_path = getVeraPath();
     us_path.append(us.session_id);
     return path.find(us_path) != std::string::npos;
@@ -42,7 +42,7 @@ std::string getUserMediaDir(UserSession &us) {
  * Helper function for writing string/text data to a file.
  * Also handles permissions.
  */
-int writeTextFile(std::string path, std::string data, UserSession &us) {
+int writeTextFile(const std::string &path, UserSession &us, const std::string &data) {
     if (!userHasPermission(us, path)) {
         return -1;
     }
@@ -62,7 +62,7 @@ int writeTextFile(std::string path, std::string data, UserSession &us) {
  * Helper function for reading string/text data from a file.
  * Also handles permissions.
  */
-std::string readTextFile(std::string path, UserSession &us) {
+std::string readTextFile(const std::string &path, UserSession &us) {
     if (!userHasPermission(us, path)) {
         return "";
     }
