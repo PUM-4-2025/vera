@@ -23,19 +23,45 @@ jobs:
     steps:
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
+        if: matrix.platform == 'macos-latest' && 'aarch64-apple-darwin'
         with:
-          version: "10.0"
+          version: "18.1.8"
+          arch: arm64
+        if: matrix.platform == 'macos-latest' && 'x86_64-apple-darwin'
+        with:
+          version: "15.0.7"
+          arch: x64
+        if: matrix.platform == 'ubuntu-22.04'
+        with:
+          version: "18.1.8"
+          arch: x64
+        if: matrix.platform == 'windows-latest'
+        with:
+          version: "19.1.7"
+          arch: x64
       
       - name: Get cmake
         uses: lukka/get-cmake@latest
 
       - name: Clone OpenCV
         run: git clone https://github.com/opencv/opencv.git
-     
-      - name: Build OpenCV
+      
+      - name: Configure OpenCV
         run: |
           mkdir opencv/build
           cd opencv/build
           cmake ..
-          make -j$(nproc)
+     
+      - name: Build OpenCV
+        if: matrix.platform == 'windows-latest'
+        run: | 
+          make -j%NUMBER_OF_PROCESSORS%
           make install
+        if: matrix.platform != 'windows-latest'
+        run: |
+          make -j$(nproc)
+
+      - name: make install OpenCV
+        run: make install
+        
+        
