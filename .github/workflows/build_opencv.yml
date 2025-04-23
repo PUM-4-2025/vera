@@ -1,5 +1,9 @@
 name: "build-opencv"
 
+on:
+  push:
+    branches: [opencv]
+
 jobs:
   build-opencv:
     strategy:
@@ -10,7 +14,7 @@ jobs:
             args: "--target aarch64-apple-darwin"
           - platform: "macos-latest" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
-          - platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-20.04.
+          - platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-22.04.
             args: ""
           - platform: "windows-latest"
             args: ""
@@ -18,14 +22,18 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v2.0.6
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "10.0"
+      
+      - name: Get cmake
+        uses: lukka/get-cmake@latest
 
       - name: Clone OpenCV
-        run:
-          git clone https://github.com/opencv/opencv.git
+        run: git clone https://github.com/opencv/opencv.git
      
       - name: Build OpenCV
-        run:
+        run: |
           mkdir opencv/build
           cd opencv/build
           cmake ..
