@@ -28,21 +28,13 @@ jobs:
       - name: Prepare for llvm
         if: matrix.platform != 'windows-latest'
         run: rm -rf ${{ runner.temp }}/llvm # Make sure directory doesn't exist
-
-      - name: Install LLVM and Clang MacOS arm64
-        uses: KyleMayes/install-llvm-action@v2
-        if: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' }}
-        with:
-          version: "18.1.8"
-          arch: arm64
-          directory: ${{ runner.temp }}/llvm
       
-      - name: Install LLVM and Clang MacOS x64
+      - name: Install LLVM and Clang MacOS 
         uses: KyleMayes/install-llvm-action@v2
         if: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin' }}
         with:
           version: "15.0.7"
-          arch: x64
+          arch: ${{ matrix.architecture }}
           directory: ${{ runner.temp }}/llvm
 
       - name: Install LLVM and Clang Ubuntu x64 
