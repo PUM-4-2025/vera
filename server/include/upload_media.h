@@ -4,10 +4,10 @@
 #include "http_server.h"
 
 void registerMediaHandlers(HttpServer &server);
-void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSession *us);
-void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSession *us);
-void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSession *us);
-void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSession *us);
+void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
+void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
+void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
+void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
 
 using UploadSession = struct UploadSession {
   std::string filename;

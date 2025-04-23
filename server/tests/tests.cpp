@@ -8,30 +8,32 @@
 // ./server/build/bin/tests    efter du kört Vera med python3 run.py
 
 
+#include "http_server.h"
 #define CATCH_CONFIG_MAIN  // This creates a main() function automatically
-#include "../extern/catch2/single_include/catch2/catch.hpp"
-#include "../src/anlysis/audio/extract.h"
 
-#include <fstream>
+#include "../extern/catch2/single_include/catch2/catch.hpp"
+#include "audio.h"
+#include "files.h"
+
 #include <filesystem>
 
-using namespace std;
-namespace fs = std::filesystem;
-
-
 TEST_CASE("extract creates a .wav file from video input", "[extract]") {
-    string video_file = "sample_video";
-    string input_path = video_file + ".mp4";
-    string wav_file = input_path + ".wav";
+    std::string video_file = "sample_video.mp4";
+    std::string input_path = video_file;
+    std::string wav_file = input_path + ".wav";
+
+    std::filesystem::path path = getTestingDir();
+    path.append(wav_file);
 
     // Kör funktionen
-    extract(input_path);
+    UserSession test_session = UserSession { "test" };
+    extract(input_path, test_session);
 
-    cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << endl;
+    std::cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << std::endl;
  
     // Verifiera att .wav-filen nu finns
-    REQUIRE(fs::exists(PATH + wav_file));
+    REQUIRE(std::filesystem::exists(path));
 
     // Städa upp
-    fs::remove(wav_file);
+    std::filesystem::remove(wav_file);
 }

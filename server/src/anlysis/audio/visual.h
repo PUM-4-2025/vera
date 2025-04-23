@@ -1,6 +1,8 @@
 #ifndef VISUAL_H
 #define VISUAL_H
-#include "path.h"
+
+#include <string>
+
 int visual(const std::string);
 
 #endif

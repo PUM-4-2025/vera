@@ -1,0 +1,140 @@
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile } from '@ffmpeg/util';
+// Import VideoMetadata type from ProjectContext (adjust path if needed)
+import { VideoMetadata } from '@/types/project';
+
+/**
+ * Extracts basic video metadata using ffmpeg -i.
+ * @param file The video File object.
+ * @param ffmpeg Initialized FFmpeg instance.
+ * @returns A promise resolving to the VideoMetadata object.
+ */
+export const getMetadata = async (
+  file: File,
+  ffmpeg: FFmpeg
+): Promise<VideoMetadata> => {
+  if (!ffmpeg.loaded) {
+    throw new Error('FFmpeg is not loaded.');
+  }
+
+  const inputFilename = `input-${file.name}`; // Simple filename for FS
+  const logMessages: string[] = [];
+
+  // Logger callback to capture stderr
+  const logger = ({ type, message }: { type: string; message: string }) => {
+    // Only store messages relevant for parsing (usually on fferr)
+    if (type === 'stderr') {
+      logMessages.push(message);
+    }
+  };
+
+  // Attach logger
+  ffmpeg.on('log', logger);
+
+  try {
+    // Write file to FFmpeg's virtual filesystem
+    await ffmpeg.writeFile(inputFilename, await fetchFile(file));
+
+    try {
+      // Execute ffmpeg -i command. Expected to throw/reject.
+      await ffmpeg.exec(['-i', inputFilename]);
+    } catch (e) {
+      // Expected error, ignore.
+      // console.error('ffmpeg -i command failed (expected for metadata extraction), error:', e); // Removed debug log
+    }
+
+    // Combine log lines for parsing
+    const output = logMessages.join('\n');
+    // console.log('Combined FFmpeg log output for parsing:\n', output); // Removed debug log
+
+    // --- Individual Regex Matching --- 
+    
+
+    /* eslint-disable */
+
+    // Duration (likely on its own line)
+    const durationMatch = output.match(/Duration: (\d{2}:\d{2}:\d{2}\.\d{2})/);
+
+    // Video Codec (looking for the word after "Video:" on a stream line)
+    const codecMatch = output.match(/Stream #\d:\d+.*Video: (\w+)/);
+
+    // Dimensions (looking for WxH, potentially with extra info around it)
+    const dimensionsMatch = output.match(/, (\d{2,})x(\d{2,})/);
+
+    // FPS (looking for the number before "fps")
+    const fpsMatch = output.match(/([\d\.]+) fps/);
+
+    // Audio Codec (looking for the word after "Audio:" on a stream line)
+    const audioMatch = output.match(/Stream #\d:\d+.*Audio: (\w+)/);
+
+    /* eslint-enable */
+
+    // --- Parsing with Fallbacks --- 
+    let durationSeconds = 0;
+    const durationStr = durationMatch?.[1];
+    if (durationStr) {
+      const timeParts = durationStr.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+      if (timeParts) {
+         const hours = parseInt(timeParts[1] ?? '0', 10);
+         const minutes = parseInt(timeParts[2] ?? '0', 10);
+         const seconds = parseInt(timeParts[3] ?? '0', 10);
+         const milliseconds = parseInt(timeParts[4] ?? '0', 10);
+         durationSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 100;
+      }
+    }
+
+    // Extract individual pieces with fallbacks
+    const videoCodec = codecMatch?.[1] ?? 'unknown';
+    const width = parseInt(dimensionsMatch?.[1] ?? '0', 10);
+    const height = parseInt(dimensionsMatch?.[2] ?? '0', 10);
+    const fps = parseFloat(fpsMatch?.[1] ?? '0');
+    const audioCodec = audioMatch?.[1]; // Undefined is acceptable
+
+    // --- Calculate Total Frames --- 
+    let totalFrames: number | undefined = undefined;
+    if (durationSeconds > 0 && fps > 0) {
+        totalFrames = Math.round(durationSeconds * fps);
+    }
+
+    // --- Construct Metadata Object --- 
+    const metadata: VideoMetadata = {
+      filename: file.name,
+      duration: durationSeconds,
+      videoCodec: videoCodec,
+      width: width,
+      height: height,
+      fps: fps,
+      audioCodec: audioCodec,
+      sizeBytes: file.size,
+      totalFrames: totalFrames, // Add calculated frames
+      isTranscoded: false,
+      isTransmuxed: false,
+    };
+
+    // Optional: Log warnings if specific matches failed
+    if (!codecMatch) console.warn(`[ffmpegUtils] Could not parse video codec for file: ${file.name}`);
+    if (!dimensionsMatch) console.warn(`[ffmpegUtils] Could not parse dimensions for file: ${file.name}`);
+    if (!fpsMatch) console.warn(`[ffmpegUtils] Could not parse FPS for file: ${file.name}`);
+
+    // console.log('Extracted Metadata:', metadata); // Removed debug log
+
+    return metadata;
+
+  } catch (error) {
+    console.error(`Error getting metadata for ${file.name}:`, error);
+    throw error; // Re-throw
+  } finally {
+    // Cleanup: remove logger and delete file
+    ffmpeg.off('log', logger);
+    try {
+      // Check if file exists before deleting
+       const files = await ffmpeg.listDir('/');
+       if (files.some(f => f.name === inputFilename && !f.isDir)) {
+           await ffmpeg.deleteFile(inputFilename);
+       }
+    } catch (cleanupError) {
+      // Log cleanup error but don't throw
+      console.warn(`Failed to cleanup temporary file ${inputFilename}:`, cleanupError);
+    }
+  }
+};
