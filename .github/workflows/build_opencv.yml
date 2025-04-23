@@ -23,11 +23,11 @@ jobs:
     steps:
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
-        if: matrix.platform == 'macos-latest' && 'aarch64-apple-darwin'
+        if: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' }}
         with:
           version: "18.1.8"
           arch: arm64
-        if: matrix.platform == 'macos-latest' && 'x86_64-apple-darwin'
+        if: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin' }}
         with:
           version: "15.0.7"
           arch: x64
