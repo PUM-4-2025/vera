@@ -67,7 +67,7 @@ jobs:
         working-directory: ./opencv
         run: |
           mkdir build
-          cd /build
+          cd build/
           cmake ..
      
       - name: Build OpenCV Windows
