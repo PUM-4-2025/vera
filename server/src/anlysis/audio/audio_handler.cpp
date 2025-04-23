@@ -35,5 +35,5 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
     // Read csv results
     std::string audio_visuals = readTextFile(txt_file, *us);
     
-    mg_http_reply(c, 200, "Content-Type: application/text", audio_visuals.c_str());
+    mg_http_reply(c, 200, "Content-Type: application/json", audio_visuals.c_str());
 }
