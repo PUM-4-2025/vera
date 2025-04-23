@@ -6,6 +6,10 @@ on:
 
 jobs:
   build-opencv:
+    defaults:
+      run:
+        working-directory: ./
+  
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +31,7 @@ jobs:
         with:
           version: "18.1.8"
           arch: arm64
+          directory: ${{ runner.temp }}/llvm
       
       - name: Install LLVM and Clang MacOS x64
         uses: KyleMayes/install-llvm-action@v2
@@ -34,6 +39,7 @@ jobs:
         with:
           version: "15.0.7"
           arch: x64
+          directory: ${{ runner.temp }}/llvm
 
       - name: Install LLVM and Clang Ubuntu x64 
         uses: KyleMayes/install-llvm-action@v2
@@ -41,13 +47,15 @@ jobs:
         with:
           version: "18.1.8"
           arch: x64
+          directory: ${{ runner.temp }}/llvm
 
       - name: Install LLVM and Clang Windows x64 
         uses: KyleMayes/install-llvm-action@v2
         if: matrix.platform == 'windows-latest'
         with:
-          version: "19.1.7"
+          version: "19.1.6"
           arch: x64
+          directory: ${{ runner.temp }}/llvm
       
       - name: Get cmake
         uses: lukka/get-cmake@latest
@@ -56,23 +64,28 @@ jobs:
         run: git clone https://github.com/opencv/opencv.git
       
       - name: Configure OpenCV
+        working-directory: ./opencv
         run: |
-          mkdir opencv/build
-          cd opencv/build
+          mkdir build
+          cd /build
           cmake ..
      
       - name: Build OpenCV Windows
+        working-directory: ./opencv/build
         if: matrix.platform == 'windows-latest'
         run: | 
           make -j%NUMBER_OF_PROCESSORS%
           make install
 
       - name: Build OpenCV Other OS
+        working-directory: ./opencv/build
         if: matrix.platform != 'windows-latest'
         run: |
           make -j$(nproc)
 
       - name: make install OpenCV
-        run: make install
+        working-directory: ./opencv/build
+        run: | 
+          make install
         
         
