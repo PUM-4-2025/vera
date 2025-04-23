@@ -23,6 +23,9 @@ import {
   Square,
   Undo2,
   Trash2,
+  MousePointer2,
+  Hand,
+  RefreshCw,
 } from 'lucide-react';
 
 
@@ -98,33 +101,33 @@ interface ExistingShapesProps {
 
 const ExistingShapes: React.FC<ExistingShapesProps> = ({
   shapes,
-  selectedId,
-  currentShapeType,
   getStagePointFromOriginalVideoCoords,
   scale,
 }) => {
   return (
     <>
       {shapes.map(shape => {
-        const commonProps = {
-          key: shape.id,
+        // Separate key from other props
+        const { key, ...otherCommonProps } = {
+          key: shape.id, // Use shape.id as key
           id: shape.id,
           stroke: shape.stroke,
           strokeWidth: shape.strokeWidth,
         };
         if (shape.type === 'rect') {
-            const stagePoint = getStagePointFromOriginalVideoCoords({
+            const centerCoordinate = getStagePointFromOriginalVideoCoords({
             x: shape.x,
             y: shape.y,
           });
-          if (!stagePoint) return null;
+          if (!centerCoordinate) return null;
           return (
             <Rect
-              {...commonProps}
-              x={stagePoint.x}
-              y={stagePoint.y}
-              width={shape.width * scale}
-              height={shape.height * scale}
+              key={key} // Pass key directly
+              {...otherCommonProps} // Spread the rest
+              x={centerCoordinate.x - (shape.width / 2)}
+              y={centerCoordinate.y - (shape.height / 2)}
+              width={shape.width}
+              height={shape.height}
             />
           )
         }
@@ -136,7 +139,8 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
           if (!stagePoint) return null;
           return (
             <Circle
-              {...commonProps}
+              key={key} // Pass key directly
+              {...otherCommonProps} // Spread the rest
               x={stagePoint.x}
               y={stagePoint.y}
               radius={shape.radius * scale}
@@ -155,7 +159,8 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
           if (!stagePoint || !stagePoint2) return null;
           return (
             <Arrow
-              {...commonProps}
+              key={key} // Pass key directly
+              {...otherCommonProps} // Spread the rest
               points={[stagePoint.x, stagePoint.y, stagePoint2.x, stagePoint2.y]}
               pointerLength={10}
               pointerWidth={10}
@@ -189,10 +194,10 @@ const NewShapePreview: React.FC<NewShapePreviewProps> = ({ newShape, getStagePoi
     if (!stagePoint) return null;
     return (
       <Rect
-        x={stagePoint.x}
-        y={stagePoint.y}
-        width={newShape.width * scale}
-        height={newShape.height * scale}
+        x={newShape.x}
+        y={newShape.y}
+        width={newShape.width}
+        height={newShape.height}
         stroke={newShape.stroke}
         strokeWidth={newShape.strokeWidth}
         dash={[5, 5]}
@@ -245,6 +250,9 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 10; // Increased max zoom for video
 const ZOOM_STEP = 0.1;
 
+// Define interaction modes
+type InteractionMode = 'draw' | 'pan' | 'selectionZoom';
+
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
   (
     {
@@ -277,8 +285,9 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     const [newShape, setNewShape] = useState<ShapeData | null>(null);
     const [drawStartX, setDrawStartX] = useState<number | null>(null); // Store initial X for drawing
     const [drawStartY, setDrawStartY] = useState<number | null>(null); // Store initial Y for drawing
-
-
+    const [interactionMode, setInteractionMode] = useState<InteractionMode>('draw'); // New state for interaction mode
+    const [isPanning, setIsPanning] = useState(false); // State for panning status
+    const [panStartPoint, setPanStartPoint] = useState<{ x: number, y: number } | null>(null); // State for panning start point
 
     const getOriginalVideoCoordsFromStagePoint = (
       stagePoint: { x: number; y: number } | null | undefined
@@ -340,6 +349,12 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       if (isPlaying) {
         setShapes([]); // Clear existing shapes
         setCurrentShapeType('none');
+        setInteractionMode('selectionZoom'); // Default to select mode when playing
+      } else {
+         // When pausing, default back to drawing rectangle? Or last used mode? Let's stick to draw/rect for now.
+         // Consider persisting the last active mode if needed.
+         setInteractionMode('draw');
+         setCurrentShapeType('rect');
       }
     }, [isPlaying]);
 
@@ -453,12 +468,38 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Event Handlers for Annotations ---
     const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (currentShapeType === 'none') return;
-
-      setSelectedId(null);
-
-      const stagePoint = stageRef.current?.getRelativePointerPosition();
+      const stage = stageRef.current;
+      if (!stage) return;
+      const stagePoint = stage.getRelativePointerPosition();
       if (!stagePoint) return;
+      
+      const videoCoords1 = getOriginalVideoCoordsFromStagePoint(stagePoint);
+      if (!videoCoords1) return;
+      const stagePoint2 = getStagePointFromOriginalVideoCoords(videoCoords1);
+      if (!stagePoint2) return;
+      if (Math.abs(stagePoint2.x - stagePoint.x) > 0.01 || Math.abs(stagePoint2.y - stagePoint.y) > 0.01) {
+        console.warn('Stage point conversion mismatch:', stagePoint2, stagePoint);
+      }
+
+      if (interactionMode === 'pan') {
+        setIsPanning(true);
+        setPanStartPoint(stagePoint);
+        return; // Don't proceed with shape drawing if panning
+      }
+
+      if (interactionMode === 'selectionZoom') {
+        // Logic for selecting shapes will go here
+        // For now, just clear selection
+        setSelectedId(null);
+        return; // Don't proceed with shape drawing if selecting
+      }
+
+
+      // Only draw if in 'draw' mode and a shape type is selected
+      if (interactionMode !== 'draw' || currentShapeType === 'none') return;
+
+      setSelectedId(null); // Deselect any selected shape when starting a new one
+
       const videoCoords = getOriginalVideoCoordsFromStagePoint(stagePoint);
       if (!videoCoords) return;
 
@@ -470,8 +511,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setNewShape({
           id,
           type: 'rect',
-          x: videoCoords.x,
-          y: videoCoords.y,
+          x: stagePoint.x,
+          y: stagePoint.y,
           width: 0,
           height: 0,
           stroke: 'red',
@@ -502,12 +543,30 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     };
 
     const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // Only proceed if we have a shape and, if it's a circle, a starting point
-      if (!newShape || (newShape.type === 'circle' && (drawStartX === null || drawStartY === null))) return;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const currentPointerPos = stage.getRelativePointerPosition();
+      if (!currentPointerPos) return;
 
-      const stagePoint = stageRef.current?.getRelativePointerPosition();
-      if (!stagePoint) return;
-      const videoCoords = getOriginalVideoCoordsFromStagePoint(stagePoint);
+      // Handle Panning
+      if (interactionMode === 'pan' && isPanning && panStartPoint) {
+          const dx = currentPointerPos.x - panStartPoint.x;
+          const dy = currentPointerPos.y - panStartPoint.y;
+          setOffset(prevOffset => ({
+              x: prevOffset.x + dx,
+              y: prevOffset.y + dy,
+          }));
+          // Update pan start point for continuous panning
+          setPanStartPoint(currentPointerPos);
+          return; // Don't draw while panning
+      }
+
+
+      // Handle Drawing (only if in 'draw' mode and drawing started)
+      if (interactionMode !== 'draw' || !newShape || drawStartX === null || drawStartY === null) return;
+
+
+      const videoCoords = getOriginalVideoCoordsFromStagePoint(currentPointerPos);
       if (!videoCoords) return;
 
       setNewShape(prev => {
@@ -519,8 +578,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             type: 'rect',
             x: prev.x,
             y: prev.y,
-            width: videoCoords.x - prev.x,
-            height: videoCoords.y - prev.y,
+            width: currentPointerPos.x - prev.x,
+            height: currentPointerPos.y - prev.y,
             stroke: prev.stroke,
             strokeWidth: prev.strokeWidth,
           }
@@ -561,13 +620,79 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     };
 
     const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
-      const shape = newShape;
-      if (shape) {
-        setShapes(prev => [...prev, shape]);
+      // Stop Panning
+      if (interactionMode === 'pan' && isPanning) {
+          setIsPanning(false);
+          setPanStartPoint(null);
+          return; // Panning finished, do nothing else
       }
-      setNewShape(null);
-      setDrawStartX(null); // Reset drawing start point
-      setDrawStartY(null); // Reset drawing start point
+
+      // Finalize Drawing (only if in 'draw' mode)
+      if (interactionMode === 'draw' && newShape) {
+          // Ensure shape has some minimal size? Optional.
+          const shape = newShape;
+          // Example minimal size check (adjust as needed)
+          let isValidShape = true;
+          if (shape.type === 'rect' && (Math.abs(shape.width) < 5 || Math.abs(shape.height) < 5)) isValidShape = false;
+          if (shape.type === 'circle' && shape.radius < 3) isValidShape = false;
+          if (shape.type === 'arrow' && Math.hypot(shape.points[2] - shape.points[0], shape.points[3] - shape.points[1]) < 5) isValidShape = false;
+
+          
+          if (shape.type === 'rect') {
+            // The 'shape' object currently holds stage coordinates with a top-left origin
+            // We need to convert these to video coordinates with a center origin.
+
+            const stageTopLeft = { x: shape.x, y: shape.y };
+            const stageBottomRight = { x: shape.x + shape.width, y: shape.y + shape.height };
+
+            // Convert the stage corner points to the original video coordinate system
+            const videoTopLeft = getOriginalVideoCoordsFromStagePoint(stageTopLeft);
+            const videoBottomRight = getOriginalVideoCoordsFromStagePoint(stageBottomRight);
+
+            if (!videoTopLeft || !videoBottomRight) {
+              // If conversion fails, the shape is invalid
+              console.error("Failed to convert rectangle corners to video coordinates.");
+              isValidShape = false;
+            } else {
+              // Calculate the width and height in the video coordinate system
+              const videoWidth = Math.abs(videoBottomRight.x - videoTopLeft.x);
+              const videoHeight = Math.abs(videoBottomRight.y - videoTopLeft.y);
+
+              // Re-validate the shape size based on video dimensions
+              if (videoWidth < 5 || videoHeight < 5) {
+                 isValidShape = false;
+              }
+
+              // If the shape is still valid after size check
+              if (isValidShape) {
+                // Calculate the center point in the video coordinate system
+                const videoCenterX = (videoTopLeft.x + videoBottomRight.x) / 2;
+                const videoCenterY = (videoTopLeft.y + videoBottomRight.y) / 2;
+
+                // Update the shape properties to store the center coordinates
+                // and dimensions relative to the original video
+                shape.x = videoCenterX;
+                shape.y = videoCenterY;
+              }
+            }
+          }
+          
+
+          // Add shape to shapes array
+          if (isValidShape) {
+            setShapes(prev => [...prev, shape]);
+          }
+
+          setNewShape(null);
+          setDrawStartX(null); // Reset drawing start point
+          setDrawStartY(null); // Reset drawing start point
+      }
+    };
+
+    // --- Reset View Handler ---
+    const handleResetView = () => {
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
     };
 
     // --- Undo Handler ---
@@ -614,72 +739,130 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           }}
         />
 
-        {/* Annotation Tool Buttons - Only show when video is paused */}
-        {!isPlaying && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 10,
-              left: 10,
-              zIndex: 10,
-              display: 'flex',
-              gap: 4,
-              // flexDirection: 'column' // Keep horizontal for now, or adjust as needed
-            }}
-          >
+        {/* ---- Control Buttons Container ---- */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column', // Stack the two button groups vertically
+            gap: 8, // Add some space between the groups
+          }}
+        >
+          {/* --- View Controls (Always Visible) --- */}
+          <div style={{ display: 'flex', gap: 4 }}>
             <Button
               size="icon"
-              variant={currentShapeType === 'rect' ? 'secondary' : 'outline'}
-              onClick={() => setCurrentShapeType('rect')}
+              variant='outline'
+              onClick={handleResetView}
+              title="Reset View (Zoom/Pan)"
             >
-              <Square size={16} />
+              <RefreshCw size={16} />
             </Button>
             <Button
               size="icon"
-              variant={currentShapeType === 'circle' ? 'secondary' : 'outline'}
-              onClick={() => setCurrentShapeType('circle')}
+              variant={interactionMode === 'selectionZoom' ? 'secondary' : 'outline'}
+              onClick={() => {
+                setInteractionMode('selectionZoom');
+                setCurrentShapeType('none'); 
+              }}
+              title="Select Mode"
             >
-              <CircleIcon size={16} />
+              <MousePointer2 size={16} />
             </Button>
             <Button
               size="icon"
-              variant={currentShapeType === 'arrow' ? 'secondary' : 'outline'}
-              onClick={() => setCurrentShapeType('arrow')}
+              variant={interactionMode === 'pan' ? 'secondary' : 'outline'}
+              onClick={() => setInteractionMode('pan')}
+              title="Pan Mode"
             >
-              <ArrowUpRight size={16} />
-            </Button>
-            {/* Undo Button */}
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={handleUndo}
-              disabled={shapes.length === 0} // Disable if no shapes exist
-            >
-              <Undo2 size={16} />
-            </Button>
-            {/* Clear All Button */}
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={handleClearAll}
-              disabled={shapes.length === 0} // Disable if no shapes exist
-              className={shapes.length > 0 ? "hover:bg-red-100" : ""} // Optional: Add red hover if active
-            >
-              <Trash2 size={16} />
+              <Hand size={16} />
             </Button>
           </div>
-        )}
+
+          {/* --- Annotation Controls (Only when Paused) --- */}
+          {!isPlaying && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 4,
+              }}
+            >
+              {/* Draw Buttons */}
+              <Button
+                size="icon"
+                variant={interactionMode === 'draw' && currentShapeType === 'rect' ? 'secondary' : 'outline'}
+                onClick={() => {
+                  setInteractionMode('draw');
+                  setCurrentShapeType('rect');
+                }}
+                title="Draw Rectangle"
+              >
+                <Square size={16} />
+              </Button>
+              <Button
+                size="icon"
+                variant={interactionMode === 'draw' && currentShapeType === 'circle' ? 'secondary' : 'outline'}
+                onClick={() => {
+                  setInteractionMode('draw');
+                  setCurrentShapeType('circle');
+                }}
+                title="Draw Circle"
+              >
+                <CircleIcon size={16} />
+              </Button>
+              <Button
+                size="icon"
+                variant={interactionMode === 'draw' && currentShapeType === 'arrow' ? 'secondary' : 'outline'}
+                onClick={() => {
+                   setInteractionMode('draw');
+                   setCurrentShapeType('arrow');
+                 }}
+                 title="Draw Arrow"
+              >
+                <ArrowUpRight size={16} />
+              </Button>
+              {/* Undo Button */}
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={handleUndo}
+                disabled={shapes.length === 0} // Disable if no shapes exist
+              >
+                <Undo2 size={16} />
+              </Button>
+              {/* Clear All Button */}
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={handleClearAll}
+                disabled={shapes.length === 0} // Disable if no shapes exist
+                className={shapes.length > 0 ? "hover:bg-red-100" : ""} // Optional: Add red hover if active
+              >
+                <Trash2 size={16} />
+              </Button>
+            </div>
+          )}
+        </div>
+
         {/* Konva Stage for annotations - stays fixed, NOT scaled/translated */}
         <Stage
           ref={stageRef}
           width={containerWidth}
           height={containerHeight}
-          style={{ position: 'absolute', top: 0, left: 0 }}
+          style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            cursor: interactionMode === 'pan' ? (isPanning ? 'grabbing' : 'grab') : 'default' 
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
-          <Layer ref={annotationLayerRef} style={{ pointerEvents: 'auto' }}>
+          <Layer ref={annotationLayerRef} style={{ pointerEvents: interactionMode === 'pan' ? 'none' : 'auto' }}>
             {/* Render existing shapes */}
             <ExistingShapes
               shapes={shapes}
