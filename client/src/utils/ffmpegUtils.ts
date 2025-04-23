@@ -3,6 +3,8 @@ import { fetchFile } from '@ffmpeg/util';
 // Import VideoMetadata type from ProjectContext (adjust path if needed)
 import { VideoMetadata } from '@/types/project';
 
+const MAX_METADATA_SIZE = 50 * 1024 * 1024;
+
 /**
  * Extracts basic video metadata using ffmpeg -i.
  * @param file The video File object.
@@ -30,10 +32,13 @@ export const getMetadata = async (
 
   // Attach logger
   ffmpeg.on('log', logger);
-
+  const fileBlob = file.slice(0, MAX_METADATA_SIZE);
   try {
     // Write file to FFmpeg's virtual filesystem
-    await ffmpeg.writeFile(inputFilename, await fetchFile(file));
+    console.log('här blev det fel ________\n');
+
+    await ffmpeg.writeFile(inputFilename, await fetchFile(fileBlob));
+    console.log('pernilla ingrosso \n');
 
     try {
       // Execute ffmpeg -i command. Expected to throw/reject.
@@ -47,8 +52,7 @@ export const getMetadata = async (
     const output = logMessages.join('\n');
     // console.log('Combined FFmpeg log output for parsing:\n', output); // Removed debug log
 
-    // --- Individual Regex Matching --- 
-    
+    // --- Individual Regex Matching ---
 
     /* eslint-disable */
 
@@ -69,17 +73,18 @@ export const getMetadata = async (
 
     /* eslint-enable */
 
-    // --- Parsing with Fallbacks --- 
+    // --- Parsing with Fallbacks ---
     let durationSeconds = 0;
     const durationStr = durationMatch?.[1];
     if (durationStr) {
       const timeParts = durationStr.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
       if (timeParts) {
-         const hours = parseInt(timeParts[1] ?? '0', 10);
-         const minutes = parseInt(timeParts[2] ?? '0', 10);
-         const seconds = parseInt(timeParts[3] ?? '0', 10);
-         const milliseconds = parseInt(timeParts[4] ?? '0', 10);
-         durationSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 100;
+        const hours = parseInt(timeParts[1] ?? '0', 10);
+        const minutes = parseInt(timeParts[2] ?? '0', 10);
+        const seconds = parseInt(timeParts[3] ?? '0', 10);
+        const milliseconds = parseInt(timeParts[4] ?? '0', 10);
+        durationSeconds =
+          hours * 3600 + minutes * 60 + seconds + milliseconds / 100;
       }
     }
 
@@ -90,13 +95,13 @@ export const getMetadata = async (
     const fps = parseFloat(fpsMatch?.[1] ?? '0');
     const audioCodec = audioMatch?.[1]; // Undefined is acceptable
 
-    // --- Calculate Total Frames --- 
+    // --- Calculate Total Frames ---
     let totalFrames: number | undefined = undefined;
     if (durationSeconds > 0 && fps > 0) {
-        totalFrames = Math.round(durationSeconds * fps);
+      totalFrames = Math.round(durationSeconds * fps);
     }
 
-    // --- Construct Metadata Object --- 
+    // --- Construct Metadata Object ---
     const metadata: VideoMetadata = {
       filename: file.name,
       duration: durationSeconds,
@@ -112,14 +117,20 @@ export const getMetadata = async (
     };
 
     // Optional: Log warnings if specific matches failed
-    if (!codecMatch) console.warn(`[ffmpegUtils] Could not parse video codec for file: ${file.name}`);
-    if (!dimensionsMatch) console.warn(`[ffmpegUtils] Could not parse dimensions for file: ${file.name}`);
-    if (!fpsMatch) console.warn(`[ffmpegUtils] Could not parse FPS for file: ${file.name}`);
+    if (!codecMatch)
+      console.warn(
+        `[ffmpegUtils] Could not parse video codec for file: ${file.name}`
+      );
+    if (!dimensionsMatch)
+      console.warn(
+        `[ffmpegUtils] Could not parse dimensions for file: ${file.name}`
+      );
+    if (!fpsMatch)
+      console.warn(`[ffmpegUtils] Could not parse FPS for file: ${file.name}`);
 
     // console.log('Extracted Metadata:', metadata); // Removed debug log
 
     return metadata;
-
   } catch (error) {
     console.error(`Error getting metadata for ${file.name}:`, error);
     throw error; // Re-throw
@@ -128,13 +139,16 @@ export const getMetadata = async (
     ffmpeg.off('log', logger);
     try {
       // Check if file exists before deleting
-       const files = await ffmpeg.listDir('/');
-       if (files.some(f => f.name === inputFilename && !f.isDir)) {
-           await ffmpeg.deleteFile(inputFilename);
-       }
+      const files = await ffmpeg.listDir('/');
+      if (files.some((f) => f.name === inputFilename && !f.isDir)) {
+        await ffmpeg.deleteFile(inputFilename);
+      }
     } catch (cleanupError) {
       // Log cleanup error but don't throw
-      console.warn(`Failed to cleanup temporary file ${inputFilename}:`, cleanupError);
+      console.warn(
+        `Failed to cleanup temporary file ${inputFilename}:`,
+        cleanupError
+      );
     }
   }
 };
