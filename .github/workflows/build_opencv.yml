@@ -70,8 +70,7 @@ jobs:
         working-directory: ./opencv/build
         if: matrix.platform == 'windows-latest'
         run: | 
-          make -j%NUMBER_OF_PROCESSORS%
-          make install
+          make -j $env:NUMBER_OF_PROCESSORS
 
       - name: Build OpenCV Other OS
         working-directory: ./opencv/build
