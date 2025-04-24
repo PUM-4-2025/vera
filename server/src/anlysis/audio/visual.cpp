@@ -72,18 +72,19 @@ int visual(const std::string in_wav, UserSession &us, float fps) {
   input_file.read(reinterpret_cast<char *>(samples.data()), chunk_size);
   input_file.close();
 
-  const int group_size = 160;
+  const int group_size = (int)(fmt_chunk.sample_rate/fps); // this will make num_groups = No. frames
   size_t num_groups = total_samples / group_size;
 
   std::string data = "";
   for (size_t i = 0; i < num_groups; ++i) {
-    double sum_squares = 0.0;
+    double biggest_sample = 0.0;
     for (int j = 0; j < group_size; ++j) {
       int16_t sample = samples[i * group_size + j];
-      sum_squares += sample * sample;
+      if(sample > biggest_sample){
+        biggest_sample = sample;
+      }
     }
-    double rms = std::sqrt(sum_squares / group_size);
-    double db = (rms > 0.0) ? 20.0 * std::log10(rms / 32768.0) : -100.0;
+    double db = (biggest_sample > 0.0) ? 20.0 * std::log10(biggest_sample / 32768.0) : -100.0;
     double rounded_db = std::round(db * 10.0) / 10.0 + 100;
     data.append(std::to_string(rounded_db) + "\n");
   }
