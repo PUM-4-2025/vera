@@ -69,8 +69,7 @@ jobs:
       - name: Build OpenCV Windows
         working-directory: ./opencv/build
         if: matrix.platform == 'windows-latest'
-        run: | 
-          make -j $env:NUMBER_OF_PROCESSORS
+        run: make -j2 # Hard code 2 cores for Windows build 
 
       - name: Build OpenCV Other OS
         working-directory: ./opencv/build
