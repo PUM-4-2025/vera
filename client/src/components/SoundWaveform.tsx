@@ -1,8 +1,11 @@
 import React, { useRef, useEffect } from 'react';
+import { getAudio } from '@/utils/audio';
 
-const samples = [
+const DEFAULT_SAMPLES = [
   -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
 ]; //insert samples here
+
+let REAL_SAMPLES: [number] | null;
 
 interface SoundWaveformProps {
   currentTime: number;
@@ -31,7 +34,9 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   };
 
   // Handle clicking the waveform to jump to a specific time (at any zoom level)
-  const handleWaveformClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleWaveformClick = async (
+    e: React.MouseEvent<HTMLCanvasElement>
+  ) => {
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
@@ -46,12 +51,18 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     const fraction = waveformPosition / totalWaveformWidth;
     const clickedTime = fraction * videoDuration;
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
-
     onTimeChange(newTime); // Update video time
+
+    REAL_SAMPLES = await getAudio('HARD CODED VIDEO');
   };
 
   // Draw the waveform and red line
   const drawWaveform = () => {
+    let samples = DEFAULT_SAMPLES;
+    if (REAL_SAMPLES != null) {
+      samples = REAL_SAMPLES;
+    }
+
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
     if (!canvas || !container || !videoDuration) return;

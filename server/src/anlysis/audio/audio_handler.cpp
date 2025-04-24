@@ -1,6 +1,7 @@
 #include "files.h"
 #include "http_server.h"
 #include "audio.h"
+#include "http_utils.h"
 
 #include <mongoose.h>
 #include <json.hpp>
@@ -11,6 +12,10 @@ void registerAudioHandlers(HttpServer &server) {
 }
 
 void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+    if (handlePreflight(c,msg) == 0) {
+        return;
+    }
+
     // TODO: REPLACE_TOKEN
     UserSession *us = hs->getUserSession("");
     std::string us_folder = getUserMediaDir(*us);
