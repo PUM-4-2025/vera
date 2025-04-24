@@ -31,10 +31,16 @@ struct FMTSubchunk {
 
 #pragma pack(pop)
 
+<<<<<<< Updated upstream
 int visual(const std::string in_wav, UserSession &us) {
   std::string session_path = getUserMediaDir(us);
   const std::string input_path = session_path + in_wav;
   const std::string output_path = input_path + ".txt";
+=======
+
+int visual(const std::string in_wav, UserSession &us){
+    std::string session_path = getUserMediaDir(us);
+>>>>>>> Stashed changes
 
   std::ifstream input_file(input_path, std::ios::binary);
   if (!input_file) {
