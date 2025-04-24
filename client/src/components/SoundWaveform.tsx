@@ -21,6 +21,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the waveform canvas
   const waveformContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
+  const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
 
   // Handle mouse wheel to zoom in/out of the waveform
   const handleWheel = (e: React.WheelEvent) => {
@@ -29,10 +30,8 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     onZoomChange(delta);
   };
 
-  // Handle clicking the waveform to jump to a specific time (only at zoom level 1)
+  // Handle clicking the waveform to jump to a specific time (at any zoom level)
   const handleWaveformClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (zoomLevel !== 1) return;
-
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
@@ -40,8 +39,12 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
-    const timePerPixel = videoDuration / width;
-    const clickedTime = clickX * timePerPixel; // Time corresponding to click position
+    // Time jumping when zoomed in
+    const totalWaveformWidth = width * zoomLevel;
+    const scrollOffset = scrollOffsetRef.current;
+    const waveformPosition = scrollOffset + clickX;
+    const fraction = waveformPosition / totalWaveformWidth;
+    const clickedTime = fraction * videoDuration;
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
 
     onTimeChange(newTime); // Update video time
@@ -86,6 +89,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         Math.min(scrollOffset, totalWaveformWidth - effectiveWidth)
       );
     }
+    scrollOffsetRef.current = scrollOffset; // Store scroll offset
 
     const barWidth = totalWaveformWidth / numBars;
     const startBar = Math.floor(scrollOffset / barWidth);
@@ -122,11 +126,11 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
         //Draw the bar
         const x = i * barWidth - scrollOffset;
-        ctx.fillStyle = 'yellow';
+        ctx.fillStyle = 'rgba(255, 217, 0, 0.7)';
         ctx.fillRect(
           x,
           height - barHeight,
-          Math.max(1, barWidth - 1),
+          Math.max(1, sampleFactor * barWidth),
           barHeight
         );
       }
