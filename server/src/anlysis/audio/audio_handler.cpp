@@ -18,25 +18,26 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
     // Get path to file that should be analysed
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
-    std::string filename = json_body["filename"];
+    std::string filename = json_body["fileName"];
 
     // Extract audio
     extract(filename, *us);
-    std::string wav_file = filename.append(".wav");
+    std::string wav_file = filename + ".wav";
 
     // Extract amplitude
     visual(wav_file, *us);
-    std::string txt_file = wav_file.append(".txt");
+    std::string txt_file = wav_file + ".txt";
 
     // Anaylse audio
     db_analysis(txt_file, 40, 180, *us);
-    std::string result_file = txt_file.append(".csv");
+    std::string result_file = txt_file + ".csv";
 
     // Read csv results
-    std::string audio_visuals = readTextFile(txt_file, *us);
+    std::string txt_path = us_folder + txt_file;
+    std::string audio_visuals = readTextFile(txt_path, *us);
 
     json response = {{"status", "OK"}, {"audio", audio_visuals}};
     std::string response_str = response.dump();
     
-    mg_http_reply(c, 200, "Content-Type: application/json", response_str.c_str());
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n", response_str.c_str());
 }
