@@ -1,9 +1,6 @@
-#include "visual.h"
-
 #include "audio.h"
 #include "files.h"
 #include "http_server.h"
-
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -31,16 +28,10 @@ struct FMTSubchunk {
 
 #pragma pack(pop)
 
-<<<<<<< Updated upstream
-int visual(const std::string in_wav, UserSession &us) {
+int visual(const std::string in_wav, UserSession &us, float fps) {
   std::string session_path = getUserMediaDir(us);
   const std::string input_path = session_path + in_wav;
   const std::string output_path = input_path + ".txt";
-=======
-
-int visual(const std::string in_wav, UserSession &us){
-    std::string session_path = getUserMediaDir(us);
->>>>>>> Stashed changes
 
   std::ifstream input_file(input_path, std::ios::binary);
   if (!input_file) {
@@ -84,12 +75,7 @@ int visual(const std::string in_wav, UserSession &us){
   const int group_size = 160;
   size_t num_groups = total_samples / group_size;
 
-  std::ofstream output_file(output_path);
-  if (!output_file) {
-    std::cerr << "Failed to write to " << output_path << "\n";
-    return 1;
-  }
-
+  std::string data = "";
   for (size_t i = 0; i < num_groups; ++i) {
     double sum_squares = 0.0;
     for (int j = 0; j < group_size; ++j) {
@@ -99,10 +85,9 @@ int visual(const std::string in_wav, UserSession &us){
     double rms = std::sqrt(sum_squares / group_size);
     double db = (rms > 0.0) ? 20.0 * std::log10(rms / 32768.0) : -100.0;
     double rounded_db = std::round(db * 10.0) / 10.0 + 100;
-    output_file << rounded_db << "\n";
+    data.append(std::to_string(rounded_db) + "\n");
   }
-
-  output_file.close();
+  writeTextFile(output_path, data);
   std::cout << "Wrote " << num_groups << " rounded dB values to " << output_path << "\n";
   return 0;
 }
