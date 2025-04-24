@@ -53,7 +53,8 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
     onTimeChange(newTime); // Update video time
 
-    REAL_SAMPLES = await getAudio('HARD CODED VIDEO');
+    // TODO: Replace this with getting the currently selected filename
+    REAL_SAMPLES = await getAudio('INSERT VIDEO NAME HERE');
   };
 
   // Draw the waveform and red line
@@ -127,8 +128,8 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         let data = samples[i]; // Read the sample
 
         // Normalize sound data amplitude to fit in grapth (dB)
-        const minVal = -80;
-        const maxVal = 0; // Assume 0 dB as max for audio waveforms
+        const minVal = 0;
+        const maxVal = 100; // Assume 0 dB as max for audio waveforms
         if (data == undefined || data == null) {
           data = minVal;
         }
