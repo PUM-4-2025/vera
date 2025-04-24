@@ -1,6 +1,7 @@
 #include "files.h"
 #include "http_server.h"
 
+#include <iostream>
 #include <fstream>
 
 /**
@@ -35,7 +36,8 @@ std::string getUserMediaDir(UserSession &us) {
         std::filesystem::create_directories(path);
     }
 
-    return path.string();
+    std::string path_str = path.string();
+    return path_str.append("/");
 }
 
 /**
@@ -64,18 +66,21 @@ int writeTextFile(std::string path, std::string data, UserSession &us) {
  */
 std::string readTextFile(std::string path, UserSession &us) {
     if (!userHasPermission(us, path)) {
+        std::cout << "Invalid permission!" << "\n";
         return "";
     }
 
     std::ifstream f(path);
     if (!f.is_open()) {
+        std::cout << "File not opened! (" << path << ")" << "\n";
         return "";
     }
 
-    std::string out((std::istreambuf_iterator<char>(f)),
-                    std::istreambuf_iterator<char>());
+    std::ostringstream out_stream;
+    out_stream << f.rdbuf();
+
     f.close();
-    return out;
+    return out_stream.str();
 }
 
 
