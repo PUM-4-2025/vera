@@ -110,7 +110,7 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
             position: 'absolute',
             top: 0,
             height: '8px',
-            background: 'rgba(0, 128, 255, 0.3)',
+            background: 'rgba(255, 217, 0, 0.7)',
             borderLeft: '1px solid blue',
             borderRight: '1px solid blue',
             pointerEvents: 'none',
