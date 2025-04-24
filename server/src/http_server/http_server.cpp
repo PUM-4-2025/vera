@@ -94,7 +94,7 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
           handler_info.handler(c, hm, server);
         } catch (...) {
           std::cout << "Handler crash occured!" << std::endl;
-          json response = {{"status", "ERR"}, {"message", "API handler crashed from when handling request!"}};
+          json response = {{"status", "ERR"}, {"message", "API handler crashed while handling request!"}};
           std::string response_str = response.dump();
           mg_http_reply(c, 500, "Access-Control-Allow-Origin: *\r\n"
                 "Content-Type: application/json\r\n"
