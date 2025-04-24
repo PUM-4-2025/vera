@@ -28,6 +28,18 @@ struct FMTSubchunk {
 
 #pragma pack(pop)
 
+/**
+ * ### Parameters:
+ * `in_wav` - Path to a .wav file.
+ * `&us` - UserSession.
+ * `fps` - Frames per second from corresponding video.
+ * ### Returns:
+ * A validation int, 0 if success else 1
+ * 
+ * ### Creates:
+ * A line seperated .txt file with the audio dB, 
+ * where the amount of lines are the same as frames
+ */
 int visual(const std::string in_wav, UserSession &us, float fps) {
   std::string session_path = getUserMediaDir(us);
   const std::string input_path = session_path + in_wav;
