@@ -126,11 +126,11 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
         //Draw the bar
         const x = i * barWidth - scrollOffset;
-        ctx.fillStyle = 'yellow';
+        ctx.fillStyle = 'rgba(255, 217, 0, 0.7)';
         ctx.fillRect(
           x,
           height - barHeight,
-          Math.max(1, barWidth - 1),
+          Math.max(1, sampleFactor * barWidth),
           barHeight
         );
       }
