@@ -1,10 +1,10 @@
 #include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include "extract.h"
-using namespace std;
+#include "audio.h"
+#include "files.h"
+#include "http_server.h"
 
-void extract(const string in_video){
-    string cmd = "ffmpeg -i " + PATH + in_video +  " -vn -ac 1 -ar 16000 -y " + PATH + in_video + ".wav"; 
+void extract(std::string in_video, UserSession &us){
+    std::string session_path = getUserMediaDir(us);
+    std::string cmd = "ffmpeg -i " + session_path + in_video +  " -vn -ac 1 -ar 16000 -y " + session_path + in_video + ".wav"; 
     system(cmd.c_str());
 }

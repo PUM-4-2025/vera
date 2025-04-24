@@ -16,7 +16,7 @@ UploadHandler::~UploadHandler() {
   m_uploads_guard_.unlock();
 }
 
-void UploadHandler::newSession(const UploadSession &session) {
+void UploadHandler::newSession(UploadSession session) {
   m_uploads_guard_.lock();
   m_uploads_.push_back(session);
   m_uploads_guard_.unlock();
