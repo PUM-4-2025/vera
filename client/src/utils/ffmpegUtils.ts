@@ -32,13 +32,23 @@ export const getMetadata = async (
 
   // Attach logger
   ffmpeg.on('log', logger);
-  const fileBlob = file.slice(0, MAX_METADATA_SIZE);
-  try {
-    // Write file to FFmpeg's virtual filesystem
-    console.log('här blev det fel ________\n');
 
+  let fileBlob: Blob | File; // Declare fileBlob here to make it accessible later
+
+  if (file.size > MAX_METADATA_SIZE * 2) {
+    // If the file is large, take the beginning and end chunks
+    const fileBlobStart = file.slice(0, MAX_METADATA_SIZE);
+    // Get the last MAX_METADATA_SIZE bytes of the file
+    const fileBlobEnd = file.slice(file.size - MAX_METADATA_SIZE);
+    fileBlob = new Blob([fileBlobStart, fileBlobEnd], { type: file.type });
+  } else {
+    // Otherwise, use the whole file
+    fileBlob = file;
+  }
+
+  try {
+    // Write the potentially smaller blob or the full file to FFmpeg's filesystem
     await ffmpeg.writeFile(inputFilename, await fetchFile(fileBlob));
-    console.log('pernilla ingrosso \n');
 
     try {
       // Execute ffmpeg -i command. Expected to throw/reject.
