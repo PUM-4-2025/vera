@@ -1,4 +1,4 @@
-name: "build-opencv"
+name: "Build OpenCV releases"
 
 on:
   push:
@@ -75,7 +75,7 @@ jobs:
           cd build/
           cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }} ..
      
-      - name: Build OpenCV Windows
+      - name: Configure and Build OpenCV Windows
         working-directory: ./opencv/build
         if: matrix.platform == 'windows-latest'
         run: |
@@ -92,3 +92,25 @@ jobs:
           make -j$(nproc)
           sudo make install
 
+      # Export the desired folder (opencv2) as an artifact
+      - name: Export opencv2 folder
+        working-directory: ./
+        run: |
+          mkdir -p export
+          cp -r ./opencv/build/include/opencv4/opencv2 ./export/
+        
+      - name: Create Release and Upload Export
+        uses: gh-cli/create-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: "OpenCV Release v${{ github.run_number }}"
+          body: "Automatically generated release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload the exported folder as an asset to the release
+      - name: Upload opencv2 folder as asset
+        run: |
+          gh release upload v${{ github.run_number }} ./export/opencv2 --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
