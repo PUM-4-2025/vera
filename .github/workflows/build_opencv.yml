@@ -1,9 +1,5 @@
 name: "Build OpenCV releases"
 
-on:
-  push:
-    branches: [opencv]
-
 jobs:
   build-opencv:
     defaults:
@@ -37,7 +33,7 @@ jobs:
           arch: arm64
           directory: ${{ runner.temp }}/llvm
 
-      - name: Install LLVM and Clang MacOS on arm
+      - name: Install LLVM and Clang MacOS on x64
         uses: KyleMayes/install-llvm-action@v2
         if: ${{ matrix.platform == 'macos-latest' && matrix.args == '--target x86_64-apple-darwin' }}
         with:
@@ -76,7 +72,7 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }} ..
      
       - name: Configure and Build OpenCV Windows
-        working-directory: ./opencv/build
+        working-directory: ./opencv/
         if: matrix.platform == 'windows-latest'
         run: |
           mkdir build
@@ -93,24 +89,11 @@ jobs:
           sudo make install
 
       # Export the desired folder (opencv2) as an artifact
-      - name: Export opencv2 folder
-        working-directory: ./
-        run: |
-          mkdir -p export
-          cp -r ./opencv/build/include/opencv4/opencv2 ./export/
-        
-      - name: Create Release and Upload Export
-        uses: gh-cli/create-release@v1
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
         with:
-          tag_name: v${{ github.run_number }}
-          release_name: "OpenCV Release v${{ github.run_number }}"
+          name: "OpenCV Release v${{ github.run_number }}"
           body: "Automatically generated release"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Upload the exported folder as an asset to the release
-      - name: Upload opencv2 folder as asset
-        run: |
-          gh release upload v${{ github.run_number }} ./export/opencv2 --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            ./export/opencv2
