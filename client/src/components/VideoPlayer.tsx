@@ -26,13 +26,15 @@ const VideoPlayer: React.FC = () => {
 
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
+  let filename = '';
 
   // runs when video changed
   useEffect(() => {
-    if (currentVideoId && videos[currentVideoId]) {
+    if (currentVideoId && videos[currentVideoId] && currentVideo) {
       setHasAudio(!!videos[currentVideoId].metadata?.audioCodec);
       setVideoDuration(videos[currentVideoId].metadata?.duration || 0);
       setRotationDegree(0); // Reset rotation on video change
+      filename = currentVideo.metadata.filename;
     }
   }, [currentVideoId, videos]);
 
@@ -152,6 +154,7 @@ const VideoPlayer: React.FC = () => {
               />
               {showWaveform && (
                 <SoundWaveform
+                  filename={filename}
                   currentTime={currentTime}
                   videoDuration={videoDuration}
                   zoomLevel={zoomLevel}
@@ -252,6 +255,7 @@ const VideoPlayer: React.FC = () => {
 
             {showWaveform && (
               <SoundWaveform
+                filename={filename}
                 currentTime={currentTime}
                 videoDuration={videoDuration}
                 zoomLevel={zoomLevel}

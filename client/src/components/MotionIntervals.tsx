@@ -1,14 +1,10 @@
 import React, { useRef, useEffect } from 'react';
-import { getAudio } from '@/utils/audio';
 
-const DEFAULT_SAMPLES = [
+const samples = [
   -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
 ]; //insert samples here
 
-let REAL_SAMPLES: [number] | null;
-
-interface SoundWaveformProps {
-  filename: string;
+interface MotionIntervalsProps {
   currentTime: number;
   videoDuration: number;
   zoomLevel: number; // Zoom level for the waveform (1 = normal, >1 = zoomed in)
@@ -16,8 +12,7 @@ interface SoundWaveformProps {
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
 }
 
-export const SoundWaveform: React.FC<SoundWaveformProps> = ({
-  filename,
+export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   currentTime,
   videoDuration,
   zoomLevel,
@@ -25,7 +20,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   onZoomChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the waveform canvas
-  const waveformContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
+  const intervalsContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
 
   // Handle mouse wheel to zoom in/out of the waveform
@@ -36,38 +31,29 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   };
 
   // Handle clicking the waveform to jump to a specific time (at any zoom level)
-  const handleWaveformClick = async (
-    e: React.MouseEvent<HTMLCanvasElement>
-  ) => {
+  const handleIntervalsClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    const container = waveformContainerRef.current;
+    const container = intervalsContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
 
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
     // Time jumping when zoomed in
-    const totalWaveformWidth = width * zoomLevel;
+    const totalIntervalsWidth = width * zoomLevel;
     const scrollOffset = scrollOffsetRef.current;
     const waveformPosition = scrollOffset + clickX;
-    const fraction = waveformPosition / totalWaveformWidth;
+    const fraction = waveformPosition / totalIntervalsWidth;
     const clickedTime = fraction * videoDuration;
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
-    onTimeChange(newTime); // Update video time
 
-    // TODO: Replace this with getting the currently selected filename
-    REAL_SAMPLES = await getAudio('test.mp4');
+    onTimeChange(newTime); // Update video time
   };
 
   // Draw the waveform and red line
-  const drawWaveform = () => {
-    let samples = DEFAULT_SAMPLES;
-    if (REAL_SAMPLES != null) {
-      samples = REAL_SAMPLES;
-    }
-
+  const drawIntervals = () => {
     const canvas = canvasRef.current;
-    const container = waveformContainerRef.current;
+    const container = intervalsContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
 
     const ctx = canvas.getContext('2d');
@@ -90,22 +76,22 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
     // Waveform parameters
     const numBars = samples.length; // number of samples
-    const totalWaveformWidth = effectiveWidth * zoomLevel;
-    const timePerPixel = videoDuration / totalWaveformWidth;
+    const totalIntervalsWidth = effectiveWidth * zoomLevel;
+    const timePerPixel = videoDuration / totalIntervalsWidth;
     const currentPixel = currentTime / timePerPixel;
     let scrollOffset = 0;
 
     // Calculate scroll offset to center the current time when zoomed in
-    if (totalWaveformWidth > effectiveWidth) {
+    if (totalIntervalsWidth > effectiveWidth) {
       scrollOffset = currentPixel - effectiveWidth / 2;
       scrollOffset = Math.max(
         0,
-        Math.min(scrollOffset, totalWaveformWidth - effectiveWidth)
+        Math.min(scrollOffset, totalIntervalsWidth - effectiveWidth)
       );
     }
     scrollOffsetRef.current = scrollOffset; // Store scroll offset
 
-    const barWidth = totalWaveformWidth / numBars;
+    const barWidth = totalIntervalsWidth / numBars;
     const startBar = Math.floor(scrollOffset / barWidth);
     const visibleBars = Math.ceil(effectiveWidth / barWidth);
 
@@ -130,8 +116,8 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         let data = samples[i]; // Read the sample
 
         // Normalize sound data amplitude to fit in grapth (dB)
-        const minVal = -100;
-        const maxVal = 100; // Assume 0 dB as max for audio waveforms
+        const minVal = -80;
+        const maxVal = 0; // Assume 0 dB as max for audio waveforms
         if (data == undefined || data == null) {
           data = minVal;
         }
@@ -140,7 +126,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
         //Draw the bar
         const x = i * barWidth - scrollOffset;
-        ctx.fillStyle = 'rgba(255, 217, 0, 0.7)';
+        ctx.fillStyle = 'red';
         ctx.fillRect(
           x,
           height - barHeight,
@@ -167,17 +153,17 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
   // Redraw when props change
   useEffect(() => {
-    drawWaveform();
+    drawIntervals();
   }, [currentTime, videoDuration, zoomLevel]);
 
   // Redraw when window resizes
   useEffect(() => {
     const handleResize = () => {
-      drawWaveform();
+      drawIntervals();
     };
 
     window.addEventListener('resize', handleResize);
-    drawWaveform(); // Initial draw on mount
+    drawIntervals(); // Initial draw on mount
     return () => {
       window.removeEventListener('resize', handleResize);
     };
@@ -185,7 +171,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
   return (
     <div
-      ref={waveformContainerRef}
+      ref={intervalsContainerRef}
       style={{
         width: '100%',
         overflowX: 'auto',
@@ -196,7 +182,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         ref={canvasRef}
         height={50} // Fixed height for the waveform
         onWheel={handleWheel}
-        onClick={handleWaveformClick}
+        onClick={handleIntervalsClick}
         style={{
           display: 'block',
           margin: '0 auto',
