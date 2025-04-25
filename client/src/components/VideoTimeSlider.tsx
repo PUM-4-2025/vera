@@ -7,6 +7,8 @@ interface VideoTimeSliderProps {
   onTimeChange: (time: number) => void; // Callback to update video time when slider changes
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
   showWaveform: boolean;
+  onSeekStart?: () => void; // Added: Callback when user starts seeking
+  onSeekEnd?: () => void; // Added: Callback when user stops seeking
 }
 
 export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
@@ -16,6 +18,8 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
   onTimeChange,
   onZoomChange,
   showWaveform,
+  onSeekStart, // Added
+  onSeekEnd, // Added
 }) => {
   const timeSliderRef = useRef<HTMLInputElement>(null); // Reference to the range input
   const zoomIndicatorRef = useRef<HTMLDivElement>(null); // Reference to the zoom indicator overlay
@@ -91,6 +95,10 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
         value={currentTime}
         onChange={handleSliderChange}
         onWheel={handleWheel}
+        onMouseDown={onSeekStart}
+        onTouchStart={onSeekStart}
+        onMouseUp={onSeekEnd}
+        onTouchEnd={onSeekEnd}
         step={0.01}
         style={{
           width: '100%',
