@@ -506,7 +506,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     }));
 
     // --- Event Handlers for Annotations ---
-    const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const handleMouseDown = () => {
       const stage = stageRef.current;
       if (!stage) return;
       const stagePoint = stage.getRelativePointerPosition();
@@ -581,7 +581,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       }
     };
 
-    const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const handleMouseMove = () => {
       const stage = stageRef.current;
       if (!stage) return;
       const currentPointerPos = stage.getRelativePointerPosition();
@@ -705,7 +705,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       });
     };
 
-    const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const handleMouseUp = () => {
       // Stop Panning
       if (interactionMode === 'pan' && isPanning) {
         setIsPanning(false);

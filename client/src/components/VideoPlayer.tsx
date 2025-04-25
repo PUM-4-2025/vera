@@ -5,7 +5,6 @@ import {
   SkipBack,
   SkipForward,
   FilmIcon,
-  Waves,
   RectangleVertical,
   RectangleHorizontal,
   AudioWaveform,
