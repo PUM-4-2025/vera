@@ -29,12 +29,20 @@ jobs:
         if: matrix.platform != 'windows-latest'
         run: rm -rf ${{ runner.temp }}/llvm # Make sure directory doesn't exist
       
-      - name: Install LLVM and Clang MacOS 
+      - name: Install LLVM and Clang MacOS on arm
         uses: KyleMayes/install-llvm-action@v2
-        if: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin' }}
+        if: ${{ matrix.platform == 'macos-latest' && matrix.args == '--target aarch64-apple-darwin' }}
         with:
           version: "15.0.7"
-          arch: ${{ matrix.architecture }}
+          arch: arm64
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Install LLVM and Clang MacOS on arm
+        uses: KyleMayes/install-llvm-action@v2
+        if: ${{ matrix.platform == 'macos-latest' && matrix.args == '--target x86_64-apple-darwin' }}
+        with:
+          version: "15.0.7"
+          arch: x64
           directory: ${{ runner.temp }}/llvm
 
       - name: Install LLVM and Clang Ubuntu x64 
@@ -60,6 +68,7 @@ jobs:
         run: git clone https://github.com/opencv/opencv.git
       
       - name: Configure OpenCV
+        if: matrix.platform != 'windows-latest'
         working-directory: ./opencv
         run: |
           mkdir build
@@ -70,7 +79,10 @@ jobs:
         working-directory: ./opencv/build
         if: matrix.platform == 'windows-latest'
         run: |
-          ninja
+          mkdir build
+          cd build/
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }} ..
+          make -j2
           make install
 
       - name: Build OpenCV Other OS
@@ -79,3 +91,4 @@ jobs:
         run: |
           make -j$(nproc)
           sudo make install
+
