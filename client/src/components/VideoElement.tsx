@@ -7,13 +7,7 @@ import React, {
 } from 'react';
 
 import Konva from 'konva';
-import {
-  Stage,
-  Layer,
-  Circle,
-  Rect,
-  Arrow,
-} from 'react-konva';
+import { Stage, Layer, Circle, Rect, Arrow } from 'react-konva';
 
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
@@ -27,7 +21,6 @@ import {
   Hand,
   RefreshCw,
 } from 'lucide-react';
-
 
 // Discriminated union for different shape types
 type RectShape = {
@@ -61,7 +54,6 @@ type ArrowShape = {
   stroke: string;
   strokeWidth: number;
 };
-
 
 type ShapeData = RectShape | CircleShape | ArrowShape;
 
@@ -106,7 +98,7 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
 }) => {
   return (
     <>
-      {shapes.map(shape => {
+      {shapes.map((shape) => {
         // Separate key from other props
         const { key, ...otherCommonProps } = {
           key: shape.id, // Use shape.id as key
@@ -115,7 +107,7 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
           strokeWidth: shape.strokeWidth,
         };
         if (shape.type === 'rect') {
-            const centerCoordinate = getStagePointFromOriginalVideoCoords({
+          const centerCoordinate = getStagePointFromOriginalVideoCoords({
             x: shape.x,
             y: shape.y,
           });
@@ -124,12 +116,12 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
             <Rect
               key={key} // Pass key directly
               {...otherCommonProps} // Spread the rest
-              x={centerCoordinate.x - (shape.width / 2)}
-              y={centerCoordinate.y - (shape.height / 2)}
+              x={centerCoordinate.x - shape.width / 2}
+              y={centerCoordinate.y - shape.height / 2}
               width={shape.width}
               height={shape.height}
             />
-          )
+          );
         }
         if (shape.type === 'circle') {
           const stagePoint = getStagePointFromOriginalVideoCoords({
@@ -161,11 +153,16 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
             <Arrow
               key={key} // Pass key directly
               {...otherCommonProps} // Spread the rest
-              points={[stagePoint.x, stagePoint.y, stagePoint2.x, stagePoint2.y]}
+              points={[
+                stagePoint.x,
+                stagePoint.y,
+                stagePoint2.x,
+                stagePoint2.y,
+              ]}
               pointerLength={10}
               pointerWidth={10}
             />
-          )
+          );
         }
         // Add rendering logic for other shape types here
         return null; // Placeholder for other shapes
@@ -173,7 +170,6 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
     </>
   );
 };
-
 
 interface NewShapePreviewProps {
   newShape: ShapeData | null;
@@ -183,7 +179,11 @@ interface NewShapePreviewProps {
   scale: number;
 }
 
-const NewShapePreview: React.FC<NewShapePreviewProps> = ({ newShape, getStagePointFromOriginalVideoCoords, scale }) => {
+const NewShapePreview: React.FC<NewShapePreviewProps> = ({
+  newShape,
+  getStagePointFromOriginalVideoCoords,
+  scale,
+}) => {
   if (!newShape) return null;
 
   if (newShape.type === 'rect') {
@@ -233,7 +233,8 @@ const NewShapePreview: React.FC<NewShapePreviewProps> = ({ newShape, getStagePoi
     });
     if (!stagePoint || !stagePoint2) return null;
     return (
-      <Arrow {...newShape} 
+      <Arrow
+        {...newShape}
         points={[stagePoint.x, stagePoint.y, stagePoint2.x, stagePoint2.y]}
         pointerLength={10}
         pointerWidth={10}
@@ -247,11 +248,37 @@ const NewShapePreview: React.FC<NewShapePreviewProps> = ({ newShape, getStagePoi
 
 // Define zoom constants
 const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 10; // Increased max zoom for video
+const MAX_ZOOM = 25; // Increased max zoom for video
 const ZOOM_STEP = 0.1;
 
 // Define interaction modes
 type InteractionMode = 'draw' | 'pan' | 'selectionZoom';
+
+// Add a simple component to render the selection rectangle
+const SelectionRectangle: React.FC<{
+  box: { x: number; y: number; width: number; height: number } | null;
+}> = ({ box }) => {
+  if (!box) return null;
+  // Normalize box coordinates for rendering regardless of drawing direction
+  const x = box.width < 0 ? box.x + box.width : box.x;
+  const y = box.height < 0 ? box.y + box.height : box.y;
+  const width = Math.abs(box.width);
+  const height = Math.abs(box.height);
+
+  return (
+    <Rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      fill="rgba(0, 150, 255, 0.2)" // Light blue dashed line
+      stroke="rgba(0, 150, 255, 0.8)" // Light blue dashed line
+      strokeWidth={2}
+      dash={[4, 4]}
+      listening={false} // Prevent interaction with the selection box itself
+    />
+  );
+};
 
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
   (
@@ -280,14 +307,27 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Annotation State ---
     const [shapes, setShapes] = useState<ShapeData[]>([]);
-    const [currentShapeType, setCurrentShapeType] = useState<'rect' | 'circle' | 'arrow' | 'none'>('rect');
+    const [currentShapeType, setCurrentShapeType] = useState<
+      'rect' | 'circle' | 'arrow' | 'none'
+    >('rect');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [newShape, setNewShape] = useState<ShapeData | null>(null);
     const [drawStartX, setDrawStartX] = useState<number | null>(null); // Store initial X for drawing
     const [drawStartY, setDrawStartY] = useState<number | null>(null); // Store initial Y for drawing
-    const [interactionMode, setInteractionMode] = useState<InteractionMode>('draw'); // New state for interaction mode
+    const [interactionMode, setInteractionMode] =
+      useState<InteractionMode>('draw'); // New state for interaction mode
     const [isPanning, setIsPanning] = useState(false); // State for panning status
-    const [panStartPoint, setPanStartPoint] = useState<{ x: number, y: number } | null>(null); // State for panning start point
+    const [panStartPoint, setPanStartPoint] = useState<{
+      x: number;
+      y: number;
+    } | null>(null); // State for panning start point
+    const [isSelecting, setIsSelecting] = useState(false); // State for selection zoom status
+    const [selectionBox, setSelectionBox] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null>(null); // State for selection box coordinates/dimensions
 
     const getOriginalVideoCoordsFromStagePoint = (
       stagePoint: { x: number; y: number } | null | undefined
@@ -334,7 +374,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       return { x: stageX, y: stageY };
     };
 
-
     // --- Effects ---
 
     // Effect to reset state when video source changes
@@ -351,10 +390,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setCurrentShapeType('none');
         setInteractionMode('selectionZoom'); // Default to select mode when playing
       } else {
-         // When pausing, default back to drawing rectangle? Or last used mode? Let's stick to draw/rect for now.
-         // Consider persisting the last active mode if needed.
-         setInteractionMode('draw');
-         setCurrentShapeType('rect');
+        // When pausing, default back to drawing rectangle? Or last used mode? Let's stick to draw/rect for now.
+        // Consider persisting the last active mode if needed.
+        setInteractionMode('draw');
+        setCurrentShapeType('rect');
       }
     }, [isPlaying]);
 
@@ -472,28 +511,24 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       if (!stage) return;
       const stagePoint = stage.getRelativePointerPosition();
       if (!stagePoint) return;
-      
-      const videoCoords1 = getOriginalVideoCoordsFromStagePoint(stagePoint);
-      if (!videoCoords1) return;
-      const stagePoint2 = getStagePointFromOriginalVideoCoords(videoCoords1);
-      if (!stagePoint2) return;
-      if (Math.abs(stagePoint2.x - stagePoint.x) > 0.01 || Math.abs(stagePoint2.y - stagePoint.y) > 0.01) {
-        console.warn('Stage point conversion mismatch:', stagePoint2, stagePoint);
-      }
 
       if (interactionMode === 'pan') {
         setIsPanning(true);
         setPanStartPoint(stagePoint);
-        return; // Don't proceed with shape drawing if panning
+        return; // Don't proceed with other interactions if panning
       }
 
       if (interactionMode === 'selectionZoom') {
-        // Logic for selecting shapes will go here
-        // For now, just clear selection
-        setSelectedId(null);
+        setSelectedId(null); // Clear shape selection if any
+        setIsSelecting(true);
+        setSelectionBox({
+          x: stagePoint.x,
+          y: stagePoint.y,
+          width: 0,
+          height: 0,
+        });
         return; // Don't proceed with shape drawing if selecting
       }
-
 
       // Only draw if in 'draw' mode and a shape type is selected
       if (interactionMode !== 'draw' || currentShapeType === 'none') return;
@@ -534,12 +569,16 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setNewShape({
           id,
           type: 'arrow',
-          points: [videoCoords.x, videoCoords.y, videoCoords.x, videoCoords.y] as [number, number, number, number],
+          points: [
+            videoCoords.x,
+            videoCoords.y,
+            videoCoords.x,
+            videoCoords.y,
+          ] as [number, number, number, number],
           stroke: 'red',
           strokeWidth: 4,
         });
       }
-
     };
 
     const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -550,26 +589,68 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
       // Handle Panning
       if (interactionMode === 'pan' && isPanning && panStartPoint) {
-          const dx = currentPointerPos.x - panStartPoint.x;
-          const dy = currentPointerPos.y - panStartPoint.y;
-          setOffset(prevOffset => ({
-              x: prevOffset.x + dx,
-              y: prevOffset.y + dy,
-          }));
-          // Update pan start point for continuous panning
-          setPanStartPoint(currentPointerPos);
-          return; // Don't draw while panning
+        const dx = currentPointerPos.x - panStartPoint.x;
+        const dy = currentPointerPos.y - panStartPoint.y;
+        setOffset((prevOffset) => ({
+          x: prevOffset.x + dx,
+          y: prevOffset.y + dy,
+        }));
+        // Update pan start point for continuous panning
+        setPanStartPoint(currentPointerPos);
+        return; // Don't do other things while panning
       }
 
+      // Handle Selection Zoom drawing
+      if (interactionMode === 'selectionZoom' && isSelecting && selectionBox) {
+        const rawWidth = currentPointerPos.x - selectionBox.x;
+        const rawHeight = currentPointerPos.y - selectionBox.y;
 
-      // Handle Drawing (only if in 'draw' mode and drawing started)
-      if (interactionMode !== 'draw' || !newShape || drawStartX === null || drawStartY === null) return;
+        let finalWidth = rawWidth;
+        let finalHeight = rawHeight;
 
+        // Ensure container dimensions are valid for aspect ratio calculation
+        if (containerWidth > 0 && containerHeight > 0) {
+          const containerAR = containerWidth / containerHeight;
 
-      const videoCoords = getOriginalVideoCoordsFromStagePoint(currentPointerPos);
+          // Calculate magnitudes
+          const dx = Math.abs(rawWidth);
+          const dy = Math.abs(rawHeight);
+
+          // Determine which dimension dictates the size based on container aspect ratio
+          if (dx / containerAR >= dy) {
+            // Width is the limiting dimension relative to AR, calculate height based on width
+            finalHeight = Math.sign(rawHeight || 1) * (dx / containerAR);
+            finalWidth = rawWidth; // Keep original width
+          } else {
+            // Height is the limiting dimension relative to AR, calculate width based on height
+            finalWidth = Math.sign(rawWidth || 1) * (dy * containerAR);
+            finalHeight = rawHeight; // Keep original height
+          }
+        }
+        // If container dimensions are invalid, finalWidth/Height remain rawWidth/Height
+
+        setSelectionBox({
+          ...selectionBox,
+          width: finalWidth,
+          height: finalHeight,
+        });
+        return; // Don't draw shapes while selecting
+      }
+
+      // Handle Shape Drawing (only if in 'draw' mode and drawing started)
+      if (
+        interactionMode !== 'draw' ||
+        !newShape ||
+        drawStartX === null ||
+        drawStartY === null
+      )
+        return;
+
+      const videoCoords =
+        getOriginalVideoCoordsFromStagePoint(currentPointerPos);
       if (!videoCoords) return;
 
-      setNewShape(prev => {
+      setNewShape((prev) => {
         if (!prev) return null;
 
         if (prev.type === 'rect') {
@@ -582,7 +663,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             height: currentPointerPos.y - prev.y,
             stroke: prev.stroke,
             strokeWidth: prev.strokeWidth,
-          }
+          };
         }
         if (prev.type === 'circle') {
           // Calculate center and radius based on the two diagonal points
@@ -603,17 +684,22 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             radius,
             stroke: prev.stroke,
             strokeWidth: prev.strokeWidth,
-          }
+          };
         }
         if (prev.type === 'arrow') {
           const [x0, y0] = prev.points;
           return {
             id: prev.id,
             type: 'arrow',
-            points: [x0, y0, videoCoords.x, videoCoords.y] as [number, number, number, number],
+            points: [x0, y0, videoCoords.x, videoCoords.y] as [
+              number,
+              number,
+              number,
+              number,
+            ],
             stroke: prev.stroke,
             strokeWidth: prev.strokeWidth,
-          }
+          };
         }
         return prev;
       });
@@ -622,70 +708,157 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
       // Stop Panning
       if (interactionMode === 'pan' && isPanning) {
-          setIsPanning(false);
-          setPanStartPoint(null);
-          return; // Panning finished, do nothing else
+        setIsPanning(false);
+        setPanStartPoint(null);
+        return; // Panning finished, do nothing else
       }
 
-      // Finalize Drawing (only if in 'draw' mode)
+      // Finalize Selection Zoom
+      if (interactionMode === 'selectionZoom' && isSelecting && selectionBox) {
+        setIsSelecting(false);
+
+        // Normalize selection box (handle drawing in any direction)
+        const normX =
+          selectionBox.width < 0
+            ? selectionBox.x + selectionBox.width
+            : selectionBox.x;
+        const normY =
+          selectionBox.height < 0
+            ? selectionBox.y + selectionBox.height
+            : selectionBox.y;
+        const normWidth = Math.abs(selectionBox.width);
+        const normHeight = Math.abs(selectionBox.height);
+
+        // Only zoom if the box has significant size
+        if (normWidth > 5 && normHeight > 5) {
+          // 1. Calculate the target scale factor relative to current scale
+          const scaleX = containerWidth / normWidth;
+          const scaleY = containerHeight / normHeight;
+          const targetScaleFactor = Math.min(scaleX, scaleY);
+
+          // 2. Calculate the final absolute scale, clamped
+          let newScale = scale * targetScaleFactor;
+          newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+
+          // 3. Calculate the actual zoom factor applied (relative to current scale)
+          // Avoid division by zero if scale is somehow 0
+          const zoomFactor = scale !== 0 ? newScale / scale : 1;
+
+          // 4. Find the stage center of the selection
+          const selCenterX_stage = normX + normWidth / 2;
+          const selCenterY_stage = normY + normHeight / 2;
+
+          // 5. Calculate the new offset to center the selection box in the stage
+          const stageCenterX = containerWidth / 2;
+          const stageCenterY = containerHeight / 2;
+
+          // Formula: newOffset = stageCenter - (selectionStageCenter - currentOffset) * zoomFactor
+          const newOffsetX =
+            stageCenterX - (selCenterX_stage - offset.x) * zoomFactor;
+          const newOffsetY =
+            stageCenterY - (selCenterY_stage - offset.y) * zoomFactor;
+
+          // 6. Apply the new zoom and pan
+          setScale(newScale);
+          setOffset({ x: newOffsetX, y: newOffsetY });
+        }
+
+        setSelectionBox(null); // Clear the selection box visual
+        return; // Selection zoom finished, do nothing else
+      }
+
+      // Finalize Shape Drawing (only if in 'draw' mode)
       if (interactionMode === 'draw' && newShape) {
-          // Ensure shape has some minimal size? Optional.
-          const shape = newShape;
-          // Example minimal size check (adjust as needed)
-          let isValidShape = true;
-          if (shape.type === 'rect' && (Math.abs(shape.width) < 5 || Math.abs(shape.height) < 5)) isValidShape = false;
-          if (shape.type === 'circle' && shape.radius < 3) isValidShape = false;
-          if (shape.type === 'arrow' && Math.hypot(shape.points[2] - shape.points[0], shape.points[3] - shape.points[1]) < 5) isValidShape = false;
+        // Ensure shape has some minimal size? Optional.
+        const shape = newShape;
+        // Example minimal size check (adjust as needed)
+        let isValidShape = true;
+        if (
+          shape.type === 'rect' &&
+          (Math.abs(shape.width) < 5 || Math.abs(shape.height) < 5)
+        )
+          isValidShape = false;
+        if (shape.type === 'circle' && shape.radius < 3) isValidShape = false;
+        if (
+          shape.type === 'arrow' &&
+          Math.hypot(
+            shape.points[2] - shape.points[0],
+            shape.points[3] - shape.points[1]
+          ) < 5
+        )
+          isValidShape = false;
 
-          
-          if (shape.type === 'rect') {
-            // The 'shape' object currently holds stage coordinates with a top-left origin
-            // We need to convert these to video coordinates with a center origin.
+        if (shape.type === 'rect') {
+          // The 'shape' object currently holds stage coordinates with a top-left origin
+          // We need to convert these to video coordinates with a center origin.
 
-            const stageTopLeft = { x: shape.x, y: shape.y };
-            const stageBottomRight = { x: shape.x + shape.width, y: shape.y + shape.height };
+          const stageTopLeft = { x: shape.x, y: shape.y };
+          const stageBottomRight = {
+            x: shape.x + shape.width,
+            y: shape.y + shape.height,
+          };
 
-            // Convert the stage corner points to the original video coordinate system
-            const videoTopLeft = getOriginalVideoCoordsFromStagePoint(stageTopLeft);
-            const videoBottomRight = getOriginalVideoCoordsFromStagePoint(stageBottomRight);
+          // Convert the stage corner points to the original video coordinate system
+          const videoTopLeft =
+            getOriginalVideoCoordsFromStagePoint(stageTopLeft);
+          const videoBottomRight =
+            getOriginalVideoCoordsFromStagePoint(stageBottomRight);
 
-            if (!videoTopLeft || !videoBottomRight) {
-              // If conversion fails, the shape is invalid
-              console.error("Failed to convert rectangle corners to video coordinates.");
+          if (!videoTopLeft || !videoBottomRight) {
+            // If conversion fails, the shape is invalid
+            console.error(
+              'Failed to convert rectangle corners to video coordinates.'
+            );
+            isValidShape = false;
+          } else {
+            // Calculate the width and height in the video coordinate system
+            const videoWidth = Math.abs(videoBottomRight.x - videoTopLeft.x);
+            const videoHeight = Math.abs(videoBottomRight.y - videoTopLeft.y);
+
+            // Re-validate the shape size based on video dimensions
+            if (videoWidth < 5 || videoHeight < 5) {
               isValidShape = false;
-            } else {
-              // Calculate the width and height in the video coordinate system
-              const videoWidth = Math.abs(videoBottomRight.x - videoTopLeft.x);
-              const videoHeight = Math.abs(videoBottomRight.y - videoTopLeft.y);
+            }
 
-              // Re-validate the shape size based on video dimensions
-              if (videoWidth < 5 || videoHeight < 5) {
-                 isValidShape = false;
-              }
+            // If the shape is still valid after size check
+            if (isValidShape) {
+              // Calculate the center point in the video coordinate system
+              const videoCenterX = (videoTopLeft.x + videoBottomRight.x) / 2;
+              const videoCenterY = (videoTopLeft.y + videoBottomRight.y) / 2;
 
-              // If the shape is still valid after size check
-              if (isValidShape) {
-                // Calculate the center point in the video coordinate system
-                const videoCenterX = (videoTopLeft.x + videoBottomRight.x) / 2;
-                const videoCenterY = (videoTopLeft.y + videoBottomRight.y) / 2;
-
-                // Update the shape properties to store the center coordinates
-                // and dimensions relative to the original video
-                shape.x = videoCenterX;
-                shape.y = videoCenterY;
-              }
+              // Update the shape properties to store the center coordinates
+              // and dimensions relative to the original video
+              shape.x = videoCenterX;
+              shape.y = videoCenterY;
             }
           }
-          
+        }
 
-          // Add shape to shapes array
-          if (isValidShape) {
-            setShapes(prev => [...prev, shape]);
-          }
+        // Add shape to shapes array
+        if (isValidShape) {
+          setShapes((prev) => [...prev, shape]);
+        }
 
-          setNewShape(null);
-          setDrawStartX(null); // Reset drawing start point
-          setDrawStartY(null); // Reset drawing start point
+        setNewShape(null);
+        setDrawStartX(null); // Reset drawing start point
+        setDrawStartY(null); // Reset drawing start point
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (isPanning) {
+        setIsPanning(false);
+        setPanStartPoint(null); // Also clear the pan start point
+      }
+      if (isSelecting) {
+        setIsSelecting(false);
+        setSelectionBox(null); // Cancel selection on leave
+      }
+      // If drawing was in progress, cancel it.
+      if (newShape) {
+        setNewShape(null);
+        setDrawStartX(null);
+        setDrawStartY(null);
       }
     };
 
@@ -697,7 +870,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Undo Handler ---
     const handleUndo = () => {
-      setShapes(prevShapes => {
+      setShapes((prevShapes) => {
         if (prevShapes.length === 0) {
           return prevShapes; // Nothing to undo
         }
@@ -722,8 +895,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           backgroundColor: 'black', // Background visible when video is smaller than container
         }}
       >
-        
-
         <video
           ref={videoRef}
           src={src}
@@ -755,7 +926,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           <div style={{ display: 'flex', gap: 4 }}>
             <Button
               size="icon"
-              variant='outline'
+              variant="outline"
               onClick={handleResetView}
               title="Reset View (Zoom/Pan)"
             >
@@ -763,10 +934,12 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             </Button>
             <Button
               size="icon"
-              variant={interactionMode === 'selectionZoom' ? 'secondary' : 'outline'}
+              variant={
+                interactionMode === 'selectionZoom' ? 'secondary' : 'outline'
+              }
               onClick={() => {
                 setInteractionMode('selectionZoom');
-                setCurrentShapeType('none'); 
+                setCurrentShapeType('none');
               }}
               title="Select Mode"
             >
@@ -793,7 +966,11 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               {/* Draw Buttons */}
               <Button
                 size="icon"
-                variant={interactionMode === 'draw' && currentShapeType === 'rect' ? 'secondary' : 'outline'}
+                variant={
+                  interactionMode === 'draw' && currentShapeType === 'rect'
+                    ? 'secondary'
+                    : 'outline'
+                }
                 onClick={() => {
                   setInteractionMode('draw');
                   setCurrentShapeType('rect');
@@ -804,7 +981,11 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               </Button>
               <Button
                 size="icon"
-                variant={interactionMode === 'draw' && currentShapeType === 'circle' ? 'secondary' : 'outline'}
+                variant={
+                  interactionMode === 'draw' && currentShapeType === 'circle'
+                    ? 'secondary'
+                    : 'outline'
+                }
                 onClick={() => {
                   setInteractionMode('draw');
                   setCurrentShapeType('circle');
@@ -815,12 +996,16 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               </Button>
               <Button
                 size="icon"
-                variant={interactionMode === 'draw' && currentShapeType === 'arrow' ? 'secondary' : 'outline'}
+                variant={
+                  interactionMode === 'draw' && currentShapeType === 'arrow'
+                    ? 'secondary'
+                    : 'outline'
+                }
                 onClick={() => {
-                   setInteractionMode('draw');
-                   setCurrentShapeType('arrow');
-                 }}
-                 title="Draw Arrow"
+                  setInteractionMode('draw');
+                  setCurrentShapeType('arrow');
+                }}
+                title="Draw Arrow"
               >
                 <ArrowUpRight size={16} />
               </Button>
@@ -839,7 +1024,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
                 variant="outline"
                 onClick={handleClearAll}
                 disabled={shapes.length === 0} // Disable if no shapes exist
-                className={shapes.length > 0 ? "hover:bg-red-100" : ""} // Optional: Add red hover if active
+                className={shapes.length > 0 ? 'hover:bg-red-100' : ''} // Optional: Add red hover if active
               >
                 <Trash2 size={16} />
               </Button>
@@ -852,33 +1037,53 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           ref={stageRef}
           width={containerWidth}
           height={containerHeight}
-          style={{ 
-            position: 'absolute', 
-            top: 0, 
-            left: 0, 
-            cursor: interactionMode === 'pan' ? (isPanning ? 'grabbing' : 'grab') : 'default' 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            // Update cursor based on mode
+            cursor:
+              interactionMode === 'pan'
+                ? isPanning
+                  ? 'grabbing'
+                  : 'grab'
+                : interactionMode === 'selectionZoom'
+                  ? 'crosshair' // Use crosshair for selection zoom
+                  : 'default',
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
         >
-          <Layer ref={annotationLayerRef} style={{ pointerEvents: interactionMode === 'pan' ? 'none' : 'auto' }}>
+          <Layer
+            ref={annotationLayerRef}
+            style={{
+              pointerEvents: interactionMode === 'pan' ? 'none' : 'auto',
+            }}
+          >
             {/* Render existing shapes */}
             <ExistingShapes
               shapes={shapes}
               selectedId={selectedId}
               currentShapeType={currentShapeType}
-              getStagePointFromOriginalVideoCoords={getStagePointFromOriginalVideoCoords}
+              getStagePointFromOriginalVideoCoords={
+                getStagePointFromOriginalVideoCoords
+              }
               scale={scale}
             />
 
             {/* Render new shape preview */}
             <NewShapePreview
               newShape={newShape}
-              getStagePointFromOriginalVideoCoords={getStagePointFromOriginalVideoCoords}
+              getStagePointFromOriginalVideoCoords={
+                getStagePointFromOriginalVideoCoords
+              }
               scale={scale}
             />
-            
+
+            {/* Render selection zoom rectangle */}
+            <SelectionRectangle box={selectionBox} />
           </Layer>
         </Stage>
       </div>

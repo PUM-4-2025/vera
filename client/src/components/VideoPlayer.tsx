@@ -15,7 +15,6 @@ import { useProject } from '@/contexts/ProjectContext';
 import { VideoTimeSlider } from './VideoTimeSlider';
 import { SoundWaveform } from './SoundWaveform';
 import VideoElement, { VideoElementRef } from './VideoElement';
-import AnnotationCanvas from './AnnotationCanvas';
 
 const VideoPlayer: React.FC = () => {
   const { videos, currentVideoId } = useProject();
@@ -33,8 +32,6 @@ const VideoPlayer: React.FC = () => {
   const [manualLayout, setManualLayout] = useState<
     'auto' | 'portrait' | 'landscape'
   >('auto');
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  const [clientSize, setClientSize] = useState({ width: 0, height: 0 });
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
@@ -75,25 +72,13 @@ const VideoPlayer: React.FC = () => {
     return isPortraitLayout ? 9 / 16 : 16 / 9; // Fixed aspect ratio based on layout
   }, [isPortraitLayout]); // Depend only on the layout mode
 
-  // Track window, client and container dimensions
+  // Track video container size
   const updateDimensions = () => {
-    // Window size
-    setWindowSize({
-      width: window.outerWidth,
-      height: window.outerHeight,
-    });
-
-    // Client size
-    setClientSize({
-      width: window.innerWidth,
-      height: window.innerHeight,
-    });
-
     // Video container size
     if (videoContainerRef.current) {
       setContainerSize({
-        width: videoContainerRef.current.offsetWidth,
-        height: videoContainerRef.current.offsetHeight,
+        width: videoContainerRef.current.clientWidth,
+        height: videoContainerRef.current.clientHeight,
       });
     }
   };
@@ -104,24 +89,20 @@ const VideoPlayer: React.FC = () => {
 
     // Update on resize
     window.addEventListener('resize', updateDimensions);
+    const interval = setInterval(() => {
+      updateDimensions();
+    }, 100);
 
     // Update container size periodically (in case layout changes without resize)
-    const intervalId = setInterval(updateDimensions, 1000);
-
     return () => {
       window.removeEventListener('resize', updateDimensions);
-      clearInterval(intervalId);
+      clearInterval(interval);
     };
-  }, []);
+  }, []); // Empty dependency array: runs only on mount/unmount
 
   // Effect to update dimensions when layout or video source changes
   useEffect(() => {
-    // Add a small delay to allow DOM to update after layout change
-    const timeoutId = setTimeout(() => {
-      updateDimensions();
-    }, 50); // 50ms delay
-
-    return () => clearTimeout(timeoutId);
+    updateDimensions();
   }, [effectiveLayout, videoSrc]); // Depend on effectiveLayout and videoSrc
 
   // Restore requestAnimationFrame for smooth time updates during playback
@@ -236,77 +217,27 @@ const VideoPlayer: React.FC = () => {
     setShowWaveform(!showWaveform);
   };
 
-  // Size info panel component
-  const SizeInfoPanel = () => {
-    // Get physical screen resolution
-    const screenWidth = window.screen.width;
-    const screenHeight = window.screen.height;
-
-    // Calculate approximate zoom level
-    const zoomLevel = Math.round((window.outerWidth / window.innerWidth) * 100);
-
-    // Calculate actual physical container size by adjusting for zoom
-    // Calculate actual physical container size by comparing CSS pixels to device pixels
-    // (accounts for devicePixelRatio, not browser zoom)
-    const actualContainerWidth = Math.round(
-      containerSize.width * window.devicePixelRatio
-    );
-    const actualContainerHeight = Math.round(
-      containerSize.height * window.devicePixelRatio
-    );
-
-    return (
-      <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white p-2 rounded text-xs z-10 font-mono">
-        <div>
-          Screen: {screenWidth}×{screenHeight}px
-        </div>
-        <div>
-          Window: {windowSize.width}×{windowSize.height}px
-        </div>
-        <div>
-          Client: {clientSize.width}×{clientSize.height}px
-        </div>
-        <div>Device Pixel Ratio: {window.devicePixelRatio}</div>
-        <div>
-          Container (CSS): {containerSize.width}×{containerSize.height}px
-        </div>
-        <div>
-          Container (Actual): {actualContainerWidth}×{actualContainerHeight}px
-        </div>
-        <div>Zoom: ~{zoomLevel}%</div>
-      </div>
-    );
-  };
-
-  const getActualContainerSize = () => {
-    const actualContainerWidth = Math.round(
-      containerSize.width * window.devicePixelRatio
-    );
-    const actualContainerHeight = Math.round(
-      containerSize.height * window.devicePixelRatio
-    );
-    return {
-      width: actualContainerWidth,
-      height: actualContainerHeight,
-    };
-  };
-
   return (
     <div className="h-full">
       {videoSrc ? (
         // Combined Layout
         <div
           key={effectiveLayout}
-          className={`flex ${isPortraitLayout ? 'flex-row h-full space-x-1' : 'flex-col space-y-1'} h-full`}
+          className={`flex ${
+            isPortraitLayout
+              ? 'flex-row h-full space-x-1'
+              : 'flex-col space-y-1'
+          } h-full`}
         >
           <div
             ref={videoContainerRef}
-            className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${isPortraitLayout ? 'h-full' : 'flex-1 min-h-[30vh] lg:min-h-[40vh] self-center'}`}
+            className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${
+              isPortraitLayout ? 'h-full' : 'flex-1'
+            }`}
             style={{
               aspectRatio: displayedAR,
             }}
           >
-            <SizeInfoPanel />
             <VideoElement
               ref={videoElementRef}
               src={videoSrc}
@@ -320,7 +251,9 @@ const VideoPlayer: React.FC = () => {
           </div>
 
           <div
-            className={`${isPortraitLayout ? 'flex-1 h-full flex flex-col space-y-1' : ''}`}
+            className={`${
+              isPortraitLayout ? 'flex-1 h-full flex flex-col space-y-1' : ''
+            }`}
           >
             <VideoTimeSlider
               currentTime={currentTime}
@@ -421,7 +354,6 @@ const VideoPlayer: React.FC = () => {
       ) : (
         // No Video Selected: Placeholder
         <div className="flex flex-col space-y-1 h-full">
-          <SizeInfoPanel />
           <div className="flex flex-col items-center justify-center text-muted-foreground">
             <FilmIcon size={48} className="mb-3 text-vera" strokeWidth={1.5} />
             <span className="text-sm font-medium">
