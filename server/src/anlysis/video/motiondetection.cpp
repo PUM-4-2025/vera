@@ -6,18 +6,18 @@
 //#include <opencv2/cudaimgproc.hpp>    // Optional: for CUDA image processing (e.g., resizing, filters)
 
 
-void analyse_video(){
+std::vector<int> analyse_video(std::vector<int> cords){
     if (cv::cuda::getCudaEnabledDeviceCount() > 0){
-        
         std::cout << "cuda finns" << std::endl;
-
     }
     else{
         std::cout << "inte cuda" << std::endl;
 
 
 
-    }
+    }   
+    // Ta in vector med x, w och y , h 
+    // returnera start stop frame för rörelse 
 
 
 
