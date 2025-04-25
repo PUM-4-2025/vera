@@ -3,7 +3,6 @@
 #include "audio.h"
 #include "anlysis/video/motiondetection.h"
 
-
 #include <iostream>
 
 int main() {
