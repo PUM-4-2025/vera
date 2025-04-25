@@ -1,6 +1,8 @@
 #include "http_server.h"
 #include "upload_media.h"
 #include "audio.h"
+#include "anlysis/video/motiondetection.h"
+
 
 #include <iostream>
 
@@ -8,6 +10,8 @@ int main() {
   #ifdef __cplusplus
   std::cout << 'C++ version: ' << __cplusplus << std::endl;
   #endif
+
+  analyse_video();
 
   const char *portEnv = std::getenv("PORT");
   int port = std::stoi(portEnv);

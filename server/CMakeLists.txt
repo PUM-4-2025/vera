@@ -51,11 +51,13 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/include/project_config.h"
 )
 
+find_package(OpenCV REQUIRED)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/json
+    ${OpenCV_INCLUDE_DIRS}
 )
 
 add_library(mongoose STATIC 
@@ -77,7 +79,6 @@ target_compile_options(mongoose_includes INTERFACE
 
 file(GLOB_RECURSE CORE_SOURCES 
      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-     #${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp
 )
 
 set(UTIL_SOURCES
@@ -125,6 +126,7 @@ target_link_libraries(server
     mongoose 
     mongoose_includes
     ${PLATFORM_SPECIFIC_LIBS}
+    ${OpenCV_LIBS}
 )
 
 if(BUILD_TESTING)
