@@ -1,6 +1,6 @@
 name: "Build OpenCV releases"
 
-on: workflow_dispatch
+on: [push, workflow_dispatch]
 
 permissions:
   contents: write
