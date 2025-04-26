@@ -1,36 +1,36 @@
 import React, { useRef, useEffect } from 'react';
 
-const samples = [
-  -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
-]; //insert samples here
+const samples = [1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1]; //insert samples here
 
 interface MotionIntervalsProps {
+  filename: string;
   currentTime: number;
   videoDuration: number;
-  zoomLevel: number; // Zoom level for the waveform (1 = normal, >1 = zoomed in)
-  onTimeChange: (time: number) => void; // Callback to update video time when clicking waveform
+  zoomLevel: number; // Zoom level for the intervals (1 = normal, >1 = zoomed in)
+  onTimeChange: (time: number) => void; // Callback to update video time when clicking intervals
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
 }
 
 export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
+  filename, // Input for backend analysis
   currentTime,
   videoDuration,
   zoomLevel,
   onTimeChange,
   onZoomChange,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the waveform canvas
+  const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the intervals canvas
   const intervalsContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
 
-  // Handle mouse wheel to zoom in/out of the waveform
+  // Handle mouse wheel to zoom in/out of the intervals
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.05 : 0.05;
     onZoomChange(delta);
   };
 
-  // Handle clicking the waveform to jump to a specific time (at any zoom level)
+  // Handle clicking the intervals to jump to a specific time (at any zoom level)
   const handleIntervalsClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const container = intervalsContainerRef.current;
@@ -42,15 +42,15 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     // Time jumping when zoomed in
     const totalIntervalsWidth = width * zoomLevel;
     const scrollOffset = scrollOffsetRef.current;
-    const waveformPosition = scrollOffset + clickX;
-    const fraction = waveformPosition / totalIntervalsWidth;
+    const intervalsPosition = scrollOffset + clickX;
+    const fraction = intervalsPosition / totalIntervalsWidth;
     const clickedTime = fraction * videoDuration;
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
 
     onTimeChange(newTime); // Update video time
   };
 
-  // Draw the waveform and red line
+  // Draw the intervals and line
   const drawIntervals = () => {
     const canvas = canvasRef.current;
     const container = intervalsContainerRef.current;
@@ -74,7 +74,7 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     // Clear the canvas
     ctx.clearRect(0, 0, effectiveWidth, height);
 
-    // Waveform parameters
+    // Intervals parameters
     const numBars = samples.length; // number of samples
     const totalIntervalsWidth = effectiveWidth * zoomLevel;
     const timePerPixel = videoDuration / totalIntervalsWidth;
@@ -95,55 +95,32 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     const startBar = Math.floor(scrollOffset / barWidth);
     const visibleBars = Math.ceil(effectiveWidth / barWidth);
 
-    // Draw waveform bars
+    // Draw intervals bars
     for (let i = startBar; i < startBar + visibleBars && i < numBars; i++) {
-      const sample_min = 5977; // sampleFactor is 1 around 1 min
-      const sample_max = 404212; // sampleFactor is 100 around 1 hour
-      let sampleFactor = Math.round(
-        1 +
-          99 *
-            (Math.log(
-              ((Number(numBars) - sample_min) / (sample_max - sample_min)) * 9 +
-                1
-            ) /
-              Math.log(10))
-      );
-      if (sampleFactor < 1) {
-        sampleFactor = 1;
+      let data = samples[i]; // Read the sample
+      if (data == undefined || data == null) {
+        data = 0;
       }
-      if (i % sampleFactor == 0) {
-        // If video is near 1h we only draw mod 100 of the amount of bars
-        let data = samples[i]; // Read the sample
 
-        // Normalize sound data amplitude to fit in grapth (dB)
-        const minVal = -80;
-        const maxVal = 0; // Assume 0 dB as max for audio waveforms
-        if (data == undefined || data == null) {
-          data = minVal;
-        }
-        const barHeight = ((data - minVal) / (maxVal - minVal)) * height; // Normalize
-        //const barHeight = Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5; //old sinewave test
-
-        //Draw the bar
-        const x = i * barWidth - scrollOffset;
-        ctx.fillStyle = 'red';
-        ctx.fillRect(
-          x,
-          height - barHeight,
-          Math.max(1, sampleFactor * barWidth),
-          barHeight
-        );
+      let barHeight = 0;
+      if (data > 0) {
+        barHeight = height;
       }
+
+      //Draw the bar
+      const x = i * barWidth - scrollOffset;
+      ctx.fillStyle = 'red';
+      ctx.fillRect(x, height - barHeight, Math.max(1, barWidth), barHeight);
     }
 
-    // Draw red line indicating current video time
-    const redLineX = currentPixel - scrollOffset;
-    if (redLineX >= 0 && redLineX <= effectiveWidth) {
-      ctx.strokeStyle = 'red';
+    // Draw line indicating current video time
+    const lineX = currentPixel - scrollOffset;
+    if (lineX >= 0 && lineX <= effectiveWidth) {
+      ctx.strokeStyle = 'black';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(redLineX, 0);
-      ctx.lineTo(redLineX, height);
+      ctx.moveTo(lineX, 0);
+      ctx.lineTo(lineX, height);
       ctx.stroke();
     }
 
@@ -177,10 +154,10 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
         overflowX: 'auto',
       }}
     >
-      {/* Canvas displaying the waveform */}
+      {/* Canvas displaying the intervals */}
       <canvas
         ref={canvasRef}
-        height={50} // Fixed height for the waveform
+        height={50} // Fixed height for the intervals
         onWheel={handleWheel}
         onClick={handleIntervalsClick}
         style={{
