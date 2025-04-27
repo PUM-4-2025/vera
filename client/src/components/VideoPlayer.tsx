@@ -28,6 +28,7 @@ const VideoPlayer: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [samples, setSamples] = useState([0]);
   const [activeComponent, setActiveComponent] = useState<
     'waveform' | 'intervals' | null
   >('waveform');
@@ -36,6 +37,11 @@ const VideoPlayer: React.FC = () => {
     'auto' | 'portrait' | 'landscape'
   >('auto');
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [numFrames, setNumFrames] = useState(0); // temp: State to store the number of frames
+  const playbackController = useRef<{
+    active: boolean;
+    nextCheck: number | null;
+  }>({ active: false, nextCheck: null });
 
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
@@ -51,6 +57,11 @@ const VideoPlayer: React.FC = () => {
       setVideoDuration(videoData.metadata?.duration || 0);
       setManualLayout('auto');
       filename = currentVideo.metadata.filename;
+
+      // temp: Calculate the number of frames
+      const frameRate = videoData.metadata?.fps || 30;
+      const totalFrames = Math.floor(videoData.metadata?.duration * frameRate);
+      setNumFrames(totalFrames);
     }
   }, [currentVideoId, videos]);
 
@@ -152,6 +163,109 @@ const VideoPlayer: React.FC = () => {
     videoElementRef.current?.nextFrame();
   };
 
+  const stopPlayback = () => {
+    playbackController.current.active = false;
+    if (playbackController.current.nextCheck !== null) {
+      cancelAnimationFrame(playbackController.current.nextCheck);
+    }
+    if (videoElementRef.current) {
+      videoElementRef.current.pause();
+    }
+    setIsPlaying(false);
+  };
+
+  const startPlayback = async () => {
+    if (!videoElementRef.current) return;
+
+    playbackController.current.active = true;
+    setIsPlaying(true);
+
+    try {
+      await videoElementRef.current.play();
+      const checkFrames = () => {
+        if (!playbackController.current.active) return;
+
+        const currentTime = videoElementRef.current!.getCurrentTime();
+        const currentFrame = Math.round(
+          (currentTime / videoDuration) * numFrames
+        );
+
+        // End of video check with small epsilon
+        if (currentTime >= videoDuration - 0.001) {
+          stopPlayback();
+          return;
+        }
+
+        // Motion detection and frame skip
+        if (samples[currentFrame] !== 1) {
+          let nextFrame = currentFrame + 1;
+          while (nextFrame < numFrames && samples[nextFrame] !== 1) {
+            nextFrame++;
+          }
+
+          if (nextFrame < numFrames) {
+            const targetTime = (nextFrame / numFrames) * videoDuration;
+            videoElementRef.current!.seek(targetTime);
+            setCurrentTime(targetTime);
+          } else {
+            stopPlayback();
+            return;
+          }
+        }
+
+        // Schedule next check using RAF only
+        playbackController.current.nextCheck =
+          requestAnimationFrame(checkFrames);
+      };
+
+      // Start the checking loop
+      playbackController.current.nextCheck = requestAnimationFrame(checkFrames);
+    } catch (error) {
+      stopPlayback();
+    }
+  };
+
+  const motionTogglePlay = () => {
+    if (playbackController.current.active) {
+      stopPlayback();
+    } else {
+      startPlayback();
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopPlayback();
+    };
+  }, [videoSrc]);
+
+  const motionStepBackward = () => {
+    const currentFrame = Math.floor(
+      (currentTime / videoDuration) * numFrames - 1
+    );
+    let counter = 0;
+    while (true) {
+      videoElementRef.current?.prevFrame();
+      if (samples[currentFrame - counter] == 1 || counter > 1000) {
+        break;
+      }
+      counter = counter + 1;
+    }
+  };
+
+  const motionStepForward = () => {
+    const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
+    let counter = 0;
+    while (true) {
+      videoElementRef.current?.nextFrame();
+      if (samples[currentFrame + counter] == 1 || counter > 1000) {
+        break;
+      }
+      counter = counter + 1;
+    }
+  };
+
   const handleTimeChange = (time: number) => {
     // Always update the state immediately for UI responsiveness
     setCurrentTime(time);
@@ -218,6 +332,10 @@ const VideoPlayer: React.FC = () => {
     setZoomLevel(newZoomLevel);
   };
 
+  const handleSampleChange = (samples: number[]) => {
+    setSamples(samples);
+  };
+
   const toggleWaveform = () => {
     setActiveComponent((prev) => {
       const newValue = prev === 'waveform' ? null : 'waveform';
@@ -233,8 +351,6 @@ const VideoPlayer: React.FC = () => {
       return newValue;
     });
   };
-
-  console.log('Rendering VideoPlayer, activeComponent:', activeComponent);
 
   return (
     <div className="h-full">
@@ -303,6 +419,8 @@ const VideoPlayer: React.FC = () => {
                 zoomLevel={zoomLevel}
                 onTimeChange={handleTimeChange}
                 onZoomChange={handleZoomChange}
+                onSamples={handleSampleChange}
+                numFrames={numFrames} // temp: Pass the number of frames as a prop
               />
             )}
 
@@ -342,6 +460,41 @@ const VideoPlayer: React.FC = () => {
                 >
                   <SkipForward size={16} />
                 </Button>
+
+                {activeComponent === 'intervals' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-red-600 hover:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-12 h-8"
+                      aria-label="Motion step backward"
+                      onClick={motionStepBackward}
+                      disabled={!videoSrc}
+                    >
+                      <SkipBack size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-red-600 hover:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-12 h-8"
+                      aria-label="Motion play"
+                      onClick={motionTogglePlay}
+                      disabled={!videoSrc}
+                    >
+                      {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-red-600 hover:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-12 h-8"
+                      aria-label="Motion step forward"
+                      onClick={motionStepForward}
+                      disabled={!videoSrc}
+                    >
+                      <SkipForward size={16} />
+                    </Button>
+                  </>
+                )}
               </div>
 
               <div className="w-28 flex justify-end">

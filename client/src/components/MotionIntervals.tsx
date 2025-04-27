@@ -1,6 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
-const samples = [1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1]; //insert samples here
+// temp: function to generate random samples
+const generateRandomSamples = (length: number) => {
+  return Array.from({ length }, () => Math.round(Math.random()));
+};
 
 interface MotionIntervalsProps {
   filename: string;
@@ -9,6 +12,8 @@ interface MotionIntervalsProps {
   zoomLevel: number; // Zoom level for the intervals (1 = normal, >1 = zoomed in)
   onTimeChange: (time: number) => void; // Callback to update video time when clicking intervals
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
+  onSamples: (delta: number[]) => void; // Callback to adjust samples
+  numFrames: number; // temp: Number of frames in the video
 }
 
 export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
@@ -18,10 +23,21 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   zoomLevel,
   onTimeChange,
   onZoomChange,
+  onSamples,
+  numFrames, // temp: Receive the number of frames as a prop
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the intervals canvas
   const intervalsContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
+
+  // temp: Generate random samples based on the number of frames
+  const [samples, setSamples] = useState(generateRandomSamples(numFrames));
+  useEffect(() => {
+    // temp: Update samples when numFrames changes
+    const newSamples = generateRandomSamples(numFrames);
+    setSamples(newSamples);
+    onSamples(newSamples);
+  }, [numFrames]);
 
   // Handle mouse wheel to zoom in/out of the intervals
   const handleWheel = (e: React.WheelEvent) => {
@@ -116,7 +132,7 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     // Draw line indicating current video time
     const lineX = currentPixel - scrollOffset;
     if (lineX >= 0 && lineX <= effectiveWidth) {
-      ctx.strokeStyle = 'black';
+      ctx.strokeStyle = 'rgba(255, 217, 0, 0.7)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(lineX, 0);
@@ -131,7 +147,7 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   // Redraw when props change
   useEffect(() => {
     drawIntervals();
-  }, [currentTime, videoDuration, zoomLevel]);
+  }, [currentTime, videoDuration, zoomLevel, samples]);
 
   // Redraw when window resizes
   useEffect(() => {
