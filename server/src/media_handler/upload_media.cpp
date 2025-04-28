@@ -2,22 +2,23 @@
 
 #include "mongoose.h"
 #include "upload_handler.h"
+#include "files.h"
 
+#include "mongoose.h"
 #include <json.hpp>
 using json = nlohmann::json;
 
 #include <cmath>
-#include <filesystem>
 
-UploadHandler handler;
+UploadHandler UPLOAD_HANDLER;
 
 
 /*
   TODO: 
-  1. Clienten tar fram en cookie/token som id för användaren/webbläsare
+  1. Clienten tar fram en cookie/token som id för användaren/webbläsare typ klar
   2. skapa API endpoint/funktion som tar emot en vår session-id skapad av klienten
-  3. Lägg till sessionid i activesesions i HTTPServer klassen
-  4. Ersätta UserSession i parametrar (upload_media.cpp) med fält i json kroppen
+  3. Lägg till sessionid i activesessions i HTTPServer klassen
+  4. Ersätta UserSession i parametrar (upload_media.cpp) med fält i json kroppen (tror oliver gjorde detta?)
 */
 /**
  * Registers all the file upload handlers to the HttpServer.
@@ -39,7 +40,7 @@ int getUploadId() {
 
   do {
     id = rand();
-  } while (!handler.isUniqueId(id));
+  } while (!UPLOAD_HANDLER.isUniqueId(id));
 
   return id;
 }
@@ -76,15 +77,18 @@ int handlePreflight(struct mg_connection *c, struct mg_http_message *msg) {
 /**
  * Handles HTTP request for initiating new uploads.
  */
-void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
   if (handlePreflight(c, msg) == 0) {
     return;
   }
 
+  // TODO: REPLACE_TOKEN
+  UserSession *us = hs->getUserSession("");
+
   try {
     std::string body = msg->body.buf;
 
-    json json_body = json::parse(body);
+    json json_body = json::parse(body);("");
     std::string file_name = json_body["fileName"];
     int file_size = json_body["fileSize"];
 
@@ -95,19 +99,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
     int max_chunk_size = 16 * 1024;
     int total_chunks = (file_size / max_chunk_size) + 1;
 
-    // Create new directory for downloads
-    std::string path = "/tmp/vera/";
-
-    if (!std::filesystem::exists(path)) {
-      std::filesystem::create_directory(path);
-    }
-
-    path.append(us->session_id);
-    path.append("/");
-
-    if (!std::filesystem::exists(path)) {
-      std::filesystem::create_directory(path);
-    }
+    std::string path = getUserMediaDir(*us);
 
     UploadSession new_session = {};
     new_session.filename = file_name;
@@ -118,7 +110,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
     new_session.total_chunks = total_chunks;
     new_session.us = us;
 
-    handler.newSession(new_session);
+    UPLOAD_HANDLER.newSession(new_session);
     send_http_response(c, 200, upload_id, "initiated", "Upload session initiated successfully.");
   } catch (...) {
     send_http_response(c, 500, 0, "Failure",
@@ -129,16 +121,19 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, UserSessio
 /**
  * Handles HTTP request for uploading a chunk of a file.
  */
-void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
   if (handlePreflight(c, msg) == 0) {
     return;
   }
+
+  // TODO: REPLACE_TOKEN
+  UserSession *us = hs->getUserSession("");
 
   try {
     char id_buf[20] = "0";
     mg_http_get_var(&msg->query, "id", id_buf, sizeof id_buf);
 
-    UploadSession *session = handler.getSession(std::stoi(id_buf));
+    UploadSession *session = UPLOAD_HANDLER.getSession(std::stoi(id_buf));
 
     if (session == nullptr) {
       send_http_response(c, 404, session->session_id, "Not found", "uploadId not found!");
@@ -153,7 +148,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
     // Limit file sizes to 50 GiB for now
     int max_size = 50 * 1024 * 1024 * 1024;
     mg_http_upload(c, msg, &mg_fs_posix, session->dir.c_str(), max_size);
-    handler.incrementChunk(*session);
+    UPLOAD_HANDLER.incrementChunk(*session);
   } catch (...) {
     send_http_response(c, 500, 0, "Failure",
                        "Server experienced an exception while handling chunk upload request.");
@@ -163,17 +158,20 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, UserSessi
 /**
  * Handles HTTP request for status of an upload.
  */
-void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
   if (handlePreflight(c, msg) == 0) {
     return;
   }
+
+  
+  UserSession *us = hs->getUserSession("");
 
   try {
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
     int upload_id = json_body["uploadId"];
 
-    UploadSession *session = handler.getSession(upload_id);
+    UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
 
     if (session == nullptr) {
       send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
@@ -192,7 +190,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
     // Therefore the send_http_response() helper function is not used here.
     json response = {{"uploadId", upload_id},
                      {"status", "In progress"},
-                     {"uploadedChunks", uploaded_chunks},
+                     {"uploadedChunks", uploaded_chunks}, 
                      {"totalChunks", total_chunks}};
     std::string response_str = response.dump();
     mg_http_reply(c, 200,
@@ -206,17 +204,20 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, UserSess
   }
 }
 
-void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSession *us) {
+void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
   if (handlePreflight(c, msg) == 0) {
     return;
   }
+
+  // TODO: REPLACE_TOKEN
+  UserSession *us = hs->getUserSession("");
 
   try {
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
     int upload_id = json_body["uploadId"];
 
-    UploadSession *session = handler.getSession(upload_id);
+    UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
 
     if (session == nullptr) {
       send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
@@ -228,15 +229,15 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, UserSe
       return;
     }
 
-    if (!handler.sessionCompleted(*session)) {
+    if (!UPLOAD_HANDLER.sessionCompleted(*session)) {
       send_http_response(c, 418, upload_id, "Failed",
                          "Uploaded chunks != expected number of chunks. Upload failed!");
-      handler.removeSession(*session);
+      UPLOAD_HANDLER.removeSession(*session);
       return;
     }
 
     send_http_response(c, 200, upload_id, "Completed", "Upload completed successfully");
-    handler.removeSession(*session);
+    UPLOAD_HANDLER.removeSession(*session);
   } catch (...) {
     send_http_response(c, 500, 0, "Failure",
                        "Server experienced an exception while handling complete request.");

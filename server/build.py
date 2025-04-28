@@ -199,7 +199,7 @@ class BackendBuilder:
             cmake_config_cmd.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
         
         if self.run_tests:
-            cmake_config_cmd.append("-DBUILD_TESTING=OFF")
+            cmake_config_cmd.append("-DBUILD_TESTING=OFF") # OFF
         
         for flag in self.custom_flags:
             cmake_config_cmd.append(flag)

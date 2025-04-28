@@ -9,14 +9,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { FolderOpen, PlusCircle, Clock, Moon, Sun } from 'lucide-react';
+import { FolderOpen, PlusCircle, Clock, Moon, Sun, Rocket } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { toast } from 'sonner';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import veraLogo from '../assets/vera_blagul.svg';
+import { CreateProjectCard } from '@/components/CreateProjectCard';
 import {
   getThreeMostRecentProjects,
   RecentProject,
@@ -112,7 +110,7 @@ const WelcomeContent = () => {
         toast.error('Please select a location for your project');
         return;
       }
-
+      
       await createProject(
         formData.projectName,
         formData.projectDescription,
@@ -150,7 +148,7 @@ const WelcomeContent = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6 items-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
                 <Button
                   variant="outline"
                   className="h-32 flex flex-col items-center justify-center gap-2 text-lg hover:bg-primary/10"
@@ -166,6 +164,14 @@ const WelcomeContent = () => {
                 >
                   <FolderOpen size={36} className="text-foreground" />
                   <span className="text-foreground">Open Existing Project</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-32 flex flex-col items-center justify-center gap-2 text-lg hover:bg-primary/10"
+                  onClick={() => navigate('/editor', { state: { quickStart: true } })}
+                >
+                  <Rocket size={36} className="text-foreground" />
+                  <span className="text-foreground">Quick Start</span>
                 </Button>
               </div>
 
@@ -204,87 +210,18 @@ const WelcomeContent = () => {
               )}
             </CardContent>
             <CardFooter className="flex justify-center text-sm text-muted-foreground">
-              VERA v1.0.0 - PUM04
+              VERA v2.0.0 - PUM04
             </CardFooter>
           </Card>
         ) : (
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Create New Project</CardTitle>
-              <CardDescription>
-                Provide details for your new VERA project
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="projectName">Project Name</Label>
-                <Input
-                  id="projectName"
-                  name="projectName"
-                  placeholder="My Video Analysis Project"
-                  value={formData.projectName}
-                  onChange={handleFormChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="projectDescription">Description</Label>
-                <Textarea
-                  id="projectDescription"
-                  name="projectDescription"
-                  placeholder="Enter a description of your project (optional)"
-                  rows={3}
-                  value={formData.projectDescription}
-                  onChange={handleFormChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="projectLocation">Project Location</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="projectLocation"
-                    name="projectLocation"
-                    value={
-                      selectedLocation.displayPath +
-                      '/' +
-                      formData.projectName
-                        .trim()
-                        .replace(/[^a-z0-9]/gi, '_')
-                        .toLowerCase()
-                    }
-                    placeholder="Select a location for your project"
-                    readOnly
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleSelectLocation}
-                    className="shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4 mr-2" />
-                    Browse
-                  </Button>
-                </div>
-                {selectedLocation.displayPath && !formData.projectName && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Please enter a project name to see the final path
-                  </p>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => setIsCreating(false)}>
-                Back
-              </Button>
-              <Button
-                onClick={handleCreateProject}
-                disabled={
-                  !formData.projectName.trim() || !selectedLocation.dirHandle
-                }
-              >
-                Create Project
-              </Button>
-            </CardFooter>
-          </Card>
+          <CreateProjectCard
+            formData={formData}
+            selectedLocation={selectedLocation}
+            onFormChange={handleFormChange}
+            onSelectLocation={handleSelectLocation}
+            onCreateProject={handleCreateProject}
+            onCancel={() => setIsCreating(false)}
+          />
         )}
       </div>
     </div>

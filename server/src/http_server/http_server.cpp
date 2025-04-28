@@ -35,20 +35,52 @@ void HttpServer::start() {
 
 void HttpServer::stop() {
   m_running_ = false;
-  std::cout << "Shutting down the servr..." << std::endl;
+  std::cout << "Shutting down the server..." << std::endl;
 }
 
 void HttpServer::registerHandler(const std::string &api_path, RequestHandler handler) {
   m_handlers_.push_back({api_path, handler});
 }
 
+UserSession *HttpServer::getUserSession(std::string sessionToken) {
+  m_session_guard_.lock();
+  // TODO: Replace with proper getting of UserSessions
+  // Do something in here with the m_active_sessions_ vector
+  for(auto session : m_active_sessions_){
+    //UserSession *us = &m_active_sessions_.front();
+    if(session.session_id == sessionToken){
+      m_session_guard_.unlock();
+      return &session;
+    }
+
+  }
+  
+  m_session_guard_.unlock();
+  return nullptr;
+}
+
+void HttpServer::appendUserSession(UserSession us) {
+  m_session_guard_.lock();
+  m_active_sessions_.push_back(us);
+  m_session_guard_.unlock();
+}
+
+void HttpServer::removeUserSession(UserSession us) {
+  m_session_guard_.lock();
+  for (auto it = m_active_sessions_.begin(); it != m_active_sessions_.end(); it++) {
+    if (it->session_id == us.session_id) {
+      m_active_sessions_.erase(it);
+      break;
+    }
+  }
+  m_session_guard_.unlock();
+}
+
+
 /**
  */
 void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
   auto *server = static_cast<HttpServer *>(c->fn_data);
-
-  // TODO: Replace with proper user session handling
-  UserSession test_us = UserSession{"abc123"};
 
   if (ev == MG_EV_HTTP_MSG) {
     auto *hm = (struct mg_http_message *)ev_data;  // Parsed HTTP request
@@ -63,7 +95,7 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
         // does not crash in case an error occurs in the
         // request handler.
         try {
-          handler_info.handler(c, hm, &test_us);
+          handler_info.handler(c, hm, server);
         } catch (...) {
           std::cout << "Handler crash occured!" << std::endl;
         }
