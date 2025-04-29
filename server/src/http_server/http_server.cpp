@@ -81,11 +81,11 @@ bool HttpServer::isUniqueId(std::string id){
     for(const auto &session : m_active_sessions_){
         if(session.session_id == id){
             m_session_guard_.unlock();
-            return true;
+            return false;
         }
     }
     m_session_guard_.unlock();
-    return false;
+    return true;
 }
 
 
