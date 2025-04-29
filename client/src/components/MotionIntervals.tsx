@@ -17,7 +17,7 @@ interface MotionIntervalsProps {
 }
 
 export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
-  filename, // Input for backend analysis
+  //filename, // temp: input for backend analysis
   currentTime,
   videoDuration,
   zoomLevel,
@@ -42,7 +42,7 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   // Handle mouse wheel to zoom in/out of the intervals
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    const delta = e.deltaY > 0 ? -0.10 : 0.10;
     onZoomChange(delta);
   };
 
@@ -84,7 +84,7 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     canvas.style.width = `${effectiveWidth}px`;
     canvas.width = effectiveWidth;
 
-    const height = canvas.height || 50;
+    const height = 37;
     canvas.height = height;
 
     // Clear the canvas

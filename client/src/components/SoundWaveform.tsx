@@ -17,7 +17,7 @@ interface SoundWaveformProps {
 }
 
 export const SoundWaveform: React.FC<SoundWaveformProps> = ({
-  filename,
+  //filename, // temp: input for backend analysis
   currentTime,
   videoDuration,
   zoomLevel,
@@ -31,7 +31,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   // Handle mouse wheel to zoom in/out of the waveform
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    const delta = e.deltaY > 0 ? -0.10 : 0.10;
     onZoomChange(delta);
   };
 

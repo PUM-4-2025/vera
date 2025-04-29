@@ -4,11 +4,14 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  StepBack,
+  StepForward,
   FilmIcon,
   RectangleVertical,
   RectangleHorizontal,
   AudioWaveform,
   Film,
+  PlayCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
@@ -38,6 +41,7 @@ const VideoPlayer: React.FC = () => {
   >('auto');
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [numFrames, setNumFrames] = useState(0); // temp: State to store the number of frames
+  const [useMotionControls, setUseMotionControls] = useState(false);
   const playbackController = useRef<{
     active: boolean;
     nextCheck: number | null;
@@ -163,6 +167,18 @@ const VideoPlayer: React.FC = () => {
     videoElementRef.current?.nextFrame();
   };
 
+  const skipBackward = () => {
+    for (let i = 1; i <= 150; i++) {
+      videoElementRef.current?.prevFrame();
+    }
+  };
+
+  const skipForward = () => {
+    for (let i = 1; i <= 150; i++) {
+      videoElementRef.current?.nextFrame();
+    }
+  };
+
   const stopPlayback = () => {
     playbackController.current.active = false;
     if (playbackController.current.nextCheck !== null) {
@@ -241,9 +257,7 @@ const VideoPlayer: React.FC = () => {
   }, [videoSrc]);
 
   const motionStepBackward = () => {
-    const currentFrame = Math.floor(
-      (currentTime / videoDuration) * numFrames - 1
-    );
+    const currentFrame = Math.floor((currentTime / videoDuration) * numFrames - 1);
     let counter = 0;
     while (true) {
       videoElementRef.current?.prevFrame();
@@ -257,6 +271,47 @@ const VideoPlayer: React.FC = () => {
   const motionStepForward = () => {
     const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
     let counter = 0;
+    while (true) {
+      videoElementRef.current?.nextFrame();
+      if (samples[currentFrame + counter] == 1 || counter > 1000) {
+        break;
+      }
+      counter = counter + 1;
+    }
+  };
+
+  const motionSkipBackward = () => {
+    const currentFrame = Math.floor((currentTime / videoDuration) * numFrames - 1);
+    let counter = 0;
+    while (true) {
+      videoElementRef.current?.prevFrame();
+      if (samples[currentFrame - counter] == 1 || counter > 1000) {
+        break;
+      }
+      counter = counter + 1;
+    }
+    videoElementRef.current?.nextFrame();
+    while (true) {
+      videoElementRef.current?.prevFrame();
+      if (samples[currentFrame - counter] == 0 || counter > 1000) {
+        break;
+      }
+      counter = counter + 1;
+    }
+    videoElementRef.current?.nextFrame();
+  };
+
+  const motionSkipForward = () => {
+    const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
+    let counter = 0;
+    while (true) {
+      videoElementRef.current?.nextFrame();
+      if (samples[currentFrame + counter] == 0 || counter > 1000) {
+        break;
+      }
+      counter = counter + 1;
+    }
+    videoElementRef.current?.prevFrame();
     while (true) {
       videoElementRef.current?.nextFrame();
       if (samples[currentFrame + counter] == 1 || counter > 1000) {
@@ -352,6 +407,11 @@ const VideoPlayer: React.FC = () => {
     });
   };
 
+  const toggleMotionControls = () => {
+    setUseMotionControls((prev) => !prev);
+    stopPlayback();
+  };
+
   return (
     <div className="h-full">
       {videoSrc ? (
@@ -430,39 +490,18 @@ const VideoPlayer: React.FC = () => {
               </div>
 
               <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-                  aria-label="Step backward"
-                  onClick={stepBackward}
-                  disabled={!videoSrc}
-                >
-                  <SkipBack size={16} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                  onClick={togglePlay}
-                  disabled={!videoSrc}
-                >
-                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
-                  aria-label="Step forward"
-                  onClick={stepForward}
-                  disabled={!videoSrc}
-                >
-                  <SkipForward size={16} />
-                </Button>
-
-                {activeComponent === 'intervals' && (
+                {useMotionControls ? (
                   <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-red-600 hover:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-12 h-8"
+                      aria-label="Motion step backward"
+                      onClick={motionSkipBackward}
+                      disabled={!videoSrc}
+                    >
+                      <SkipBack size={16} />
+                    </Button>
                     <Button
                       variant="outline"
                       size="icon"
@@ -471,7 +510,7 @@ const VideoPlayer: React.FC = () => {
                       onClick={motionStepBackward}
                       disabled={!videoSrc}
                     >
-                      <SkipBack size={16} />
+                      <StepBack size={16} />
                     </Button>
                     <Button
                       variant="outline"
@@ -489,6 +528,69 @@ const VideoPlayer: React.FC = () => {
                       className="bg-red-600 hover:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-12 h-8"
                       aria-label="Motion step forward"
                       onClick={motionStepForward}
+                      disabled={!videoSrc}
+                    >
+                      <StepForward size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-red-600 hover:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-12 h-8"
+                      aria-label="Motion step forward"
+                      onClick={motionSkipForward}
+                      disabled={!videoSrc}
+                    >
+                      <SkipForward size={16} />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                      aria-label="Step backward"
+                      onClick={skipBackward}
+                      disabled={!videoSrc}
+                    >
+                      <SkipBack size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                      aria-label="Step backward"
+                      onClick={stepBackward}
+                      disabled={!videoSrc}
+                    >
+                      <StepBack size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                      aria-label={isPlaying ? 'Pause' : 'Play'}
+                      onClick={togglePlay}
+                      disabled={!videoSrc}
+                    >
+                      {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                      aria-label="Step forward"
+                      onClick={stepForward}
+                      disabled={!videoSrc}
+                    >
+                      <StepForward size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                      aria-label="Step forward"
+                      onClick={skipForward}
                       disabled={!videoSrc}
                     >
                       <SkipForward size={16} />
@@ -529,6 +631,20 @@ const VideoPlayer: React.FC = () => {
                   disabled={!videoSrc}
                 >
                   <Film size={16} />
+                </Button>
+                <Button
+                  variant={useMotionControls ? 'secondary' : 'outline'}
+                  size="icon"
+                  className="hover-effect rounded-full w-12 h-8 bg-vera-muted hover:border-vera text-foreground hover:text-vera"
+                  aria-label={
+                    useMotionControls
+                      ? 'Use normal controls'
+                      : 'Use motion controls'
+                  }
+                  onClick={toggleMotionControls}
+                  disabled={!videoSrc}
+                >
+                  <PlayCircle size={16} />
                 </Button>
                 <Button
                   variant="outline"
