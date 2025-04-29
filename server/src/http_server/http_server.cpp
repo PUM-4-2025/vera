@@ -1,8 +1,12 @@
 #include "http_server.h"
+#include "http_utils.h"
 
 #include <iostream>
 #include <mongoose.h>
 #include <utility>
+
+#include <json.hpp>
+using json = nlohmann::json;
 
 HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
@@ -44,17 +48,12 @@ void HttpServer::registerHandler(const std::string &api_path, RequestHandler han
 
 UserSession *HttpServer::getUserSession(std::string sessionToken) {
   m_session_guard_.lock();
-  // TODO: Replace with proper getting of UserSessions
-  // Do something in here with the m_active_sessions_ vector
   for(auto session : m_active_sessions_){
-    //UserSession *us = &m_active_sessions_.front();
     if(session.session_id == sessionToken){
       m_session_guard_.unlock();
       return &session;
     }
-
   }
-  
   m_session_guard_.unlock();
   return nullptr;
 }
@@ -74,6 +73,19 @@ void HttpServer::removeUserSession(UserSession us) {
     }
   }
   m_session_guard_.unlock();
+}
+
+bool HttpServer::isUniqueId(std::string id){
+    m_session_guard_.lock();
+
+    for(const auto &session : m_active_sessions_){
+        if(session.session_id == id){
+            m_session_guard_.unlock();
+            return true;
+        }
+    }
+    m_session_guard_.unlock();
+    return false;
 }
 
 
@@ -107,4 +119,37 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
     opts.root_dir = server->m_static_dir_.c_str();  // For all other URLs,
     mg_http_serve_dir(c, hm, &opts);                // Serve static files
   }
+}
+
+void registerUserSessionHandlers(HttpServer &server){
+    server.registerHandler("api/v1/user-sessions/initiate", initUserSession);
+}
+
+void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs){
+    if(handlePreflight(c, msg) == 0){
+        return;
+    }
+    
+    try{
+        std::string body = msg->body.buf;
+
+        json json_body = json::parse(body);
+        std::string userId = json_body["userId"];
+
+        UserSession new_session;
+        new_session.session_id = userId;
+
+        hs->appendUserSession(new_session);
+
+        std::string message = "User Session" + userId + "initiated successfully.";
+        json response = {{"status", "Initiated"}, {"message", message}};
+        std::string response_str = response.dump();
+        send_http_response(c, 200, response_str);
+    }
+    catch (...){
+        json response = {{"status", "Failure"}, {"message", "Server encountered an exeption while initiating new UserSession"}};
+        std::string response_str = response.dump();
+        send_http_response(c, 500, response_str);
+    }
+
 }

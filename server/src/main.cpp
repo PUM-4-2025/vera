@@ -1,6 +1,5 @@
 #include "http_server.h"
 #include "upload_media.h"
-#include "user_session.h"
 #include "audio.h"
 
 #include <iostream>
