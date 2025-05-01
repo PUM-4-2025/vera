@@ -80,7 +80,6 @@ file(GLOB_RECURSE CORE_SOURCES
      #${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp
 )
 
-
 set(UTIL_SOURCES
     # logger?
     # config?

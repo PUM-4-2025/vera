@@ -21,7 +21,7 @@ std::filesystem::path getVeraPath() {
 bool userHasPermission(UserSession &us, std::string path) {
     std::filesystem::path us_path = getVeraPath();
     us_path.append(us.session_id);
-    return path.find(us_path.string()) != std::string::npos;
+    return path.find(us_path) != std::string::npos;
 }
 
 /**
