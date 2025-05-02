@@ -1,5 +1,3 @@
-import { UploadSession } from './uploadMedia';
-
 export interface UserSession {
   userId: number;
 }
@@ -27,13 +25,13 @@ export const initiateUserSession = async (): Promise<UserSession> => {
       throw new Error('Failed to initiate user session');
     }
 
-    console.log(initResponse);
-    const initResult = await initResponse.json();
-    console.log(initResult);
+    //const initResult = await initResponse.json();
 
     const userSession: UserSession = {
       userId: userToken,
     };
+
+    console.log('New user session created!');
 
     return userSession;
   } catch {
