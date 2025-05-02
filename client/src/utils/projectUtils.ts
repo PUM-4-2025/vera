@@ -9,6 +9,7 @@ import {
   UploadVideoResult,
   SaveProjectResult,
   ProjectState,
+  VideoAnnotationData,
 } from '@/types/project';
 import { getMetadata as getFFmpegMetadata } from '@/utils/ffmpegUtils';
 
@@ -31,7 +32,7 @@ function getVideoIdFromFilename(filename: string): string {
  */
 export async function loadProjectLogic(
   dirHandle: FileSystemDirectoryHandle,
-  currentVideos: Record<string, VideoEntry> // Pass existing videos to handle URL revocation
+  currentVideos: Record<string, VideoEntry>
 ): Promise<LoadProjectResult> {
   // 1. Load Core Metadata
   let metadata: Metadata;
@@ -86,11 +87,27 @@ export async function loadProjectLogic(
     }
   }
 
+  // 4. Load Annotations
+  const annotations: Record<string, VideoAnnotationData> = {};
+  const annotationDirHandle = await dirHandle.getDirectoryHandle('annotations');
+  for (const videoId in metadata.videos) {
+    try {
+      const annotationFileHandle = await annotationDirHandle.getFileHandle(
+        `${videoId}.json`
+      );
+      const annotationFile = await annotationFileHandle.getFile();
+      const annotationText = await annotationFile.text();
+      annotations[videoId] = JSON.parse(annotationText);
+    } catch (e: unknown) {
+      annotations[videoId] = {};
+    }
+  }
+
   // 4. Determine initial video
   const firstVideoId = Object.keys(videos)[0] || null;
 
   // 5. Return all loaded data
-  return { metadata, videos, currentVideoId: firstVideoId };
+  return { metadata, videos, annotations, currentVideoId: firstVideoId };
 }
 
 /**
@@ -246,6 +263,22 @@ export async function saveProjectLogic(
       console.error(`Failed to save video file ${videoFileName}:`, e);
       throw new Error(`Failed to save video file ${videoFileName}.`);
     }
+  }
+
+  // 4. Save Annotations
+  for (const [videoId, annotations] of Object.entries(state.annotations)) {
+    const annotationDirHandle =
+      await state.projectDirectoryHandle.getDirectoryHandle('annotations', {
+        create: false,
+      });
+    const shapeFileHandle = await annotationDirHandle.getFileHandle(
+      `${videoId}.json`,
+      { create: true }
+    );
+
+    const shapeWritable = await shapeFileHandle.createWritable();
+    await shapeWritable.write(JSON.stringify(annotations, null, 2));
+    await shapeWritable.close();
   }
 
   // 4. Return the metadata including the updated timestamp

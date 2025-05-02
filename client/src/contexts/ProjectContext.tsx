@@ -24,6 +24,8 @@ import {
   VideoEntry,
   ProjectState,
   ProjectContextType,
+  ShapeData,
+  VideoAnnotationData,
 } from '@/types/project';
 
 // Import utility functions
@@ -108,6 +110,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       loadedData: {
         metadata: Metadata | null;
         videos: Record<string, VideoEntry>;
+        annotations: Record<string, VideoAnnotationData>;
         currentVideoId: string | null;
       },
       dirHandle: FileSystemDirectoryHandle
@@ -118,8 +121,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         projectDirectoryHandle: dirHandle,
         metadata: loadedData.metadata ?? defaultMetadata, // Use default if loaded is null
         videos: loadedData.videos,
+        annotations: loadedData.annotations,
         bookmarks: {}, // TODO: Add bookmarks
-        annotations: {}, // TODO: Add annotations
         analysis: {}, // TODO: Add analysis
         currentVideoId: loadedData.currentVideoId,
         isLoading: false,
@@ -658,6 +661,38 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     // --- End Reset State ---
   }, [state.videos]);
 
+  /**
+   * Sets the array of shapes for a given video and frame number.
+   */
+  const setAnnotationsForFrame = useCallback(
+    (videoId: string, frameNumber: number, shapes: ShapeData[]) => {
+      setState((prev) => {
+        const prevVideoAnnotations = prev.annotations[videoId] || {};
+        let newVideoAnnotations;
+        if (shapes.length === 0) {
+          // Remove the key for frameNumber if shapes is empty
+          newVideoAnnotations = { ...prevVideoAnnotations };
+          delete newVideoAnnotations[frameNumber];
+        } else {
+          // Set the shapes for the frameNumber
+          newVideoAnnotations = {
+            ...prevVideoAnnotations,
+            [frameNumber]: shapes,
+          };
+        }
+        return {
+          ...prev,
+          annotations: {
+            ...prev.annotations,
+            [videoId]: newVideoAnnotations,
+          },
+          isSaved: false,
+        };
+      });
+    },
+    []
+  );
+
   // --- Value Provided to Consumers ---
   // Ensure this matches the ProjectContextType interface
   const contextValue: ProjectContextType = {
@@ -670,6 +705,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     setCurrentVideoId,
     selectProjectLocation,
     resetProject,
+    setAnnotationsForFrame,
   };
 
   return (
