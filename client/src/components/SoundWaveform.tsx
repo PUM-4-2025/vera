@@ -1,10 +1,14 @@
 import React, { useRef, useEffect } from 'react';
+import { getAudio } from '@/utils/audio';
 
-const samples = [
+const DEFAULT_SAMPLES = [
   -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
 ]; //insert samples here
 
+let REAL_SAMPLES: [number] | null;
+
 interface SoundWaveformProps {
+  filename: string;
   currentTime: number;
   videoDuration: number;
   zoomLevel: number; // Zoom level for the waveform (1 = normal, >1 = zoomed in)
@@ -13,6 +17,7 @@ interface SoundWaveformProps {
 }
 
 export const SoundWaveform: React.FC<SoundWaveformProps> = ({
+  //filename, // temp: input for backend analysis
   currentTime,
   videoDuration,
   zoomLevel,
@@ -26,12 +31,14 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   // Handle mouse wheel to zoom in/out of the waveform
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    const delta = e.deltaY > 0 ? -0.10 : 0.10;
     onZoomChange(delta);
   };
 
   // Handle clicking the waveform to jump to a specific time (at any zoom level)
-  const handleWaveformClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleWaveformClick = async (
+    e: React.MouseEvent<HTMLCanvasElement>
+  ) => {
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
@@ -46,12 +53,19 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     const fraction = waveformPosition / totalWaveformWidth;
     const clickedTime = fraction * videoDuration;
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
-
     onTimeChange(newTime); // Update video time
+
+    // TODO: Replace this with getting the currently selected filename
+    REAL_SAMPLES = await getAudio('test.mp4');
   };
 
   // Draw the waveform and red line
   const drawWaveform = () => {
+    let samples = DEFAULT_SAMPLES;
+    if (REAL_SAMPLES != null) {
+      samples = REAL_SAMPLES;
+    }
+
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
@@ -116,8 +130,8 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         let data = samples[i]; // Read the sample
 
         // Normalize sound data amplitude to fit in grapth (dB)
-        const minVal = -80;
-        const maxVal = 0; // Assume 0 dB as max for audio waveforms
+        const minVal = -100;
+        const maxVal = 100; // Assume 0 dB as max for audio waveforms
         if (data == undefined || data == null) {
           data = minVal;
         }
