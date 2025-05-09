@@ -6,9 +6,9 @@ interface VideoTimeSliderProps {
   zoomLevel: number; // Zoom level for the waveform (1 = normal, >1 = zoomed in)
   onTimeChange: (time: number) => void; // Callback to update video time when slider changes
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
-  showWaveform: boolean;
-  onSeekStart?: () => void; // Added: Callback when user starts seeking
-  onSeekEnd?: () => void; // Added: Callback when user stops seeking
+  activeComponent: 'waveform' | 'intervals' | null;
+  onSeekStart?: () => void; // Callback when user starts seeking
+  onSeekEnd?: () => void; // Callback when user stops seeking
 }
 
 export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
@@ -17,9 +17,9 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
   zoomLevel,
   onTimeChange,
   onZoomChange,
-  showWaveform,
-  onSeekStart, // Added
-  onSeekEnd, // Added
+  activeComponent,
+  onSeekStart,
+  onSeekEnd,
 }) => {
   const timeSliderRef = useRef<HTMLInputElement>(null); // Reference to the range input
   const zoomIndicatorRef = useRef<HTMLDivElement>(null); // Reference to the zoom indicator overlay
@@ -69,8 +69,11 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
 
   // Update the zoom indicator when dependencies change
   useEffect(() => {
-    updateZoomIndicator();
-  }, [updateZoomIndicator]);
+    console.log('useEffect triggered, activeComponent:', activeComponent);
+    if (activeComponent !== null) {
+      updateZoomIndicator();
+    }
+  }, [activeComponent, updateZoomIndicator]);
 
   // Update the zoom indicator on window resize
   useEffect(() => {
@@ -84,6 +87,9 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
     };
   }, [updateZoomIndicator]);
 
+  // Define the zoom indicator color explicitly
+  const indicatorColor =
+    activeComponent === 'waveform' ? 'rgba(255, 217, 0, 0.7)' : 'red';
   return (
     <div style={{ position: 'relative' }}>
       {/* Slider for controlling video playback time */}
@@ -110,15 +116,15 @@ export const VideoTimeSlider: React.FC<VideoTimeSliderProps> = ({
           zIndex: 1,
         }}
       />
-      {/* Zoom indicator showing the visible portion of the waveform */}
-      {showWaveform && (
+      {/* Zoom indicator showing the visible portion */}
+      {activeComponent !== null && (
         <div
           ref={zoomIndicatorRef}
           style={{
             position: 'absolute',
             top: 0,
             height: '8px',
-            background: 'rgba(255, 217, 0, 0.7)',
+            background: indicatorColor,
             borderLeft: '1px solid blue',
             borderRight: '1px solid blue',
             pointerEvents: 'none',
