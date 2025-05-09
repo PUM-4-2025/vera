@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 
 import Konva from 'konva';
-import { Stage, Layer, Circle, Rect, Arrow } from 'react-konva';
+import { Stage, Layer, Rect, Arrow, Ellipse } from 'react-konva';
 
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
@@ -21,41 +21,9 @@ import {
   Hand,
   RefreshCw,
 } from 'lucide-react';
+import { useProject } from '@/contexts/ProjectContext';
 
-// Discriminated union for different shape types
-type RectShape = {
-  id: string;
-  type: 'rect';
-  // Top left corner of the rectangle
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  stroke: string;
-  strokeWidth: number;
-};
-
-type CircleShape = {
-  id: string;
-  type: 'circle';
-  // Center of the circle
-  x: number;
-  y: number;
-  radius: number;
-  stroke: string;
-  strokeWidth: number;
-};
-
-type ArrowShape = {
-  id: string;
-  type: 'arrow';
-  // Start point of the arrow
-  points: [number, number, number, number];
-  stroke: string;
-  strokeWidth: number;
-};
-
-type ShapeData = RectShape | CircleShape | ArrowShape;
+import { ShapeData } from '@/types/project';
 
 // Define the interface for the functions/properties we want to expose
 export interface VideoElementRef {
@@ -65,17 +33,13 @@ export interface VideoElementRef {
   nextFrame: () => void;
   prevFrame: () => void;
   getCurrentTime: () => number;
+  getCurrentFrameNumber: () => number;
   isPlaying: () => boolean;
-  setFrameRate: (rate: number) => void;
 }
 
 interface VideoElementProps {
-  src: string;
   containerWidth: number;
   containerHeight: number;
-  videoWidth: number;
-  videoHeight: number;
-  initialFrameRate: number;
   onTimeUpdate: (time: number) => void;
 }
 
@@ -88,13 +52,11 @@ interface ExistingShapesProps {
   getStagePointFromOriginalVideoCoords: (
     videoCoords: { x: number; y: number } | null | undefined
   ) => { x: number; y: number } | null;
-  scale: number;
 }
 
 const ExistingShapes: React.FC<ExistingShapesProps> = ({
   shapes,
   getStagePointFromOriginalVideoCoords,
-  scale,
 }) => {
   return (
     <>
@@ -107,35 +69,55 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
           strokeWidth: shape.strokeWidth,
         };
         if (shape.type === 'rect') {
-          const centerCoordinate = getStagePointFromOriginalVideoCoords({
-            x: shape.x,
-            y: shape.y,
-          });
-          if (!centerCoordinate) return null;
+          // Stored shape has video center (shape.x, shape.y) and video dimensions (shape.width, shape.height)
+          const videoW = shape.width;
+          const videoH = shape.height;
+
+          // Calculate video corner points
+          const videoTopLeft = { x: shape.x, y: shape.y };
+          const videoBottomRight = { x: shape.x + videoW, y: shape.y + videoH };
+
+          // Convert video corners to stage coordinates
+          const stageTopLeft =
+            getStagePointFromOriginalVideoCoords(videoTopLeft);
+          const stageBottomRight =
+            getStagePointFromOriginalVideoCoords(videoBottomRight);
+
+          if (!stageTopLeft || !stageBottomRight) return null; // Handle conversion failure
+
+          // Use stage coordinates for Konva Rect props
           return (
             <Rect
               key={key} // Pass key directly
               {...otherCommonProps} // Spread the rest
-              x={centerCoordinate.x - shape.width / 2}
-              y={centerCoordinate.y - shape.height / 2}
-              width={shape.width}
-              height={shape.height}
+              x={stageTopLeft.x} // Use converted stage top-left X
+              y={stageTopLeft.y} // Use converted stage top-left Y
+              width={stageBottomRight.x - stageTopLeft.x} // Calculate stage width from converted points
+              height={stageBottomRight.y - stageTopLeft.y} // Calculate stage height from converted points
             />
           );
         }
         if (shape.type === 'circle') {
-          const stagePoint = getStagePointFromOriginalVideoCoords({
+          const stageCenter = getStagePointFromOriginalVideoCoords({
             x: shape.x,
             y: shape.y,
           });
-          if (!stagePoint) return null;
+          if (!stageCenter) return null;
+
+          const stageBottomRight = getStagePointFromOriginalVideoCoords({
+            x: shape.x + shape.radiusX,
+            y: shape.y + shape.radiusY,
+          });
+          if (!stageBottomRight) return null;
+
           return (
-            <Circle
+            <Ellipse
               key={key} // Pass key directly
               {...otherCommonProps} // Spread the rest
-              x={stagePoint.x}
-              y={stagePoint.y}
-              radius={shape.radius * scale}
+              x={stageCenter.x}
+              y={stageCenter.y}
+              radiusX={stageBottomRight.x - stageCenter.x}
+              radiusY={stageBottomRight.y - stageCenter.y}
             />
           );
         }
@@ -173,25 +155,13 @@ const ExistingShapes: React.FC<ExistingShapesProps> = ({
 
 interface NewShapePreviewProps {
   newShape: ShapeData | null;
-  getStagePointFromOriginalVideoCoords: (
-    videoCoords: { x: number; y: number } | null | undefined
-  ) => { x: number; y: number } | null;
-  scale: number;
 }
 
-const NewShapePreview: React.FC<NewShapePreviewProps> = ({
-  newShape,
-  getStagePointFromOriginalVideoCoords,
-  scale,
-}) => {
+const NewShapePreview: React.FC<NewShapePreviewProps> = ({ newShape }) => {
   if (!newShape) return null;
-
+  // These coordinates are all in the stages coordinates system, and will be transformed on mouse release.
+  // We need to convert them to the video coordinates system when the shape is added to the shapes array.
   if (newShape.type === 'rect') {
-    const stagePoint = getStagePointFromOriginalVideoCoords({
-      x: newShape.x,
-      y: newShape.y,
-    });
-    if (!stagePoint) return null;
     return (
       <Rect
         x={newShape.x}
@@ -205,16 +175,12 @@ const NewShapePreview: React.FC<NewShapePreviewProps> = ({
     );
   }
   if (newShape.type === 'circle') {
-    const stagePoint = getStagePointFromOriginalVideoCoords({
-      x: newShape.x,
-      y: newShape.y,
-    });
-    if (!stagePoint) return null;
     return (
-      <Circle
-        x={stagePoint.x}
-        y={stagePoint.y}
-        radius={newShape.radius * scale}
+      <Ellipse
+        x={newShape.x}
+        y={newShape.y}
+        radiusX={newShape.radiusX}
+        radiusY={newShape.radiusY}
         stroke={newShape.stroke}
         strokeWidth={newShape.strokeWidth}
         dash={[5, 5]}
@@ -222,20 +188,15 @@ const NewShapePreview: React.FC<NewShapePreviewProps> = ({
     );
   }
   if (newShape.type === 'arrow') {
-    const stagePoint = getStagePointFromOriginalVideoCoords({
-      x: newShape.points[0],
-      y: newShape.points[1],
-    });
-
-    const stagePoint2 = getStagePointFromOriginalVideoCoords({
-      x: newShape.points[2],
-      y: newShape.points[3],
-    });
-    if (!stagePoint || !stagePoint2) return null;
     return (
       <Arrow
         {...newShape}
-        points={[stagePoint.x, stagePoint.y, stagePoint2.x, stagePoint2.y]}
+        points={[
+          newShape.points[0],
+          newShape.points[1],
+          newShape.points[2],
+          newShape.points[3],
+        ]}
         pointerLength={10}
         pointerWidth={10}
         dash={[5, 5]}
@@ -281,18 +242,21 @@ const SelectionRectangle: React.FC<{
 };
 
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
-  (
-    {
-      src,
-      containerWidth,
-      containerHeight,
-      videoWidth,
-      videoHeight,
-      initialFrameRate,
-      onTimeUpdate,
-    },
-    ref
-  ) => {
+  ({ containerWidth, containerHeight, onTimeUpdate }, ref) => {
+    const { videos, currentVideoId, annotations, setAnnotationsForFrame } =
+      useProject();
+
+    const currentVideo = currentVideoId ? videos[currentVideoId] : null;
+    const videoSrc = currentVideo?.objectURL;
+
+    // Provide defaults if video data is missing
+    const videoWidth = currentVideo?.metadata?.width || 1920;
+    const videoHeight = currentVideo?.metadata?.height || 1080;
+    // Ensure frameRate has a valid default if metadata is missing or fps is 0
+    const frameRate = currentVideo?.metadata?.fps || 30;
+
+    const videoAnnotations = currentVideoId ? annotations[currentVideoId] : [];
+
     // --- Refs ---
     const videoRef = useRef<HTMLVideoElement>(null); // Ref for the HTML video element
     const annotationLayerRef = useRef<Konva.Layer>(null); // Ref for Konva annotation layer
@@ -301,7 +265,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- State ---
     const [isPlaying, setIsPlaying] = useState(false); // Video playback state
-    const [frameRate, setFrameRate] = useState<number>(initialFrameRate); // Video frame rate
     const [scale, setScale] = useState(1); // Video scale
     const [offset, setOffset] = useState({ x: 0, y: 0 }); // Video translation offset
 
@@ -329,6 +292,9 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       height: number;
     } | null>(null); // State for selection box coordinates/dimensions
 
+    // --- Coordinate Conversion Functions ---
+
+    // Convert stage coordinates to video coordinates
     const getOriginalVideoCoordsFromStagePoint = (
       stagePoint: { x: number; y: number } | null | undefined
     ): { x: number; y: number } | null => {
@@ -381,7 +347,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       setShapes([]); // Clear existing shapes
       setScale(1); // Reset zoom
       setOffset({ x: 0, y: 0 }); // Reset pan
-    }, [src]); // Dependency array includes src
+    }, [videoSrc]); // Dependency array includes src
 
     // Effect to reset annotations when video is playing
     useEffect(() => {
@@ -396,11 +362,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setCurrentShapeType('rect');
       }
     }, [isPlaying]);
-
-    // Effect to update internal frame rate if prop changes
-    useEffect(() => {
-      setFrameRate(initialFrameRate);
-    }, [initialFrameRate]);
 
     // Effect to handle video events (play, pause, timeupdate) and cleanup
     useEffect(() => {
@@ -470,39 +431,73 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       // Depend on current scale and offset for calculations inside the handler
     }, [scale, offset]);
 
+    // --- Update shapes when timestamp changes ---
+    useEffect(() => {
+      if (videoAnnotations) {
+        const frameNumber = getCurrentFrameNumber();
+        setShapes(videoAnnotations[frameNumber] || []);
+      }
+    }, [onTimeUpdate]);
+
+    // --- Helper Function ---
+    const getTargetTimeForFrame = (frameNumber: number): number | null => {
+      if (!videoRef.current || frameRate <= 0) return null;
+      const duration = videoRef.current.duration;
+      if (isNaN(duration)) return null; // Duration might not be available yet
+
+      const targetTime = (frameNumber + 0.5) / frameRate;
+
+      // Clamp the time to be within the video duration
+      // Allow seeking exactly to duration, but not beyond
+      return Math.max(0, Math.min(targetTime, duration));
+    };
+
+    const getCurrentFrameNumber = (): number => {
+      if (!videoRef.current || frameRate <= 0) return 0;
+      const currentTime = videoRef.current.currentTime;
+      // Calculate frame number by flooring the result of time * fps
+      return Math.max(0, Math.floor(currentTime * frameRate));
+    };
+
     // --- Imperative Handle ---
     // Expose control methods (play, pause, seek, etc.) to parent components
     useImperativeHandle(ref, () => ({
       play: () => videoRef.current?.play(),
       pause: () => videoRef.current?.pause(),
       seek: (time: number) => {
-        if (videoRef.current) videoRef.current.currentTime = time;
+        // Snap the seek time to the middle of the nearest frame
+        const frameNumber = Math.max(0, Math.floor(time * frameRate));
+        const targetTime = getTargetTimeForFrame(frameNumber);
+        if (videoRef.current && targetTime !== null) {
+          videoRef.current.currentTime = targetTime;
+        }
       },
       nextFrame: () => {
         if (videoRef.current) {
           videoRef.current.pause();
-          const frameDuration = 1 / frameRate;
-          const newTime = Math.min(
-            videoRef.current.duration,
-            videoRef.current.currentTime + frameDuration
-          );
-          videoRef.current.currentTime = newTime;
+          const currentFrame = getCurrentFrameNumber();
+          const targetTime = getTargetTimeForFrame(currentFrame + 1); // Go to middle of next frame
+          if (targetTime !== null) {
+            videoRef.current.currentTime = targetTime;
+          }
         }
       },
       prevFrame: () => {
         if (videoRef.current) {
           videoRef.current.pause();
-          const frameDuration = 1 / frameRate;
-          const newTime = Math.max(
-            0,
-            videoRef.current.currentTime - frameDuration
-          );
-          videoRef.current.currentTime = newTime;
+          const currentFrame = getCurrentFrameNumber();
+          // Ensure we don't go below frame 0
+          const targetFrame = Math.max(0, currentFrame - 1);
+          const targetTime = getTargetTimeForFrame(targetFrame); // Go to middle of previous (or first) frame
+          if (targetTime !== null) {
+            videoRef.current.currentTime = targetTime;
+          }
         }
       },
       getCurrentTime: () => videoRef.current?.currentTime || 0,
+      // Add getCurrentFrameNumber to the exposed ref
+      getCurrentFrameNumber: getCurrentFrameNumber,
       isPlaying: () => isPlaying,
-      setFrameRate: (rate: number) => setFrameRate(rate),
     }));
 
     // --- Event Handlers for Annotations ---
@@ -535,11 +530,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
       setSelectedId(null); // Deselect any selected shape when starting a new one
 
-      const videoCoords = getOriginalVideoCoordsFromStagePoint(stagePoint);
-      if (!videoCoords) return;
-
-      setDrawStartX(videoCoords.x);
-      setDrawStartY(videoCoords.y);
+      setDrawStartX(stagePoint.x);
+      setDrawStartY(stagePoint.y);
       const id = uuidv4();
 
       if (currentShapeType === 'rect') {
@@ -558,9 +550,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setNewShape({
           id,
           type: 'circle',
-          x: videoCoords.x,
-          y: videoCoords.y,
-          radius: 0,
+          x: stagePoint.x,
+          y: stagePoint.y,
+          radiusX: 0,
+          radiusY: 0,
           stroke: 'red',
           strokeWidth: 4,
         });
@@ -569,12 +562,12 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setNewShape({
           id,
           type: 'arrow',
-          points: [
-            videoCoords.x,
-            videoCoords.y,
-            videoCoords.x,
-            videoCoords.y,
-          ] as [number, number, number, number],
+          points: [stagePoint.x, stagePoint.y, stagePoint.x, stagePoint.y] as [
+            number,
+            number,
+            number,
+            number,
+          ],
           stroke: 'red',
           strokeWidth: 4,
         });
@@ -646,10 +639,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       )
         return;
 
-      const videoCoords =
-        getOriginalVideoCoordsFromStagePoint(currentPointerPos);
-      if (!videoCoords) return;
-
       setNewShape((prev) => {
         if (!prev) return null;
 
@@ -667,21 +656,18 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         }
         if (prev.type === 'circle') {
           // Calculate center and radius based on the two diagonal points
-          const x1 = drawStartX as number; // Use fixed start X
-          const y1 = drawStartY as number; // Use fixed start Y
-          const x2 = videoCoords.x;
-          const y2 = videoCoords.y;
-
-          const centerX = (x1 + x2) / 2;
-          const centerY = (y1 + y2) / 2;
-          const radius = Math.hypot(x2 - x1, y2 - y1) / 2;
+          const centerX = (drawStartX + currentPointerPos.x) / 2;
+          const centerY = (drawStartY + currentPointerPos.y) / 2;
+          const rX = Math.abs((currentPointerPos.x - drawStartX) / 2);
+          const rY = Math.abs((currentPointerPos.y - drawStartY) / 2);
 
           return {
             id: prev.id,
             type: 'circle',
             x: centerX, // Update x to be the calculated center
             y: centerY, // Update y to be the calculated center
-            radius,
+            radiusX: rX,
+            radiusY: rY,
             stroke: prev.stroke,
             strokeWidth: prev.strokeWidth,
           };
@@ -691,7 +677,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           return {
             id: prev.id,
             type: 'arrow',
-            points: [x0, y0, videoCoords.x, videoCoords.y] as [
+            points: [x0, y0, currentPointerPos.x, currentPointerPos.y] as [
               number,
               number,
               number,
@@ -778,7 +764,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           (Math.abs(shape.width) < 5 || Math.abs(shape.height) < 5)
         )
           isValidShape = false;
-        if (shape.type === 'circle' && shape.radius < 3) isValidShape = false;
+        if (shape.type === 'circle' && (shape.radiusX < 3 || shape.radiusY < 3))
+          isValidShape = false;
         if (
           shape.type === 'arrow' &&
           Math.hypot(
@@ -789,54 +776,95 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           isValidShape = false;
 
         if (shape.type === 'rect') {
-          // The 'shape' object currently holds stage coordinates with a top-left origin
-          // We need to convert these to video coordinates with a center origin.
+          // Normalize rectangle coordinates based on drag direction
+          const x1 = shape.x;
+          const y1 = shape.y;
+          const x2 = shape.x + shape.width;
+          const y2 = shape.y + shape.height;
 
-          const stageTopLeft = { x: shape.x, y: shape.y };
-          const stageBottomRight = {
-            x: shape.x + shape.width,
-            y: shape.y + shape.height,
-          };
+          const minX = Math.min(x1, x2);
+          const minY = Math.min(y1, y2);
+          const maxX = Math.max(x1, x2);
+          const maxY = Math.max(y1, y2);
 
-          // Convert the stage corner points to the original video coordinate system
+          // Use the normalized stage coordinates
+          const stageTopLeft = { x: minX, y: minY };
+          const stageBottomRight = { x: maxX, y: maxY };
+
+          // Convert the normalized stage corner points to the original video coordinate system
           const videoTopLeft =
             getOriginalVideoCoordsFromStagePoint(stageTopLeft);
           const videoBottomRight =
             getOriginalVideoCoordsFromStagePoint(stageBottomRight);
 
           if (!videoTopLeft || !videoBottomRight) {
-            // If conversion fails, the shape is invalid
-            console.error(
-              'Failed to convert rectangle corners to video coordinates.'
-            );
             isValidShape = false;
           } else {
             // Calculate the width and height in the video coordinate system
-            const videoWidth = Math.abs(videoBottomRight.x - videoTopLeft.x);
-            const videoHeight = Math.abs(videoBottomRight.y - videoTopLeft.y);
+            const videoWidth = videoBottomRight.x - videoTopLeft.x;
+            const videoHeight = videoBottomRight.y - videoTopLeft.y;
 
-            // Re-validate the shape size based on video dimensions
-            if (videoWidth < 5 || videoHeight < 5) {
-              isValidShape = false;
-            }
+            // Update the shape properties to store the top-left coordinates
+            // and dimensions relative to the original video
+            shape.x = videoTopLeft.x;
+            shape.y = videoTopLeft.y;
+            shape.width = videoWidth;
+            shape.height = videoHeight;
+          }
+        }
+        if (shape.type === 'circle') {
+          // The 'shape' object currently holds stage coordinates with a top-left origin
+          // We need to convert these to video coordinates with a center origin.
 
-            // If the shape is still valid after size check
-            if (isValidShape) {
-              // Calculate the center point in the video coordinate system
-              const videoCenterX = (videoTopLeft.x + videoBottomRight.x) / 2;
-              const videoCenterY = (videoTopLeft.y + videoBottomRight.y) / 2;
+          const stageCenter = { x: shape.x, y: shape.y };
+          const stageBottomRight = {
+            x: shape.x + shape.radiusX,
+            y: shape.y + shape.radiusY,
+          };
 
-              // Update the shape properties to store the center coordinates
-              // and dimensions relative to the original video
-              shape.x = videoCenterX;
-              shape.y = videoCenterY;
-            }
+          const videoCenter = getOriginalVideoCoordsFromStagePoint(stageCenter);
+          const videoBottomRight =
+            getOriginalVideoCoordsFromStagePoint(stageBottomRight);
+
+          if (!videoCenter || !videoBottomRight) {
+            isValidShape = false;
+          } else {
+            const videoRadiusX = Math.abs(videoBottomRight.x - videoCenter.x);
+            const videoRadiusY = Math.abs(videoBottomRight.y - videoCenter.y);
+            shape.x = videoCenter.x;
+            shape.y = videoCenter.y;
+            shape.radiusX = videoRadiusX;
+            shape.radiusY = videoRadiusY;
+          }
+        }
+        if (shape.type === 'arrow') {
+          // Arrow positions are in the stage coordinates system.
+          // Tranform positions to the video coordinates system.
+          const stagePoint = { x: shape.points[0], y: shape.points[1] };
+          const stagePoint2 = { x: shape.points[2], y: shape.points[3] };
+          const videoPoint = getOriginalVideoCoordsFromStagePoint(stagePoint);
+          const videoPoint2 = getOriginalVideoCoordsFromStagePoint(stagePoint2);
+          if (!videoPoint || !videoPoint2) {
+            isValidShape = false;
+          } else {
+            shape.points = [
+              videoPoint.x,
+              videoPoint.y,
+              videoPoint2.x,
+              videoPoint2.y,
+            ];
           }
         }
 
         // Add shape to shapes array
-        if (isValidShape) {
-          setShapes((prev) => [...prev, shape]);
+        if (isValidShape && currentVideoId) {
+          const frameNumber = getCurrentFrameNumber();
+          // Calculate the new shapes array explicitly
+          const newShapes = [...shapes, shape];
+          // Update local state
+          setShapes(newShapes);
+          // Update context state with the new array
+          setAnnotationsForFrame(currentVideoId, frameNumber, newShapes);
         }
 
         setNewShape(null);
@@ -870,17 +898,32 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Undo Handler ---
     const handleUndo = () => {
+      if (!currentVideoId) return; // Need a video context
+
+      const frameNumber = getCurrentFrameNumber();
+
       setShapes((prevShapes) => {
         if (prevShapes.length === 0) {
           return prevShapes; // Nothing to undo
         }
-        return prevShapes.slice(0, -1); // Return array without the last element
+        // Calculate the new shapes array after removing the last one
+        const newShapes = prevShapes.slice(0, -1);
+
+        // Update the context state *inside* the setState callback
+        // This ensures we use the updated shapes array
+        setAnnotationsForFrame(currentVideoId, frameNumber, newShapes);
+
+        // Return the new shapes array to update the local state
+        return newShapes;
       });
     };
 
     // --- Clear All Handler ---
     const handleClearAll = () => {
       setShapes([]); // Set shapes to an empty array
+      if (currentVideoId) {
+        setAnnotationsForFrame(currentVideoId, getCurrentFrameNumber(), []);
+      }
     };
 
     // --- Render ---
@@ -897,7 +940,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       >
         <video
           ref={videoRef}
-          src={src}
+          src={videoSrc}
           style={{
             width: '100%',
             height: '100%',
@@ -1070,17 +1113,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               getStagePointFromOriginalVideoCoords={
                 getStagePointFromOriginalVideoCoords
               }
-              scale={scale}
             />
 
             {/* Render new shape preview */}
-            <NewShapePreview
-              newShape={newShape}
-              getStagePointFromOriginalVideoCoords={
-                getStagePointFromOriginalVideoCoords
-              }
-              scale={scale}
-            />
+            <NewShapePreview newShape={newShape} />
 
             {/* Render selection zoom rectangle */}
             <SelectionRectangle box={selectionBox} />

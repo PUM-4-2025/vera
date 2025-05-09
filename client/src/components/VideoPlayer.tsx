@@ -435,12 +435,8 @@ const VideoPlayer: React.FC = () => {
           >
             <VideoElement
               ref={videoElementRef}
-              src={videoSrc}
               containerWidth={containerSize.width}
               containerHeight={containerSize.height}
-              videoWidth={originalWidth || 1920}
-              videoHeight={originalHeight || 1080}
-              initialFrameRate={currentVideo?.metadata?.fps || 30}
               onTimeUpdate={handleVideoTimeUpdate}
             />
           </div>
