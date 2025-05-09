@@ -120,11 +120,11 @@ class AppRunner:
                 compiler_found = True
         else:
             # if not manually specified
-            if shutil.which("clang++"):
-                self.compiler = "clang"
-                compiler_found = True
-            elif shutil.which("g++"):
+            if shutil.which("g++"):
                 self.compiler = "gcc"
+                compiler_found = True
+            elif shutil.which("clang++"):
+                self.compiler = "clang"
                 compiler_found = True
             elif shutil.which("cl"):
                 self.compiler = "cl"

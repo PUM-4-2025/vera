@@ -24,6 +24,8 @@ import {
   VideoEntry,
   ProjectState,
   ProjectContextType,
+  CurrentFrame,
+  VideoFFmpegHandle,
 } from '@/types/project';
 
 // Import utility functions
@@ -33,6 +35,10 @@ import {
   saveProjectLogic,
   uploadVideoLogic,
 } from '@/utils/projectUtils';
+import { captureFrame } from '@/utils/ffmpegUtils';
+import { fetchFile } from '@ffmpeg/util';
+
+
 
 const defaultMetadata: Metadata = {
   name: 'Untitled Project',
@@ -57,6 +63,7 @@ const initialState: ProjectState = {
   error: null,
   currentVideoId: null,
   isSaved: true,
+  currentFrame: null,
 };
 
 // Create the context
@@ -70,6 +77,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   const { ffmpeg } = useFFmpeg();
   const justSavedRef = useRef(false);
   const justLoadedRef = useRef(false);
+  const [currentFrame, setCurrentFrame] = useState<CurrentFrame | null>(null);
+
   // Helper function to manage object URL cleanup
   const manageObjectUrlCleanup = useCallback(() => {
     // Store the object URLs currently in state when the component mounts
@@ -125,6 +134,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         isLoading: false,
         error: null, // Clear any previous errors
         isSaved: true,
+        currentFrame: null,
       }));
     },
     []
@@ -339,6 +349,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
    * Prompts the user to select a video file, processes it, and adds it to the project state.
    * @returns The videoId of the uploaded video, or undefined on failure/cancellation.
    */
+  const uploadVideoToFFmpeg = async (file: File, ffmpeg: FFmpeg): Promise<VideoFFmpegHandle> => {
+    const filename = `video-${Date.now()}.mp4`;
+    await ffmpeg.writeFile(filename, await fetchFile(file));
+    return { filename, file };
+  };
+
   const uploadVideo = useCallback(async (): Promise<string | undefined> => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     let file: File | null = null;
@@ -399,6 +415,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         return undefined;
       }
 
+      // Upload to FFmpeg filesystem
+      const ffmpegHandle = await uploadVideoToFFmpeg(file, ffmpeg as FFmpeg);
+
       // --- Process Video and Update State ---
       const result = await uploadVideoLogic(
         file,
@@ -409,8 +428,11 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       // Set the updated metadata in the state *before* calling updateVideoState
       setState((s) => ({ ...s, metadata: result.updatedMetadata }));
 
-      // Update state with the new video
-      updateVideoState(result.videoId, result.videoEntry);
+      // Update state with the new video, including the FFmpeg handle
+      updateVideoState(result.videoId, {
+        ...result.videoEntry,
+        ffmpegHandle
+      });
       console.log('Video added to state:', result.videoId);
       console.log('videos', state.videos);
 
@@ -603,6 +625,30 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       }
     }, []);
 
+  const captureCurrentFrame = useCallback(async (videoId: string, timestamp: number) => {
+    if (!ffmpeg || !state.videos[videoId]?.file) return;
+
+    try {
+      const frameImage = await captureFrame(
+        state.videos[videoId].file,
+        ffmpeg,
+        timestamp,
+        state.videos[videoId].ffmpegHandle
+      );
+      const frameNumber = Math.floor(timestamp * (state.videos[videoId].metadata.fps || 30));
+
+      console.log('frameNumber', frameNumber);
+      console.log('timestamp', timestamp);
+      setCurrentFrame({
+        timestamp,
+        frameNumber,
+        frameData: frameImage
+      });
+    } catch (error) {
+      console.error('Failed to capture frame:', error);
+    }
+  }, [ffmpeg, state.videos]);
+
   // useEffect to set isSaved to false when project state changes (except isSaved, isLoading, error)
   useEffect(() => {
     // If the ref is true, it means we just saved or loaded. Reset the ref and skip.
@@ -628,12 +674,29 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     state.projectDirectoryHandle,
   ]);
 
+  // Add cleanup function to remove FFmpeg files when project is closed
+  const cleanupFFmpegFiles = useCallback(async () => {
+    const videos = state.videos;
+    for (const video of Object.values(videos)) {
+      if (video.ffmpegHandle) {
+        try {
+          await ffmpeg.deleteFile(video.ffmpegHandle.filename);
+        } catch (error) {
+          console.warn(`Failed to delete FFmpeg file ${video.ffmpegHandle.filename}:`, error);
+        }
+      }
+    }
+  }, [state.videos, ffmpeg]);
+
   /**
    * Resets the entire project context to its initial state
    * and revokes any active video object URLs.
    */
   const resetProject = useCallback(() => {
     console.log('Resetting project context...');
+
+    // Clean up FFmpeg files
+    cleanupFFmpegFiles().catch(console.error);
 
     // --- Memory Cleanup: Revoke Object URLs ---
     const currentVideos = state.videos;
@@ -656,7 +719,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     setState(initialState);
     console.log('Project context reset to initial state.');
     // --- End Reset State ---
-  }, [state.videos]);
+  }, [state.videos, cleanupFFmpegFiles]);
 
   // --- Value Provided to Consumers ---
   // Ensure this matches the ProjectContextType interface
@@ -670,6 +733,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     setCurrentVideoId,
     selectProjectLocation,
     resetProject,
+    currentFrame,
+    captureCurrentFrame
   };
 
   return (

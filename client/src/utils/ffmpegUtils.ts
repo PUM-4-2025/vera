@@ -1,7 +1,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 // Import VideoMetadata type from ProjectContext (adjust path if needed)
-import { VideoMetadata } from '@/types/project';
+import { VideoFFmpegHandle, VideoMetadata } from '@/types/project';
 
 const MAX_METADATA_SIZE = 50 * 1024 * 1024;
 
@@ -161,4 +161,65 @@ export const getMetadata = async (
       );
     }
   }
+};
+
+export const captureFrame = async (
+  file: File,
+  ffmpeg: FFmpeg,
+  timestamp: number,
+  ffmpegHandle?: VideoFFmpegHandle
+): Promise<string> => {
+  if (!ffmpeg.loaded) {
+    throw new Error('FFmpeg is not loaded.');
+  }
+
+  const outputFilename = `frame-${Date.now()}.png`;
+  const inputFilename = ffmpegHandle?.filename || `input-${Date.now()}.mp4`;
+
+  try {
+    // If we have a pre-uploaded file in FFmpeg's filesystem, use it
+    
+    // Only write the file if we don't have a pre-uploaded version
+    if (!ffmpegHandle) {
+      console.log('writing file');
+      await ffmpeg.writeFile(inputFilename, await fetchFile(file));
+    }
+
+    // Use -ss before -i for fast seeking
+    await ffmpeg.exec([
+      '-ss', timestamp.toString(),
+      '-i', inputFilename,
+      '-vframes', '1',
+      '-c:v', 'png',
+      '-pix_fmt', 'rgba',
+      '-vsync', '0',
+      '-an',
+      outputFilename
+    ]);
+
+    // Read the frame data and convert to base64
+    const frameData = await ffmpeg.readFile(outputFilename);
+    const frameBlob = new Blob([frameData], { type: 'image/png' });
+    const base64Data = await blobToBase64(frameBlob);
+
+    return base64Data;
+  } finally {
+    // Only delete the input file if we created it for this capture
+    if (!ffmpegHandle) {
+      await ffmpeg.deleteFile(inputFilename);
+    }
+    // Always delete the output file
+    await ffmpeg.deleteFile(outputFilename);
+  }
+};
+
+
+// Helper function to convert Blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 };
