@@ -863,7 +863,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
 
     // Cleanup object URLs
     Object.values(state.videos).forEach(video => {
-      if (video.objectUrl) {
+      if (video.objectURL) {
         URL.revokeObjectURL(video.objectUrl);
       }
     });
