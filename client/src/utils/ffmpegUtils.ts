@@ -163,6 +163,21 @@ export const getMetadata = async (
   }
 };
 
+async function ensureFFmpegFile(ffmpeg: FFmpeg, videoFile: File, ffmpegHandle?: VideoFFmpegHandle) {
+  if (ffmpegHandle) {
+    const files = await ffmpeg.listDir('/');
+    const fileExists = files.some(file => file.name === ffmpegHandle.filename);
+    if (!fileExists) {
+      await ffmpeg.writeFile(ffmpegHandle.filename, await fetchFile(videoFile));
+    }
+    return ffmpegHandle.filename;
+  } else {
+    const tempFilename = `temp-${Date.now()}.mp4`;
+    await ffmpeg.writeFile(tempFilename, await fetchFile(videoFile));
+    return tempFilename;
+  }
+}
+
 export const captureFrame = async (
   file: File,
   ffmpeg: FFmpeg,
@@ -173,18 +188,12 @@ export const captureFrame = async (
     throw new Error('FFmpeg is not loaded.');
   }
 
+
   const outputFilename = `frame-${Date.now()}.png`;
-  const inputFilename = ffmpegHandle?.filename || `input-${Date.now()}.mp4`;
+
+  const inputFilename = await ensureFFmpegFile(ffmpeg, file, ffmpegHandle);
 
   try {
-    // If we have a pre-uploaded file in FFmpeg's filesystem, use it
-    
-    // Only write the file if we don't have a pre-uploaded version
-    if (!ffmpegHandle) {
-      console.log('writing file');
-      await ffmpeg.writeFile(inputFilename, await fetchFile(file));
-    }
-
     // Use -ss before -i for fast seeking
     await ffmpeg.exec([
       '-ss', timestamp.toString(),
@@ -201,7 +210,6 @@ export const captureFrame = async (
     const frameData = await ffmpeg.readFile(outputFilename);
     const frameBlob = new Blob([frameData], { type: 'image/png' });
     const base64Data = await blobToBase64(frameBlob);
-
     return base64Data;
   } finally {
     // Only delete the input file if we created it for this capture

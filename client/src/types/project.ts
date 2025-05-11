@@ -94,6 +94,13 @@ export interface AnalysisData {
   fileHandle?: FileSystemFileHandle;
 }
 
+// Add these types
+export interface FrameCache {
+  frames: Map<number, CurrentFrame>;  // frameNumber -> frame data
+  maxSize: number;  // maximum number of frames to cache
+  recentlyUsed: number[];  // list of recently used frame numbers
+}
+
 // Represents the overall state managed by the ProjectContext
 export interface ProjectState {
   projectDirectoryHandle: FileSystemDirectoryHandle | null;
@@ -107,6 +114,7 @@ export interface ProjectState {
   currentVideoId: string | null;
   isSaved: boolean;
   currentFrame: CurrentFrame | null;
+  frameCache: FrameCache;
 }
 
 // Defines the shape of the ProjectContext including state and actions

@@ -372,12 +372,16 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       const handlePause = () => {
         setIsPlaying(false);
         // Capture frame when video is paused
-        if (video.currentTime) {
+        if (video.currentTime && currentVideoId) {
           captureCurrentFrame(currentVideoId, video.currentTime);
         }
       };
       const handleTimeUpdateCallback = () => {
         onTimeUpdate(video.currentTime);
+        // Capture frame when video is paused and time changes
+        if (!isPlaying && video.currentTime && currentVideoId) {
+          captureCurrentFrame(currentVideoId, video.currentTime);
+        }
       };
 
       video.addEventListener('play', handlePlay);
