@@ -32,7 +32,7 @@ const BookmarkSidebar: React.FC<BookmarkSidebarProps> = ({ isOpen }) => {
       <div className="flex-1 p-4 overflow-y-auto">
         {/* Placeholder for bookmark list */}
         <p className="text-sm text-muted-foreground">
-          No bookmarks yet. Click the &#39;+&#39; button to add a new bookmark.
+          No bookmarks yet. Click the + button to add a new bookmark.
         </p>
       </div>
     </aside>
