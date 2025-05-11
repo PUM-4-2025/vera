@@ -49,8 +49,7 @@ async function handleCaptureFrameTask(
 }
 
 async function handleProcessVideoTask(
-  task: ProcessVideoTask,
-  ffmpeg: FFmpeg
+  task: ProcessVideoTask
 ): Promise<WorkerResult> {
   // Denna gör inget, bara för att visa hur man lägger till fler tasks
   return {

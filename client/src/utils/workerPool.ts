@@ -47,7 +47,7 @@ export class WorkerPool {
 
     const task = this.taskQueue.shift()!;
     this.activeWorkers.add(availableWorkerIndex);
-    this.workers[availableWorkerIndex].postMessage(task);
+    this.workers[availableWorkerIndex]!.postMessage(task);
   }
 
   async executeTask(task: WorkerTask): Promise<WorkerResult> {

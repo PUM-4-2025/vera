@@ -38,7 +38,6 @@ import {
   saveProjectLogic,
   uploadVideoLogic,
 } from '@/utils/projectUtils';
-import { captureFrame } from '@/utils/ffmpegUtils';
 import { fetchFile } from '@ffmpeg/util';
 
 
@@ -842,7 +841,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     for (const video of Object.values(videos)) {
       if (video.ffmpegHandle) {
         try {
-          await ffmpeg.deleteFile(video.ffmpegHandle.filename);
+          await ffmpeg!.deleteFile(video.ffmpegHandle.filename);
         } catch (error) {
           console.warn(`Failed to delete FFmpeg file ${video.ffmpegHandle.filename}:`, error);
         }
@@ -864,7 +863,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     // Cleanup object URLs
     Object.values(state.videos).forEach(video => {
       if (video.objectURL) {
-        URL.revokeObjectURL(video.objectUrl);
+        URL.revokeObjectURL(video.objectURL);
       }
     });
   }, [state.videos, cleanupFFmpegFiles]);

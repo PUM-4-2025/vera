@@ -206,17 +206,14 @@ export const captureFrame = async (
       outputFilename
     ]);
 
-    // Read the frame data and convert to base64
     const frameData = await ffmpeg.readFile(outputFilename);
     const frameBlob = new Blob([frameData], { type: 'image/png' });
     const base64Data = await blobToBase64(frameBlob);
     return base64Data;
   } finally {
-    // Only delete the input file if we created it for this capture
     if (!ffmpegHandle) {
       await ffmpeg.deleteFile(inputFilename);
     }
-    // Always delete the output file
     await ffmpeg.deleteFile(outputFilename);
   }
 };
