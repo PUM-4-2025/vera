@@ -1,16 +1,26 @@
 #include "http_server.h"
 #include "upload_media.h"
 #include "audio.h"
-#include "anlysis/video/motiondetection.h"
+#include "video.h"
+//#include "anlysis/video/motiondetection.h"
 
 #include <iostream>
+#include <vector>
 
 int main() {
   #ifdef __cplusplus
   std::cout << 'C++ version: ' << __cplusplus << std::endl;
-  #endif
+  #endif  
+  char cwd[1024];
+  
+  if (getcwd(cwd, sizeof(cwd)) != NULL)
+      std::cout << "Current working directory: " << cwd << std::endl;
 
-  analyse_video();
+
+  std::vector<int> cords = {1,4,1,4};
+  analyse_video(cords);
+  
+
 
   const char *portEnv = std::getenv("PORT");
   int port = std::stoi(portEnv);

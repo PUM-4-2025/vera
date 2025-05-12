@@ -98,12 +98,17 @@ add_executable(tests
     tests/tests.cpp
     src/anlysis/audio/extract.cpp
     src/utils/files.cpp
+    src/anlysis/video/motiondetection.cpp
 )
 
 target_include_directories(tests PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/catch2/single_include
+    ${OpenCV_INCLUDE_DIRS} 
 )
+
+# Kompilera testfilerna med opencv
+target_link_libraries(tests PRIVATE ${OpenCV_LIBS})
 
 # Compiler flags - platform specific definitions
 if(MSVC)

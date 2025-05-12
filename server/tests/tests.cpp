@@ -4,8 +4,6 @@
 // Två executables skapas när vera körs, en som kör hemsidan och en som 
 // Kör tester. För att det ska kompilera korrekt behöver du lägga till alla .cpp filer som 
 // ditt test använder i server/CMakeLists.txt add_executables(tests...) (rad 96) Observera ej server/tests/Cmakelists
-// tests.o körs ej automatiskt, du kör samtliga tester genom
-// ./server/build/bin/tests    efter du kört Vera med python3 run.py
 
 
 #include "http_server.h"
@@ -14,26 +12,44 @@
 #include "../extern/catch2/single_include/catch2/catch.hpp"
 #include "audio.h"
 #include "files.h"
+#include "video.h"
 
 #include <filesystem>
 
+
 TEST_CASE("extract creates a .wav file from video input", "[extract]") {
     std::string video_file = "sample_video.mp4";
-    std::string input_path = video_file;
-    std::string wav_file = input_path + ".wav";
 
     std::filesystem::path path = getTestingDir();
-    path.append(wav_file);
+    path.append(video_file);
 
     // Kör funktionen
     UserSession test_session = UserSession { "test" };
-    extract(input_path, test_session);
+    std::string user_path = getUserMediaDir(test_session);
 
-    std::cout << "TEEEEESSSSSSTTTTTAAAAAAARRRRRR-------" << std::endl;
+    user_path.append("sample_video.mp4");
+
+    std::filesystem::copy_file(path, user_path);
+
+    REQUIRE(std::filesystem::exists(user_path));
+
+    extract(video_file, test_session);
  
+    std::string wav_file_path = user_path + ".wav";
+
     // Verifiera att .wav-filen nu finns
-    REQUIRE(std::filesystem::exists(path));
+    REQUIRE(std::filesystem::exists(wav_file_path));
 
     // Städa upp
-    std::filesystem::remove(wav_file);
+    std::filesystem::remove(wav_file_path);
+    std::filesystem::remove(user_path);
 }
+
+
+TEST_CASE("Kastar undantag om ROI är utanför bilden", "[error]") {
+    std::vector<int> invalid_coords = {1000, 500, 1000, 500}; // Medvetet för stort ROI
+    
+
+    REQUIRE_THROWS_AS(analyse_video(invalid_coords), std::invalid_argument);
+}
+
