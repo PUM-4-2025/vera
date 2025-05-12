@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "http_utils.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <mongoose.h>
 #include <utility>
@@ -48,10 +49,10 @@ void HttpServer::registerHandler(const std::string &api_path, RequestHandler han
 
 UserSession *HttpServer::getUserSession(std::string sessionToken) {
   m_session_guard_.lock();
-  for(auto session : m_active_sessions_){
-    if(session.session_id == sessionToken){
+  for(auto *session : m_active_sessions_){
+    if(session->session_id == sessionToken){
       m_session_guard_.unlock();
-      return &session;
+      return session;
     }
   }
   m_session_guard_.unlock();
@@ -59,15 +60,19 @@ UserSession *HttpServer::getUserSession(std::string sessionToken) {
 }
 
 void HttpServer::appendUserSession(UserSession us) {
+  UserSession *usp = (UserSession *)malloc(sizeof us);
+  usp->session_id = us.session_id;
+
   m_session_guard_.lock();
-  m_active_sessions_.push_back(us);
+  m_active_sessions_.push_back(usp);
   m_session_guard_.unlock();
 }
 
 void HttpServer::removeUserSession(UserSession us) {
   m_session_guard_.lock();
   for (auto it = m_active_sessions_.begin(); it != m_active_sessions_.end(); it++) {
-    if (it->session_id == us.session_id) {
+    if ((*it)->session_id == us.session_id) {
+      free(*it);
       m_active_sessions_.erase(it);
       break;
     }
@@ -79,7 +84,7 @@ bool HttpServer::isUniqueId(std::string id){
     m_session_guard_.lock();
 
     for(const auto &session : m_active_sessions_){
-        if(session.session_id == id){
+        if(session->session_id == id){
             m_session_guard_.unlock();
             return false;
         }
@@ -108,8 +113,9 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
         // request handler.
         try {
           handler_info.handler(c, hm, server);
-        } catch (...) {
-          std::cout << "Handler crash occured!" << std::endl;
+        } catch (const std::exception &exc) {
+          std::cout << "Handler crash occured!" << "\n ------------------------------- \n";
+          std::cout << "ERR: " << exc.what() << "\n ------------------------------- \n";
         }
         return;
       }
@@ -122,7 +128,7 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
 }
 
 void registerUserSessionHandlers(HttpServer &server){
-    server.registerHandler("api/v1/user-sessions/initiate", initUserSession);
+    server.registerHandler("/api/v1/user-sessions/initiate", initUserSession);
 }
 
 void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs){
@@ -141,7 +147,7 @@ void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpS
 
         hs->appendUserSession(new_session);
 
-        std::string message = "User Session" + userId + "initiated successfully.";
+        std::string message = "User Session " + userId + " initiated successfully.";
         json response = {{"status", "Initiated"}, {"message", message}};
         std::string response_str = response.dump();
         send_http_response(c, 200, response_str);

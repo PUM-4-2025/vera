@@ -3,11 +3,11 @@
 #include "files.h"
 #include "http_utils.h"
 
+#include <iostream>
 #include "mongoose.h"
 #include <json.hpp>
+#include <string>
 using json = nlohmann::json;
-
-#include <cmath>
 
 UploadHandler UPLOAD_HANDLER;
 
@@ -44,13 +44,22 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
     std::string body = msg->body.buf;
-
     json json_body = json::parse(body);
+
+    std::string user_token = json_body["token"];
+    UserSession *us = hs->getUserSession(user_token);
+
+    if (us == nullptr) {
+      json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 401, response_str);
+      return;
+    }
+
+    std::cout << "Found session: " << us->session_id << "\n";
+
     std::string file_name = json_body["fileName"];
     int file_size = json_body["fileSize"];
 
@@ -91,10 +100,12 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
+    char token_buf[20] = "0";
+    mg_http_get_var(&msg->query, "token", token_buf, sizeof token_buf);
+
+    UserSession *us = hs->getUserSession(token_buf);
+
     char id_buf[20] = "0";
     mg_http_get_var(&msg->query, "id", id_buf, sizeof id_buf);
 
@@ -107,7 +118,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
       return;
     }
 
-    if (session->us->session_id != us->session_id) {
+    if (us == nullptr || session->us->session_id != us->session_id) {
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
@@ -133,12 +144,13 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
+
+    std::string user_token = json_body["token"];
+    UserSession *us = hs->getUserSession(user_token);
+
     int upload_id = json_body["uploadId"];
 
     UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
@@ -150,7 +162,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
       return;
     }
 
-    if (session->us->session_id != us->session_id) {
+    if (us == nullptr || session->us->session_id != us->session_id) {
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
@@ -178,12 +190,13 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
+
+    std::string user_token = json_body["token"];
+    UserSession *us = hs->getUserSession(user_token);
+
     int upload_id = json_body["uploadId"];
 
     UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
@@ -195,7 +208,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
       return;
     }
 
-    if (session->us->session_id != us->session_id) {
+    if (us == nullptr || session->us->session_id != us->session_id) {
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);

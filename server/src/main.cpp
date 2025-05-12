@@ -19,10 +19,6 @@ int main() {
   server.listenTo(url);
   server.setStaticFilesPath(STATIC_FILES_PATH);
 
-  // TODO: Replace with proper user session handling
-  UserSession test_us = UserSession{"abc123"};
-  server.appendUserSession(test_us);
-
   // Register relevant handlers
   registerMediaHandlers(server);
   registerAudioHandlers(server);
