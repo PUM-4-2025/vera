@@ -1,5 +1,5 @@
 export interface UserSession {
-  userId: number;
+  userId: string;
 }
 
 const url =
@@ -11,8 +11,8 @@ const url =
 export const initiateUserSession = async (): Promise<UserSession> => {
   try {
     //Prepare URL and JSON object for initialisation
-    const initUrl = url + '/api/v1/user/initiate';
-    const userToken = 7777; //change this to cookie or smthng
+    const initUrl = url + '/api/v1/user-sessions/initiate';
+    const userToken = '7777'; //change this to cookie or smthng
     const initData = { userId: userToken };
 
     const initResponse = await fetch(initUrl, {
