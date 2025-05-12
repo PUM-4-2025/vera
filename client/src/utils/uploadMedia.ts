@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 export interface UploadSession {
   uploadId: number;
   file: File;
@@ -157,7 +159,10 @@ export const uploadComplete = async (uploadSession: UploadSession) => {
     if (status != 'Completed') {
       throw new Error('Server returned error when finishing upload!');
     }
-    console.log('Completed upload of ', uploadSession.file.name);
+
+    const message = 'Completed upload of ' + uploadSession.file.name;
+    console.log(message);
+    toast.info(message);
   } catch {
     throw new Error('Finishing upload failed!');
   }

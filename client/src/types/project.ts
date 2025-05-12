@@ -37,14 +37,46 @@ export interface VideoMetadata {
   isTransmuxed: boolean;
 }
 
+// --- Annotation Shape Types ---
+// Discriminated union for different shape types, storing VIDEO coordinates
+export type RectShape = {
+  id: string; // Unique ID for the shape instance
+  type: 'rect';
+  x: number; // Video coordinate (top-left)
+  y: number; // Video coordinate (top-left)
+  width: number; // Video dimension
+  height: number; // Video dimension
+  stroke: string;
+  strokeWidth: number;
+};
+
+export type CircleShape = {
+  id: string;
+  type: 'circle';
+  x: number; // Video coordinate (center)
+  y: number; // Video coordinate (center)
+  radiusX: number; // Video dimension
+  radiusY: number; // Video dimension
+  stroke: string;
+  strokeWidth: number;
+};
+
+export type ArrowShape = {
+  id: string;
+  type: 'arrow';
+  points: [number, number, number, number]; // Video coordinates [x1, y1, x2, y2]
+  stroke: string;
+  strokeWidth: number;
+};
+
+export type ShapeData = RectShape | CircleShape | ArrowShape;
+
+// Structure for storing annotations per video, keyed by frame number
+// e.g., { 37: [ShapeData, ShapeData], 150: [ShapeData] }
+export type VideoAnnotationData = Record<number, ShapeData[]>;
+
 // Preliminary types for bookmarks, annotations and analysis
 export interface BookmarkData {
-  name: string;
-  description: string;
-  fileHandle?: FileSystemFileHandle;
-}
-
-export interface AnnotationData {
   name: string;
   description: string;
   fileHandle?: FileSystemFileHandle;
@@ -62,7 +94,7 @@ export interface ProjectState {
   metadata: Metadata;
   videos: Record<string, VideoEntry>; // Runtime state, includes object URLs etc.
   bookmarks: Record<string, BookmarkData>;
-  annotations: Record<string, AnnotationData>;
+  annotations: Record<string, VideoAnnotationData>;
   analysis: Record<string, AnalysisData>;
   isLoading: boolean;
   error: string | null;
@@ -84,6 +116,11 @@ export interface ProjectContextType extends ProjectState {
   setCurrentVideoId: (videoId: string | null) => void;
   selectProjectLocation: () => Promise<FileSystemDirectoryHandle | null>;
   resetProject: () => void;
+  setAnnotationsForFrame: (
+    videoId: string,
+    frameNumber: number,
+    shapes: ShapeData[]
+  ) => void;
 }
 
 // --- Result Types for Utility Functions ---
@@ -92,6 +129,7 @@ export interface ProjectContextType extends ProjectState {
 export interface LoadProjectResult {
   metadata: Metadata;
   videos: Record<string, VideoEntry>;
+  annotations: Record<string, VideoAnnotationData>;
   currentVideoId: string | null;
 }
 

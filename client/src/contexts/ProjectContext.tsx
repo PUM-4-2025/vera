@@ -15,7 +15,8 @@ import {
   verifyPermission,
 } from '@/utils/projectDatabase';
 import { useFFmpeg } from './FFmpegContext';
-import { uploadMedia, uploadChunks } from '@/utils/uploadMedia';
+import { uploadMedia, uploadChunks, uploadStatus } from '@/utils/uploadMedia';
+import { toast } from 'sonner';
 
 // Import types from the dedicated types file
 import {
@@ -23,6 +24,8 @@ import {
   VideoEntry,
   ProjectState,
   ProjectContextType,
+  ShapeData,
+  VideoAnnotationData,
 } from '@/types/project';
 
 // Import utility functions
@@ -107,6 +110,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       loadedData: {
         metadata: Metadata | null;
         videos: Record<string, VideoEntry>;
+        annotations: Record<string, VideoAnnotationData>;
         currentVideoId: string | null;
       },
       dirHandle: FileSystemDirectoryHandle
@@ -117,8 +121,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         projectDirectoryHandle: dirHandle,
         metadata: loadedData.metadata ?? defaultMetadata, // Use default if loaded is null
         videos: loadedData.videos,
+        annotations: loadedData.annotations,
         bookmarks: {}, // TODO: Add bookmarks
-        annotations: {}, // TODO: Add annotations
         analysis: {}, // TODO: Add analysis
         currentVideoId: loadedData.currentVideoId,
         isLoading: false,
@@ -416,8 +420,35 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       // Begin upload to server
       const uploadSession = await uploadMedia(file);
 
-      setTimeout(() => {
+      setTimeout(async () => {
+        const sleep = (ms: number) =>
+          new Promise((resolve) => setTimeout(resolve, ms));
+
         uploadChunks(uploadSession).catch(console.error);
+
+        for (;;) {
+          try {
+            const status = await uploadStatus(uploadSession.uploadId);
+
+            const uploadProgress =
+              100 * (status.completedChunks / status.totalChunks);
+
+            const progressMessage =
+              'Uploading ' +
+              uploadSession.file.name +
+              ': ' +
+              uploadProgress.toFixed(1) +
+              '%';
+
+            toast.info(progressMessage);
+
+            // Sleep for 1 second
+            await sleep(2000);
+          } catch {
+            // Keep getting status until it fails and assume that upload was completed
+            break;
+          }
+        }
       }, 0);
 
       return result.videoId;
@@ -630,6 +661,38 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     // --- End Reset State ---
   }, [state.videos]);
 
+  /**
+   * Sets the array of shapes for a given video and frame number.
+   */
+  const setAnnotationsForFrame = useCallback(
+    (videoId: string, frameNumber: number, shapes: ShapeData[]) => {
+      setState((prev) => {
+        const prevVideoAnnotations = prev.annotations[videoId] || {};
+        let newVideoAnnotations;
+        if (shapes.length === 0) {
+          // Remove the key for frameNumber if shapes is empty
+          newVideoAnnotations = { ...prevVideoAnnotations };
+          delete newVideoAnnotations[frameNumber];
+        } else {
+          // Set the shapes for the frameNumber
+          newVideoAnnotations = {
+            ...prevVideoAnnotations,
+            [frameNumber]: shapes,
+          };
+        }
+        return {
+          ...prev,
+          annotations: {
+            ...prev.annotations,
+            [videoId]: newVideoAnnotations,
+          },
+          isSaved: false,
+        };
+      });
+    },
+    []
+  );
+
   // --- Value Provided to Consumers ---
   // Ensure this matches the ProjectContextType interface
   const contextValue: ProjectContextType = {
@@ -642,6 +705,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     setCurrentVideoId,
     selectProjectLocation,
     resetProject,
+    setAnnotationsForFrame,
   };
 
   return (
