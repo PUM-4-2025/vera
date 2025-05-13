@@ -1,12 +1,13 @@
 #include "upload_media.h"
 #include "upload_handler.h"
 #include "files.h"
+#include "http_utils.h"
 
+#include <iostream>
 #include "mongoose.h"
 #include <json.hpp>
+#include <string>
 using json = nlohmann::json;
-
-#include <cmath>
 
 UploadHandler UPLOAD_HANDLER;
 
@@ -35,35 +36,6 @@ int getUploadId() {
   return id;
 }
 
-void send_http_response(struct mg_connection *c, int http_code, int id, std::string status,
-                        std::string message) {
-  json response = {{"uploadId", id}, {"status", status}, {"message", message}};
-  std::string response_str = response.dump();
-  mg_http_reply(c, http_code,
-                "Access-Control-Allow-Origin: *\r\n"
-                "Content-Type: application/json\r\n"
-                "X-Content-Type-Options: nosniff\r\n",
-                response_str.c_str());
-}
-
-/**
- * TODO: Reimplement this function. Currently doesn't work.
- * Currently CORS is not used in client. Could be worth enabling CORS
- * to follow better developer practice.
- */
-int handlePreflight(struct mg_connection *c, struct mg_http_message *msg) {
-  if (msg->body.len == 0 || msg->method.buf == "OPTIONS") {
-    mg_http_reply(c, 204,
-                  "Access-Control-Allow-Origin: *\r\n"
-                  "Access-Control-Allow-Methods: GET, POST\r\n"
-                  "Access-Control-Allow-Headers: content-type\r\n"
-                  "Access-Control-Allow-Credentials: false\r\n",
-                  "");
-    return 0;
-  }
-  return 1;
-}
-
 /**
  * Handles HTTP request for initiating new uploads.
  */
@@ -72,13 +44,22 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
     std::string body = msg->body.buf;
-
     json json_body = json::parse(body);
+
+    std::string user_token = json_body["token"];
+    UserSession *us = hs->getUserSession(user_token);
+
+    if (us == nullptr) {
+      json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 401, response_str);
+      return;
+    }
+
+    std::cout << "Found session: " << us->session_id << "\n";
+
     std::string file_name = json_body["fileName"];
     int file_size = json_body["fileSize"];
 
@@ -101,10 +82,13 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     new_session.us = us;
 
     UPLOAD_HANDLER.newSession(new_session);
-    send_http_response(c, 200, upload_id, "initiated", "Upload session initiated successfully.");
+    json response = {{"uploadId", upload_id}, {"status", "initiated"}, {"message", "Upload session initiated successfully."}};
+    std::string response_str = response.dump();
+    send_http_response(c, 200, response_str);
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
-                       "Server experienced an exception while handling initialize request.");
+    json response = {{"status", "Failure"}, {"message", "Server experienced an exception while handling initialize request."}};
+    std::string response_str = response.dump();
+    send_http_response(c, 500, response_str);
   }
 }
 
@@ -116,22 +100,28 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
+    char token_buf[20] = "0";
+    mg_http_get_var(&msg->query, "token", token_buf, sizeof token_buf);
+
+    UserSession *us = hs->getUserSession(token_buf);
+
     char id_buf[20] = "0";
     mg_http_get_var(&msg->query, "id", id_buf, sizeof id_buf);
 
     UploadSession *session = UPLOAD_HANDLER.getSession(std::stoi(id_buf));
 
     if (session == nullptr) {
-      send_http_response(c, 404, session->session_id, "Not found", "uploadId not found!");
+      json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 404, response_str);
       return;
     }
 
-    if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, session->session_id, "Unauthorized", "Invalid session token!");
+    if (us == nullptr || session->us->session_id != us->session_id) {
+      json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 401, response_str);
       return;
     }
 
@@ -140,8 +130,9 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     mg_http_upload(c, msg, &mg_fs_posix, session->dir.c_str(), max_size);
     UPLOAD_HANDLER.incrementChunk(*session);
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
-                       "Server experienced an exception while handling chunk upload request.");
+    json response = {{"status", "Failure"}, {"message", "Server experienced an exception while handling chunk upload request."}};
+    std::string response_str = response.dump();
+    send_http_response(c, 500, response_str);
   }
 }
 
@@ -153,44 +144,44 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
+
+    std::string user_token = json_body["token"];
+    UserSession *us = hs->getUserSession(user_token);
+
     int upload_id = json_body["uploadId"];
 
     UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
 
     if (session == nullptr) {
-      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 404, response_str);
       return;
     }
 
-    if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+    if (us == nullptr || session->us->session_id != us->session_id) {
+      json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 401, response_str);
       return;
     }
 
     int uploaded_chunks = session->completed_chunks;
     int total_chunks = session->total_chunks;
 
-    // Edge case, more information is expected to be returned.
-    // Therefore the send_http_response() helper function is not used here.
     json response = {{"uploadId", upload_id},
                      {"status", "In progress"},
                      {"uploadedChunks", uploaded_chunks},
                      {"totalChunks", total_chunks}};
     std::string response_str = response.dump();
-    mg_http_reply(c, 200,
-                  "Access-Control-Allow-Origin: *\r\n"
-                  "Content-Type: application/json\r\n"
-                  "X-Content-Type-Options: nosniff\r\n",
-                  response_str.c_str());
+    send_http_response(c, 200, response_str);
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
-                       "Server experienced an exception while handling status request.");
+    json response = {{"status", "Failure"}, {"message", "Server experienced an exception while handling status request."}};
+    std::string response_str = response.dump();
+    send_http_response(c, 500, response_str);
   }
 }
 
@@ -199,37 +190,46 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     return;
   }
 
-  // TODO: REPLACE_TOKEN
-  UserSession *us = hs->getUserSession("");
-
   try {
     std::string body = msg->body.buf;
     json json_body = json::parse(body);
+
+    std::string user_token = json_body["token"];
+    UserSession *us = hs->getUserSession(user_token);
+
     int upload_id = json_body["uploadId"];
 
     UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
 
     if (session == nullptr) {
-      send_http_response(c, 404, upload_id, "Not found", "uploadId not found!");
+      json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 404, response_str);
       return;
     }
 
-    if (session->us->session_id != us->session_id) {
-      send_http_response(c, 401, upload_id, "Unauthorized", "Invalid session token!");
+    if (us == nullptr || session->us->session_id != us->session_id) {
+      json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 401, response_str);
       return;
     }
 
     if (!UPLOAD_HANDLER.sessionCompleted(*session)) {
-      send_http_response(c, 418, upload_id, "Failed",
-                         "Uploaded chunks != expected number of chunks. Upload failed!");
+      json response = {{"status", "Failed"}, {"message", "Upload chunks != expected number of chunks. Upload failed!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 418, response_str);
       UPLOAD_HANDLER.removeSession(*session);
       return;
     }
 
-    send_http_response(c, 200, upload_id, "Completed", "Upload completed successfully");
+    json response = {{"uploadId", upload_id}, {"status", "Completed"}, {"message", "Upload completed successfully."}};
+    std::string response_str = response.dump();
+    send_http_response(c, 200, response_str);
     UPLOAD_HANDLER.removeSession(*session);
   } catch (...) {
-    send_http_response(c, 500, 0, "Failure",
-                       "Server experienced an exception while handling complete request.");
+    json response = {{"status", "Failure"}, {"message", "Server experienced an exception while handling complete request."}};
+    std::string response_str = response.dump();
+    send_http_response(c, 500, response_str);
   }
 }
