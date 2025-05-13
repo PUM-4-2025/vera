@@ -23,8 +23,6 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
     std::string us_folder = getUserMediaDir(*us);
 
     // Get path to file that should be analysed
-    std::string body = msg->body.buf;
-    json json_body = json::parse(body);
     std::string filename = json_body["fileName"];
 
     // Extract audio
