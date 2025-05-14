@@ -58,8 +58,6 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
       return;
     }
 
-    std::cout << "Found session: " << us->session_id << "\n";
-
     std::string file_name = json_body["fileName"];
     int file_size = json_body["fileSize"];
 
@@ -96,10 +94,6 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
  * Handles HTTP request for uploading a chunk of a file.
  */
 void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
-  if (handlePreflight(c, msg) == 0) {
-    return;
-  }
-
   try {
     char token_buf[20] = "0";
     mg_http_get_var(&msg->query, "token", token_buf, sizeof token_buf);

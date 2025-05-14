@@ -61,7 +61,7 @@ UserSession *HttpServer::getUserSession(std::string sessionToken) {
 
 void HttpServer::appendUserSession(UserSession us) {
   UserSession *usp = (UserSession *)malloc(sizeof us);
-  usp->session_id = us.session_id;
+  usp->session_id.assign(us.session_id);
 
   m_session_guard_.lock();
   m_active_sessions_.push_back(usp);
