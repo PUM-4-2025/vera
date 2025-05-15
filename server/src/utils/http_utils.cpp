@@ -9,7 +9,6 @@ void send_http_response(struct mg_connection *c, int http_code, std::string body
                 "Content-Type: application/json\r\n"
                 "X-Content-Type-Options: nosniff\r\n",
                 body.c_str());
-
 }
 
 /**
@@ -27,4 +26,13 @@ int handlePreflight(struct mg_connection *c, struct mg_http_message *msg) {
     return 0;
   }
   return 1;
+}
+
+std::string getVeraHeaders() {
+  std::string headers = "Access-Control-Allow-Origin: *\r\n"
+                        "Content-Type: application/json\r\n"
+                        "X-Content-Type-Options: nosniff\r\n"
+                        "Cross-Origin-Resource-Policy: cross-origin\r\n";
+
+  return headers;
 }
