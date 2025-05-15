@@ -17,7 +17,7 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
  */
 int db_analysis(std::string in_txt, int threshold_db, int min_duration_seconds, UserSession &us);
 
-void extract(std::string, UserSession &us);
+void extract(std::string filename, UserSession &us);
 
 int visual(std::string, UserSession &us, float fps);
 

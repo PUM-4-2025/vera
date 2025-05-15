@@ -31,6 +31,7 @@ public:
   UserSession *getUserSession(std::string sessionToken); 
   void appendUserSession(UserSession us);
   void removeUserSession(UserSession us);
+  bool isUniqueId(std::string id);
 
   using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
@@ -48,9 +49,12 @@ private:
 
   std::vector<HandlerInfo> m_handlers_;
   std::mutex m_session_guard_;
-  std::vector<UserSession> m_active_sessions_;
+  std::vector<UserSession*> m_active_sessions_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
 };
+
+void registerUserSessionHandlers(HttpServer &server);
+void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
 
 #endif

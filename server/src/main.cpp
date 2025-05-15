@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "upload_media.h"
 #include "audio.h"
+#include "project_config.h"
 
 #include <iostream>
 
@@ -19,13 +20,10 @@ int main() {
   server.listenTo(url);
   server.setStaticFilesPath(STATIC_FILES_PATH);
 
-  // TODO: Replace with proper user session handling
-  UserSession test_us = UserSession{"abc123"};
-  server.appendUserSession(test_us);
-
   // Register relevant handlers
   registerMediaHandlers(server);
   registerAudioHandlers(server);
+  registerUserSessionHandlers(server); //I just assume we need to do this here and not later
 
   // Run server
   server.start();

@@ -7,9 +7,9 @@
 
 std::string getUserMediaDir(UserSession &us);
 
-int writeTextFile(std::string path, std::string data);
+int writeTextFile(std::string path, std::string data, UserSession &us);
 
-std::string readTextFile(std::string path);
+std::string readTextFile(std::string path, UserSession &us);
 
 std::filesystem::path getTestingDir();
 
