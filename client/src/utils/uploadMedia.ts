@@ -122,7 +122,6 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
       token;
 
     await fetch(uploadUrl, {
-      mode: 'no-cors',
       method: 'POST',
       body: chunk,
     });
@@ -141,6 +140,7 @@ export const uploadComplete = async (uploadSession: UploadSession) => {
     const completeUrl = url + '/api/v1/uploads/complete';
     const statusData = {
       uploadId: uploadSession.uploadId,
+      fileName: uploadSession.file.name,
       token: '7777',
     };
     const completeResponse = await fetch(completeUrl, {
