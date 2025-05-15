@@ -20,6 +20,7 @@ import {
   MousePointer2,
   Hand,
   RefreshCw,
+  Fingerprint,
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 
@@ -243,7 +244,7 @@ const SelectionRectangle: React.FC<{
 
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
   ({ containerWidth, containerHeight, onTimeUpdate }, ref) => {
-    const { videos, currentVideoId, annotations, setAnnotationsForFrame, captureCurrentFrame } =
+    const { videos, currentVideoId, annotations, setAnnotationsForFrame, captureCurrentFrame, currentFrame } =
       useProject();
 
     const currentVideo = currentVideoId ? videos[currentVideoId] : null;
@@ -291,6 +292,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       width: number;
       height: number;
     } | null>(null); // State for selection box coordinates/dimensions
+    const [showRawFrame, setShowRawFrame] = useState(false); // State for raw frame toggle
 
     // --- Coordinate Conversion Functions ---
 
@@ -373,14 +375,16 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setIsPlaying(false);
         // Capture frame when video is paused
         if (video.currentTime && currentVideoId) {
-          captureCurrentFrame(currentVideoId, video.currentTime);
+          console.log("framenumber", getCurrentFrameNumber());
+          captureCurrentFrame(currentVideoId, getCurrentFrameNumber());
         }
       };
       const handleTimeUpdateCallback = () => {
         onTimeUpdate(video.currentTime);
         // Capture frame when video is paused and time changes
         if (!isPlaying && video.currentTime && currentVideoId) {
-          captureCurrentFrame(currentVideoId, video.currentTime);
+          console.log('framenumber', getCurrentFrameNumber());
+          captureCurrentFrame(currentVideoId, getCurrentFrameNumber());
         }
       };
 
@@ -440,6 +444,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       };
       // Depend on current scale and offset for calculations inside the handler
     }, [scale, offset]);
+
+    useEffect(() => {
+      console.log("currentFrame", currentFrame?.frameNumber);
+    }, [currentFrame]);
 
     // --- Update shapes when timestamp changes ---
     useEffect(() => {
@@ -700,6 +708,9 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return prev;
       });
     };
+    
+
+
 
     const handleMouseUp = () => {
       // Stop Panning
@@ -962,6 +973,27 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             left: 0,
           }}
         />
+        {/* Display the current frame as an <img> if frameData is present and toggle is active */}
+        {showRawFrame && currentFrame && currentFrame.blobUrl && (
+          <img
+            src={currentFrame.blobUrl}
+            alt="Current Frame"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+              transformOrigin: '0 0',
+              pointerEvents: 'none',
+              opacity: 1,
+              zIndex: 0,
+              imageRendering: 'pixelated',
+            }}
+          />
+        )}
 
         {/* ---- Control Buttons Container ---- */}
         <div
@@ -1085,6 +1117,27 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           )}
         </div>
 
+        {/* ---- Top-Right Controls Container ---- */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            zIndex: 10,
+            display: 'flex',
+            gap: 4,
+          }}
+        >
+          <Button
+            size="icon"
+            variant={showRawFrame ? 'secondary' : 'outline'}
+            onClick={() => setShowRawFrame(!showRawFrame)}
+            title="Toggle Raw Frame Display"
+          >
+            <Fingerprint size={16} />
+          </Button>
+        </div>
+
         {/* Konva Stage for annotations - stays fixed, NOT scaled/translated */}
         <Stage
           ref={stageRef}
@@ -1113,6 +1166,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             ref={annotationLayerRef}
             style={{
               pointerEvents: interactionMode === 'pan' ? 'none' : 'auto',
+              zIndex: 10,
             }}
           >
             {/* Render existing shapes */}

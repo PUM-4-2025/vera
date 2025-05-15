@@ -35,7 +35,7 @@ export interface BaseWorkerResult {
 
 export interface CaptureFrameResult extends BaseWorkerResult {
   type: 'captureFrame';
-  frameData?: string;
+  blobUrl?: string;
 }
 
 export interface ProcessVideoResult extends BaseWorkerResult {

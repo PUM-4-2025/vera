@@ -708,17 +708,17 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     try {
       // Capture all frames in parallel
       const framePromises = framesToCache.map(async (frameNumber) => {
-        const timestamp = frameNumber * frameDuration;
-        const frameImage = await ffmpegWorkerPool.captureFrame(
+        const timestamp = (frameNumber + 0.5) * frameDuration;
+        const blobUrl = await ffmpegWorkerPool.captureFrame(
           video.file!,
           timestamp,
           video.ffmpegHandle
         );
-        
+
         return {
           timestamp,
           frameNumber,
-          frameData: frameImage
+          blobUrl
         } as CurrentFrame;
       });
 
@@ -731,7 +731,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [updateFrameCache]);
 
-  const captureCurrentFrame = useCallback(async (videoId: string, timestamp: number) => {
+  const captureCurrentFrame = useCallback(async (videoId: string, frameNumber: number) => {
     const video = state.videos[videoId];
     if (!video?.file) {
       console.warn('No video file available for frame capture');
@@ -739,14 +739,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     try {
-      const frameNumber = Math.floor(timestamp * (video.metadata.fps || 30));
-      
       const cachedFrame = getCachedFrame(frameNumber, state);
       if (cachedFrame) {
         await handleCachedFrame(cachedFrame, videoId, frameNumber);
         return;
       }
-
+      const timestamp = (frameNumber + 0.5) / (video.metadata.fps || 30);
       await captureAndCacheNewFrame(video, videoId, timestamp, frameNumber);
 
     } catch (error) {
@@ -778,7 +776,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   ) => {
     console.log(`Frame ${frameNumber} not in cache, capturing...`);
     
-    const frameData = await ffmpegWorkerPool.captureFrame(
+    const blobUrl = await ffmpegWorkerPool.captureFrame(
       video.file!,
       timestamp,
       video.ffmpegHandle
@@ -787,7 +785,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     const frame: CurrentFrame = {
       timestamp,
       frameNumber,
-      frameData
+      blobUrl
     };
 
     setState(s => {

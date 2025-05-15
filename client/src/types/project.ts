@@ -171,5 +171,5 @@ export interface SaveProjectResult {
 export interface CurrentFrame {
   timestamp: number;
   frameNumber: number;
-  frameData: string; // base64 image
+  blobUrl: string; 
 }

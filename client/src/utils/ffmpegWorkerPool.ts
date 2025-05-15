@@ -25,8 +25,8 @@ export class FFmpegWorkerPool extends WorkerPool {
     };
 
     const result = await this.executeTask(task);
-    if (result.type === 'captureFrame' && result.frameData) {
-      return result.frameData;
+    if (result.type === 'captureFrame' && result.blobUrl) {
+      return result.blobUrl;
     }
     throw new Error('Invalid result type');
   }

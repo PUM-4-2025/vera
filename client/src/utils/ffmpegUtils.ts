@@ -195,6 +195,8 @@ export const captureFrame = async (
 
   try {
     // Use -ss before -i for fast seeking
+
+    timestamp = timestamp - (1 / 25);
     await ffmpeg.exec([
       '-ss', timestamp.toString(),
       '-i', inputFilename,
@@ -208,8 +210,8 @@ export const captureFrame = async (
 
     const frameData = await ffmpeg.readFile(outputFilename);
     const frameBlob = new Blob([frameData], { type: 'image/png' });
-    const base64Data = await blobToBase64(frameBlob);
-    return base64Data;
+    const blobUrl = URL.createObjectURL(frameBlob);
+    return blobUrl;
   } finally {
     if (!ffmpegHandle) {
       await ffmpeg.deleteFile(inputFilename);
@@ -219,12 +221,3 @@ export const captureFrame = async (
 };
 
 
-// Helper function to convert Blob to base64
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};

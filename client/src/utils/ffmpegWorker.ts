@@ -25,7 +25,7 @@ async function handleCaptureFrameTask(
   const { videoFile, timestamp, ffmpegHandle } = task;
   
   try {
-    const frameData = await captureFrame(
+    const blobUrl = await captureFrame(
       videoFile,
       ffmpeg,
       timestamp,
@@ -36,7 +36,7 @@ async function handleCaptureFrameTask(
       id: task.id,
       type: 'captureFrame',
       success: true,
-      frameData
+      blobUrl
     };
   } catch (error) {
     return {
