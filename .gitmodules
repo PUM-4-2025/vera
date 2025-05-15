@@ -1,6 +1,3 @@
-[submodule "server/extern/mongoose"]
-	path = server/extern/mongoose
-	url = https://github.com/cesanta/mongoose.git
 [submodule "server/extern/catch2"]
 	path = server/extern/catch2
 	url = https://github.com/catchorg/Catch2.git
