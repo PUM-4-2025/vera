@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   forwardRef,
+  useCallback,
 } from 'react';
 
 import Konva from 'konva';
@@ -293,6 +294,29 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       height: number;
     } | null>(null); // State for selection box coordinates/dimensions
     const [showRawFrame, setShowRawFrame] = useState(false); // State for raw frame toggle
+    const [isShowingRawFrame, setIsShowingRawFrame] = useState(false); // State for when raw frame is actually visible
+
+    // --- Helper Function --- Moved up
+    const getTargetTimeForFrame = (frameNumber: number): number | null => {
+      if (!videoRef.current || frameRate <= 0) return null;
+      const duration = videoRef.current.duration;
+      if (isNaN(duration)) return null; // Duration might not be available yet
+
+      const targetTime = (frameNumber + 0.5) / frameRate;
+
+      // Clamp the time to be within the video duration
+      // Allow seeking exactly to duration, but not beyond
+      return Math.max(0, Math.min(targetTime, duration));
+    };
+
+    // Memoize getCurrentFrameNumber as it depends on frameRate (derived from currentVideo)
+    // and is used as a dependency in useEffect. Moved up.
+    const getCurrentFrameNumber = useCallback((): number => {
+      if (!videoRef.current || frameRate <= 0) return 0;
+      const currentTime = videoRef.current.currentTime;
+      // Calculate frame number by flooring the result of time * fps
+      return Math.max(0, Math.floor(currentTime * frameRate));
+    }, [frameRate]); // Dependency is frameRate, which changes when currentVideo changes
 
     // --- Coordinate Conversion Functions ---
 
@@ -344,12 +368,20 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Effects ---
 
-    // Effect to reset state when video source changes
+    // Effect to reset state and capture initial frame when video source changes
     useEffect(() => {
       setShapes([]); // Clear existing shapes
       setScale(1); // Reset zoom
       setOffset({ x: 0, y: 0 }); // Reset pan
-    }, [videoSrc]); // Dependency array includes src
+
+      // When the video source or ID changes, attempt to capture the first frame.
+      // This relies on `captureCurrentFrame` being able to handle the video's loading state,
+      // or for the video to be ready enough when this is called.
+      if (currentVideoId) {
+        captureCurrentFrame(currentVideoId, getCurrentFrameNumber());
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [videoSrc, currentVideoId]); // User-specified dependencies
 
     // Effect to reset annotations when video is playing
     useEffect(() => {
@@ -374,16 +406,14 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       const handlePause = () => {
         setIsPlaying(false);
         // Capture frame when video is paused
-        if (video.currentTime && currentVideoId) {
-          console.log("framenumber", getCurrentFrameNumber());
+        if (currentVideoId) {
           captureCurrentFrame(currentVideoId, getCurrentFrameNumber());
         }
       };
       const handleTimeUpdateCallback = () => {
         onTimeUpdate(video.currentTime);
         // Capture frame when video is paused and time changes
-        if (!isPlaying && video.currentTime && currentVideoId) {
-          console.log('framenumber', getCurrentFrameNumber());
+        if (!isPlaying && currentVideoId) {
           captureCurrentFrame(currentVideoId, getCurrentFrameNumber());
         }
       };
@@ -398,7 +428,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         video.removeEventListener('pause', handlePause);
         video.removeEventListener('timeupdate', handleTimeUpdateCallback);
       };
-    }, [onTimeUpdate, captureCurrentFrame, currentVideoId]);
+      // UPDATED DEPENDENCIES: Added memoized getCurrentFrameNumber
+    }, [onTimeUpdate, captureCurrentFrame, currentVideoId, isPlaying, getCurrentFrameNumber]);
 
     // Effect for handling wheel zoom on the container, applying to the video element
     useEffect(() => {
@@ -455,27 +486,20 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         const frameNumber = getCurrentFrameNumber();
         setShapes(videoAnnotations[frameNumber] || []);
       }
-    }, [onTimeUpdate]);
+    }, [videoAnnotations, getCurrentFrameNumber]);
 
-    // --- Helper Function ---
-    const getTargetTimeForFrame = (frameNumber: number): number | null => {
-      if (!videoRef.current || frameRate <= 0) return null;
-      const duration = videoRef.current.duration;
-      if (isNaN(duration)) return null; // Duration might not be available yet
+    // Effect to update isShowingRawFrame based on conditions
+    useEffect(() => {
+      const conditionsResult = 
+        !isPlaying &&
+        showRawFrame &&
+        currentFrame &&
+        currentFrame.frameNumber === getCurrentFrameNumber() &&
+        currentFrame.blobUrl; // This can resolve to non-boolean (e.g. string, null)
+      
+      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
 
-      const targetTime = (frameNumber + 0.5) / frameRate;
-
-      // Clamp the time to be within the video duration
-      // Allow seeking exactly to duration, but not beyond
-      return Math.max(0, Math.min(targetTime, duration));
-    };
-
-    const getCurrentFrameNumber = (): number => {
-      if (!videoRef.current || frameRate <= 0) return 0;
-      const currentTime = videoRef.current.currentTime;
-      // Calculate frame number by flooring the result of time * fps
-      return Math.max(0, Math.floor(currentTime * frameRate));
-    };
+    }, [isPlaying, showRawFrame, currentFrame, getCurrentFrameNumber]);
 
     // --- Imperative Handle ---
     // Expose control methods (play, pause, seek, etc.) to parent components
@@ -972,11 +996,12 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             top: 0,
             left: 0,
             zIndex: 0,
-            imageRendering: 'auto',
+            imageRendering: 'pixelated',
           }}
         />
         {/* Display the current frame as an <img> if frameData is present and toggle is active */}
-        {showRawFrame && currentFrame && currentFrame.blobUrl && (
+        {!isPlaying && showRawFrame && currentFrame && currentFrame.frameNumber === getCurrentFrameNumber() && currentFrame.blobUrl && (
+          
           <img
             src={currentFrame.blobUrl}
             alt="Current Frame"
@@ -1136,7 +1161,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             onClick={() => setShowRawFrame(!showRawFrame)}
             title="Toggle Raw Frame Display"
           >
-            <Fingerprint size={16} />
+            <Fingerprint size={16} color={isShowingRawFrame ? 'green' : 'red'} />
           </Button>
         </div>
 
@@ -1149,7 +1174,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             position: 'absolute',
             top: 0,
             left: 0,
-            // Update cursor based on mode
             cursor:
               interactionMode === 'pan'
                 ? isPanning
@@ -1158,6 +1182,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
                 : interactionMode === 'selectionZoom'
                   ? 'crosshair' // Use crosshair for selection zoom
                   : 'default',
+            zIndex: 2, // Ensure Stage is above raw frame image (zIndex: 1)
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}

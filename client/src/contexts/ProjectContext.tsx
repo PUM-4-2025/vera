@@ -141,7 +141,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         isLoading: false,
         error: null, // Clear any previous errors
         isSaved: true,
-        currentFrame: null,
       }));
     },
     []
