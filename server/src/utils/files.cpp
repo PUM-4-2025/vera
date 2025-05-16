@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iterator>
 #include <regex>
+#include <sstream>
 
 /**
  * Returns the VERA uses in temporary files directory to store
