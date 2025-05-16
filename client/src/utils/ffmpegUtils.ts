@@ -196,7 +196,6 @@ export const captureFrame = async (
   try {
     // Use -ss before -i for fast seeking
 
-    timestamp = timestamp - (1 / 25);
     await ffmpeg.exec([
       '-ss', timestamp.toString(),
       '-i', inputFilename,

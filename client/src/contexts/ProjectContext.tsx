@@ -708,7 +708,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     try {
       // Capture all frames in parallel
       const framePromises = framesToCache.map(async (frameNumber) => {
-        const timestamp = (frameNumber + 0.5) * frameDuration;
+        const timestamp = frameNumber * frameDuration;
         const blobUrl = await ffmpegWorkerPool.captureFrame(
           video.file!,
           timestamp,
@@ -744,7 +744,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         await handleCachedFrame(cachedFrame, videoId, frameNumber);
         return;
       }
-      const timestamp = (frameNumber + 0.5) / (video.metadata.fps || 30);
+      const fps = video.metadata.fps || 30;
+      const timestamp = frameNumber / fps;
+
       await captureAndCacheNewFrame(video, videoId, timestamp, frameNumber);
 
     } catch (error) {
