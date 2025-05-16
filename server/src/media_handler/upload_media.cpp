@@ -65,7 +65,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     std::string c_filename = sanitizeName(file_name);
 
     // Exit early and don't perform upload if file exists
-    if (fileExists(c_filename, *us)) {
+    if (fileExists(c_filename, *us) && getFilesize(c_filename, *us) == file_size) {
       json response = {{"status", "Uninitialized"},
                        {"message", "File already exists. No upload required!"}};
       std::string response_str = response.dump();
@@ -244,7 +244,16 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
       return;
     }
 
-    // Rename to C++ comptible name
+    if (session->file_size != getFilesize(filename, *us)) {
+      json response = {{"status", "Failed"},
+                       {"message", "Uploaded file size != expected file size. Upload failed!"}};
+      std::string response_str = response.dump();
+      send_http_response(c, 418, response_str);
+      UPLOAD_HANDLER.removeSession(*session);
+      return;
+    }
+
+    // Rename to OpenCV/FFmpeg compatible name
     renameFile(filename, c_filename, *us);
 
     json response = {{"uploadId", upload_id},

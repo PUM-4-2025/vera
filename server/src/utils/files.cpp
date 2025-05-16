@@ -42,9 +42,7 @@ bool userHasPermission(UserSession &us, std::string path) {
  */
 std::string getUserMediaDir(UserSession &us) {
   std::filesystem::path path = getVeraPath();
-  std::cout << "getting path\n";
   path.append(us.session_id);
-  std::cout << "got path\n";
 
   if (!std::filesystem::exists(path)) {
     std::filesystem::create_directories(path);
@@ -131,6 +129,15 @@ void renameFile(std::string old_name, std::string new_name, UserSession &us) {
   std::cout << "Renaming: " << old_path << " -> " << new_path << "\n";
 
   std::filesystem::rename(old_path, new_path);
+}
+
+/**
+ * Returns a filesize, can be used to verify an entire file exists in Vera server.
+ */
+unsigned long getFilesize(std::string filename, UserSession &us) {
+  std::string path = getUserMediaDir(us);
+  path.append(filename);
+  return std::filesystem::file_size(path);
 }
 
 /**

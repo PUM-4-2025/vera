@@ -19,6 +19,8 @@ std::string sanitizeName(std::string name);
 
 void renameFile(std::string old_name, std::string new_name, UserSession &us);
 
+unsigned long getFilesize(std::string filename, UserSession &us);
+
 void printVeraDir();
 
 #endif
