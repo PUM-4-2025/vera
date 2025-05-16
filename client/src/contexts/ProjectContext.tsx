@@ -763,9 +763,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       ...s,
       currentFrame: cachedFrame
     }));
-
-    cacheSurroundingFrames(videoId, frameNumber, state)
-      .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
+    
+    //cacheSurroundingFrames(videoId, frameNumber, state)
+    //  .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
   };
 
   const captureAndCacheNewFrame = async (
@@ -788,6 +788,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       blobUrl
     };
 
+    console.log('frame', frame);
+
     setState(s => {
       const newState = updateFrameCache([frame], s);
       return {
@@ -796,8 +798,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       };
     });
 
-    cacheSurroundingFrames(videoId, frameNumber, state)
-      .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
+    //cacheSurroundingFrames(videoId, frameNumber, state)
+    //  .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
   };
 
   // Add cleanup for worker pool when component unmounts

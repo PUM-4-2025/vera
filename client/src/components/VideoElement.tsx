@@ -971,6 +971,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             transformOrigin: '0 0', // Scale from top-left corner
             top: 0,
             left: 0,
+            zIndex: 0,
+            imageRendering: 'auto',
           }}
         />
         {/* Display the current frame as an <img> if frameData is present and toggle is active */}
@@ -989,7 +991,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               transformOrigin: '0 0',
               pointerEvents: 'none',
               opacity: 1,
-              zIndex: 0,
+              zIndex: 1,
               imageRendering: 'pixelated',
             }}
           />
