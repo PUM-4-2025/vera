@@ -97,6 +97,7 @@ add_executable(server ${ALL_SOURCES})
 add_executable(tests
     tests/tests.cpp
     src/anlysis/audio/extract.cpp
+    src/anlysis/audio/db_analysis.cpp
     src/utils/files.cpp
     src/anlysis/video/motiondetection.cpp
 )

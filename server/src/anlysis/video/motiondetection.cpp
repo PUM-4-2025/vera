@@ -1,7 +1,6 @@
 #include "video.h"
 #include <vector>
 #include <opencv2/opencv.hpp>
-//#include <opencv2/core/cuda.hpp>
 #include <iostream>
 #define STOP_IF_STILL_FOR 0.5
 
@@ -60,7 +59,6 @@ std::vector<int> analyse_video(std::vector<int> cords){
         cv::dilate(fgMask, fgMask, cv::Mat());
 
         double motion_pixels = cv::countNonZero(fgMask);
-        //std::cout << frame_counter/fps << "    " << motion_pixels << std::endl;
 
         if (motion_pixels > 500) { // Finjustera
             if (!in_motion) {
@@ -92,6 +90,6 @@ std::vector<int> analyse_video(std::vector<int> cords){
 
     cap.release();
     cv::destroyAllWindows();
-    //}
+    
     return motion_frames;
 }
