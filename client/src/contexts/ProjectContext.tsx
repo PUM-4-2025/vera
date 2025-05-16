@@ -29,6 +29,7 @@ import {
   VideoFFmpegHandle,
   ShapeData,
   VideoAnnotationData,
+  FrameCache,
 } from '@/types/project';
 
 // Import utility functions
@@ -40,7 +41,10 @@ import {
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
 
-
+// --- Constants for Cache Configuration ---
+const FRAME_CACHE_MAX_SIZE = 20;
+const FRAMES_TO_CACHE_AROUND_CENTER = 3;
+// --- End Constants ---
 
 const defaultMetadata: Metadata = {
   name: 'Untitled Project',
@@ -68,7 +72,7 @@ const initialState: ProjectState = {
   currentFrame: null,
   frameCache: {
     frames: new Map(),
-    maxSize: 20,  // max 20 for now
+    maxSize: FRAME_CACHE_MAX_SIZE,
     recentlyUsed: []
   }
 };
@@ -346,6 +350,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         currentVideoId: videoId,
         isLoading: false,
         error: null,
+        frameCache: { frames: new Map(), maxSize: FRAME_CACHE_MAX_SIZE, recentlyUsed: [] },
+        currentFrame: null
       }));
     },
     []
@@ -595,7 +601,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   const setCurrentVideoId = useCallback(
     (videoId: string | null) => {
       if (videoId === null || state.videos[videoId]) {
-        setState((s) => ({ ...s, currentVideoId: videoId }));
+        setState((s) => ({
+          ...s,
+          currentVideoId: videoId,
+          frameCache: { frames: new Map(), maxSize: FRAME_CACHE_MAX_SIZE, recentlyUsed: [] },
+          currentFrame: null
+        }));
       } else {
         console.warn(
           `Attempted to set currentVideoId to non-existent video: ${videoId}`
@@ -632,80 +643,79 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     }, []);
 
   const updateFrameCache = useCallback((
-    frames: CurrentFrame[],
-    state: ProjectState
-  ): ProjectState => {
-    const { frameCache } = state;
-    
-    // Create new Map to ensure state update
-    const newFrames = new Map(frameCache.frames);
+    framesToAdd: CurrentFrame[],
+    currentFrameCache: FrameCache
+  ): FrameCache => {
+    // Create new Map from the current cache's frames
+    const newFramesMap = new Map(currentFrameCache.frames);
     
     // Add all frames to the cache
-    frames.forEach(frame => {
-      newFrames.set(frame.frameNumber, frame);
+    framesToAdd.forEach(frame => {
+      newFramesMap.set(frame.frameNumber, frame);
     });
     
     // Update recently used list with all new frames
     const newRecentlyUsed = [
-      ...frames.map(f => f.frameNumber),
-      ...frameCache.recentlyUsed.filter(n => !frames.some(f => f.frameNumber === n))
-    ].slice(0, frameCache.maxSize);
+      ...framesToAdd.map(f => f.frameNumber),
+      ...currentFrameCache.recentlyUsed.filter(n => !framesToAdd.some(f => f.frameNumber === n))
+    ].slice(0, FRAME_CACHE_MAX_SIZE);
     
     // If we've exceeded the cache size, remove the least recently used frames
-    while (newFrames.size > frameCache.maxSize && newRecentlyUsed.length > 0) {
+    while (newFramesMap.size > FRAME_CACHE_MAX_SIZE && newRecentlyUsed.length > 0) {
       const leastRecent = newRecentlyUsed.pop();
       if (leastRecent !== undefined) {
-        newFrames.delete(leastRecent);
+        newFramesMap.delete(leastRecent);
       }
     }
     
     return {
-      ...state,
-      frameCache: {
-        frames: newFrames,
-        maxSize: frameCache.maxSize,
-        recentlyUsed: newRecentlyUsed
-      }
+      // Return only the FrameCache object
+      frames: newFramesMap,
+      maxSize: FRAME_CACHE_MAX_SIZE,
+      recentlyUsed: newRecentlyUsed
     };
   }, []);
 
   const getCachedFrame = useCallback((
     frameNumber: number,
-    state: ProjectState
   ): CurrentFrame | null => {
     return state.frameCache.frames.get(frameNumber) || null;
-  }, []);
+  }, [state.frameCache]);
 
   const cacheSurroundingFrames = useCallback(async (
     videoId: string,
-    centerFrameNumber: number,
-    state: ProjectState
+    centerFrameNumber: number
   ) => {
     const video = state.videos[videoId];
-    if (!video?.file) {
-      console.warn('No video file available for caching');
+    // Ensure video, file, and metadata are available
+    if (!video?.file || !video.metadata) {
+      console.warn('Video file or metadata not available for caching surrounding frames.');
       return;
     }
 
     const fps = video.metadata.fps || 30;
     const frameDuration = 1 / fps;
+    const totalFrames = video.metadata.totalFrames; // Get totalFrames from metadata
+
+    const frameNumbersToConsider: number[] = [];
+    for (let i = 1; i <= FRAMES_TO_CACHE_AROUND_CENTER; i++) {
+      frameNumbersToConsider.push(centerFrameNumber - i);
+      frameNumbersToConsider.push(centerFrameNumber + i);
+    }
     
-    const framesToCache = [
-      centerFrameNumber - 3,
-      centerFrameNumber - 2,
-      centerFrameNumber - 1,
-      centerFrameNumber + 1,
-      centerFrameNumber + 2,
-      centerFrameNumber + 3
-    ].filter(n => n >= 0 && !state.frameCache.frames.has(n));
+    const framesToCache = frameNumbersToConsider.filter(n =>
+      n >= 0 &&                                         // Frame number is not negative
+      (totalFrames === undefined || n < totalFrames) && // Frame number is within video bounds (if totalFrames is known)
+      !state.frameCache.frames.has(n)                   // Frame is not already in cache
+    );
 
     if (framesToCache.length === 0) {
-      console.log('All surrounding frames already cached');
+      // console.log('All surrounding frames already cached or out of bounds'); // More accurate log
       return;
     }
 
     try {
-      // Capture all frames in parallel
+      // Capture all frames in parallel using Promise.allSettled
       const framePromises = framesToCache.map(async (frameNumber) => {
         const timestamp = frameNumber * frameDuration;
         const blobUrl = await ffmpegWorkerPool.captureFrame(
@@ -713,22 +723,34 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
           timestamp,
           video.ffmpegHandle
         );
-
-        return {
-          timestamp,
-          frameNumber,
-          blobUrl
-        } as CurrentFrame;
+        return { timestamp, frameNumber, blobUrl } as CurrentFrame;
       });
 
-      const newFrames = await Promise.all(framePromises);
+      const results = await Promise.allSettled(framePromises);
+      const successfullyCapturedFrames = results
+        .filter(result => result.status === 'fulfilled')
+        .map(result => (result as PromiseFulfilledResult<CurrentFrame>).value);
+
+      if (successfullyCapturedFrames.length > 0) {
+        setState(prevState => ({
+          ...prevState,
+          frameCache: updateFrameCache(successfullyCapturedFrames, prevState.frameCache)
+        }));
+      }
       
-      setState(s => updateFrameCache(newFrames, s));
-      console.log(`Successfully cached ${newFrames.length} surrounding frames`);
+      // Optional: Log rejected promises for debugging
+      results.forEach(result => {
+        if (result.status === 'rejected') {
+          console.error('Failed to capture a surrounding frame:', result.reason);
+        }
+      });
+
+      // console.log(`Successfully attempted to cache ${successfullyCapturedFrames.length} surrounding frames out of ${framesToCache.length} candidates.`);
     } catch (error) {
-      console.error('Failed to cache surrounding frames:', error);
+      // This catch is for errors in the setup of Promise.allSettled, not individual promise rejections
+      console.error('Error in cacheSurroundingFrames dispatch logic:', error);
     }
-  }, [updateFrameCache]);
+  }, [updateFrameCache, state.videos, state.frameCache]);
 
   const captureCurrentFrame = useCallback(async (videoId: string, frameNumber: number) => {
     const video = state.videos[videoId];
@@ -738,7 +760,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     try {
-      const cachedFrame = getCachedFrame(frameNumber, state);
+      const cachedFrame = getCachedFrame(frameNumber);
       if (cachedFrame) {
         await handleCachedFrame(cachedFrame, videoId, frameNumber);
         return;
@@ -746,7 +768,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       const fps = video.metadata.fps || 30;
       const timestamp = frameNumber / fps;
 
-      await captureAndCacheNewFrame(video, videoId, timestamp, frameNumber);
+      await captureAndCacheNewFrame(videoId, timestamp, frameNumber);
 
     } catch (error) {
       console.error('Frame capture failed:', error);
@@ -765,17 +787,22 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       currentFrame: cachedFrame
     }));
     
-    //cacheSurroundingFrames(videoId, frameNumber, state)
-    //  .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
+    cacheSurroundingFrames(videoId, frameNumber)
+      .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
   };
 
   const captureAndCacheNewFrame = async (
-    video: VideoEntry,
     videoId: string,
     timestamp: number,
     frameNumber: number
   ) => {
     console.log(`Frame ${frameNumber} not in cache, capturing...`);
+    
+    const video = state.videos[videoId];
+    if (!video?.file) {
+      console.warn(`No video file found for videoId: ${videoId} during captureAndCacheNewFrame`);
+      return;
+    }
     
     const blobUrl = await ffmpegWorkerPool.captureFrame(
       video.file!,
@@ -790,18 +817,16 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     console.log('frame', frame);
+    setState(prevState => ({
+      ...prevState,
+      frameCache: updateFrameCache([frame], prevState.frameCache),
+      currentFrame: frame
+    }));
 
-    setState(s => {
-      const newState = updateFrameCache([frame], s);
-      return {
-        ...newState,
-        currentFrame: frame
-      };
-    });
-
-    //cacheSurroundingFrames(videoId, frameNumber, state)
-    //  .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
+    cacheSurroundingFrames(videoId, frameNumber)
+      .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
   };
+
 
   // Add cleanup for worker pool when component unmounts
   useEffect(() => {
@@ -933,6 +958,7 @@ export const useProject = (): ProjectContextType => {
   }
   return context;
 };
+
 // Helper function
 function getVideoIdFromFilename(filename: string): string {
   return filename.split('/').pop()?.split('.').slice(0, -1).join('.') || '';

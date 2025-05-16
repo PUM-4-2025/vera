@@ -132,7 +132,7 @@ export interface ProjectContextType extends ProjectState {
   selectProjectLocation: () => Promise<FileSystemDirectoryHandle | null>;
   resetProject: () => void;
   currentFrame: CurrentFrame | null;
-  captureCurrentFrame: (videoId: string, timestamp: number) => Promise<void>;
+  captureCurrentFrame: (videoId: string, frameNumber: number) => Promise<void>;
   setAnnotationsForFrame: (
     videoId: string,
     frameNumber: number,
