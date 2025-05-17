@@ -10,6 +10,7 @@ export const getAudio = async (filename: string): Promise<[number] | null> => {
     const apiurl = url + '/api/v1/analysis/startAudio';
     const data = {
       fileName: filename,
+      token: '7777',
     };
     const response = await fetch(apiurl, {
       method: 'POST',
