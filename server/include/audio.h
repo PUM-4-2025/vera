@@ -19,7 +19,7 @@ int db_analysis(std::string in_txt, int threshold_db, int min_duration_seconds, 
 
 void extract(std::string filename, UserSession &us);
 
-int visual(std::string filename, UserSession &us);
+int visual(std::string filename, UserSession &us, float fps);
 
 
 
