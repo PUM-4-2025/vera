@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { getAudio } from '@/utils/audio';
+import { useProject } from '@/contexts/ProjectContext';
 
 const DEFAULT_SAMPLES = [
   -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
@@ -27,11 +28,12 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the waveform canvas
   const waveformContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
+  const { videos, currentVideoId } = useProject();
 
   // Handle mouse wheel to zoom in/out of the waveform
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.10 : 0.10;
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
     onZoomChange(delta);
   };
 
@@ -56,7 +58,16 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     onTimeChange(newTime); // Update video time
 
     // TODO: Replace this with getting the currently selected filename
-    REAL_SAMPLES = await getAudio('test.mp4');
+    if (videos && currentVideoId) {
+      const filename = videos[currentVideoId]?.metadata.filename;
+      if (filename) {
+        REAL_SAMPLES = await getAudio(filename);
+      } else {
+        REAL_SAMPLES = null;
+      }
+    } else {
+      REAL_SAMPLES = null;
+    }
   };
 
   // Draw the waveform and red line
