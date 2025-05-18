@@ -8,18 +8,16 @@ export class WorkerPool {
   private workerCount: number;
 
   constructor(
-    workerScript: string,
-    workerCount = navigator.hardwareConcurrency || 4
+    WorkerConstructor: new (options?: { name?: string }) => Worker,
+    workerCount: number = 1
   ) {
-    this.workerCount = Math.min(workerCount, 8);
-    this.initializeWorkers(workerScript);
+    this.workerCount = workerCount;
+    this.initializeWorkers(WorkerConstructor);
   }
 
-  private initializeWorkers(workerScript: string) {
+  private initializeWorkers(WorkerConstructor: new (options?: { name?: string }) => Worker) {
     for (let i = 0; i < this.workerCount; i++) {
-      const worker = new Worker(new URL(workerScript, import.meta.url), {
-        type: 'module'
-      });
+      const worker = new WorkerConstructor();
 
       worker.onmessage = (e: MessageEvent<WorkerResult>) => {
         const { id } = e.data;

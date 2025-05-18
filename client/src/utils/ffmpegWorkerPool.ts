@@ -1,10 +1,11 @@
 import { VideoFFmpegHandle } from '@/types/project';
 import { WorkerPool } from './workerPool';
 import { CaptureFrameTask, ProcessVideoTask, WorkerTask } from '@/types/worker';
+import FfmpegActualWorker from './ffmpegWorker?worker';
 
 export class FFmpegWorkerPool extends WorkerPool {
   constructor() {
-    super('./ffmpegWorker.ts');
+    super(FfmpegActualWorker);
   }
 
   private generateTaskId(type: WorkerTask['type']): string {
