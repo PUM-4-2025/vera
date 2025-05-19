@@ -3,7 +3,7 @@
 #include "http_server.h"
 #include "project_config.h"
 #include "upload_media.h"
-#include "audio.h"
+#include "video.h"
 
 #include <iostream>
 #include <vector>
@@ -11,8 +11,7 @@
 int main() {
 #ifdef __cplusplus
   std::cout << 'C++ version: ' << __cplusplus << std::endl;
-#endif  
-
+#endif
 
   const char *portEnv = std::getenv("PORT");
   int port = std::stoi(portEnv);
@@ -31,6 +30,7 @@ int main() {
   // Register relevant handlers
   registerMediaHandlers(server);
   registerAudioHandlers(server);
+  registerVideoHandlers(server);
   registerUserSessionHandlers(server);  // I just assume we need to do this here and not later
 
   // Print directory that Vera will use for verbosity
