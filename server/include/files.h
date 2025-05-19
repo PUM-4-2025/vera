@@ -7,6 +7,8 @@
 
 std::string getUserMediaDir(UserSession &us);
 
+bool fileExists(std::string path, UserSession &us);
+
 int writeTextFile(std::string path, std::string data, UserSession &us);
 
 bool fileExists(std::string path, UserSession &us);
