@@ -55,13 +55,13 @@ find_package(OpenCV REQUIRED)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose-patch
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/json
     ${OpenCV_INCLUDE_DIRS}
 )
 
 add_library(mongoose STATIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose/mongoose.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose-patch/mongoose.c
 )
 
 target_compile_options(mongoose PRIVATE 
@@ -70,7 +70,7 @@ target_compile_options(mongoose PRIVATE
 
 add_library(mongoose_includes INTERFACE)
 target_include_directories(mongoose_includes INTERFACE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose-patch
 )
 
 target_compile_options(mongoose_includes INTERFACE 
@@ -131,6 +131,7 @@ endif()
 target_link_libraries(server 
     mongoose 
     mongoose_includes
+    stdc++fs
     ${PLATFORM_SPECIFIC_LIBS}
     ${OpenCV_LIBS}
 )
