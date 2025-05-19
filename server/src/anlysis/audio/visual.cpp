@@ -87,24 +87,31 @@ int visual(const std::string in_wav, UserSession &us, float fps) {
 
   const int group_size = (int)(fmt_chunk.sample_rate/fps); // this will make num_groups = No. frames
   size_t num_groups = total_samples / group_size;
-  double biggest_sample = 0.0;
+  int16_t biggest_sample = 0;
+  int16_t smallest_sample = 65535;
+
   std::string data = "";
   for (size_t i = 0; i < num_groups; ++i) {
-    double biggest_frame_sample = 0.0;
+    int16_t biggest_frame_sample = 0;
     for (int j = 0; j < group_size; ++j) {
       int16_t sample = samples[i * group_size + j];
       if(sample > biggest_frame_sample){
         biggest_frame_sample = sample;
       }
-      if(sample > biggest_sample){
-        biggest_sample = sample;
-      }
+    }
+    if(biggest_frame_sample > biggest_sample){
+      biggest_sample = biggest_frame_sample;
+    }
+    if(biggest_frame_sample < smallest_sample){
+      smallest_sample = biggest_frame_sample;
     }
     double db = (biggest_frame_sample > 0.0) ? 20.0 * std::log10(biggest_frame_sample / 32768.0) : -100.0;
     double rounded_db = std::round(db * 10.0) / 10.0 + 100;
     data.append(std::to_string(rounded_db) + "\n");
   }
-  data.append(std::to_string(biggest_sample)); // Make last line the biggest sample
+
+  data.append(td::to_string(20.0 * std::log10(smallest_sample / 32768.0)));
+  data.append(std::to_string(20.0 * std::log10(biggest_sample / 32768.0))); // Make last line the biggest sample
   writeTextFile(output_path, data, us);
   std::cout << "Wrote " << num_groups << " rounded dB values to " << output_path << "\n";
   return 0;
