@@ -1,7 +1,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 // Import VideoMetadata type from ProjectContext (adjust path if needed)
-import { VideoMetadata } from '@/types/project';
+import { VideoFFmpegHandle, VideoMetadata } from '@/types/project';
 
 const MAX_METADATA_SIZE = 50 * 1024 * 1024;
 
@@ -162,3 +162,61 @@ export const getMetadata = async (
     }
   }
 };
+
+async function ensureFFmpegFile(ffmpeg: FFmpeg, videoFile: File, ffmpegHandle?: VideoFFmpegHandle) {
+  if (ffmpegHandle) {
+    const files = await ffmpeg.listDir('/');
+    const fileExists = files.some(file => file.name === ffmpegHandle.filename);
+    if (!fileExists) {
+      await ffmpeg.writeFile(ffmpegHandle.filename, await fetchFile(videoFile));
+    }
+    return ffmpegHandle.filename;
+  } else {
+    const tempFilename = `temp-${Date.now()}.mp4`;
+    await ffmpeg.writeFile(tempFilename, await fetchFile(videoFile));
+    return tempFilename;
+  }
+}
+
+export const captureFrame = async (
+  file: File,
+  ffmpeg: FFmpeg,
+  timestamp: number,
+  ffmpegHandle?: VideoFFmpegHandle
+): Promise<string> => {
+  if (!ffmpeg.loaded) {
+    throw new Error('FFmpeg is not loaded.');
+  }
+
+
+  const outputFilename = `frame-${Date.now()}.png`;
+
+  const inputFilename = await ensureFFmpegFile(ffmpeg, file, ffmpegHandle);
+
+  try {
+    // Use -ss before -i for fast seeking
+
+    await ffmpeg.exec([
+      '-ss', timestamp.toString(),
+      '-i', inputFilename,
+      '-vframes', '1',
+      '-c:v', 'png',
+      '-pix_fmt', 'rgba',
+      '-vsync', '0',
+      '-an',
+      outputFilename
+    ]);
+
+    const frameData = await ffmpeg.readFile(outputFilename);
+    const frameBlob = new Blob([frameData], { type: 'image/png' });
+    const blobUrl = URL.createObjectURL(frameBlob);
+    return blobUrl;
+  } finally {
+    if (!ffmpegHandle) {
+      await ffmpeg.deleteFile(inputFilename);
+    }
+    await ffmpeg.deleteFile(outputFilename);
+  }
+};
+
+

@@ -10,6 +10,11 @@ export interface Metadata {
   analysisFiles: string[]; // Relative paths to analysis files
 }
 
+export interface VideoFFmpegHandle {
+  filename: string;
+  file: File;
+}
+
 // Represents the data stored for a video within metadata.json
 export interface VideoEntryData {
   path: string; // Relative path within the project (e.g., "videos/my_video.mp4")
@@ -20,6 +25,7 @@ export interface VideoEntryData {
 export interface VideoEntry extends VideoEntryData {
   objectURL?: string; // Optional: Blob URL for playback (runtime only)
   file?: File; // Optional: Original File object for unsaved uploads (runtime only)
+  ffmpegHandle?: VideoFFmpegHandle; // Add this
 }
 
 // Detailed metadata extracted from a video file using FFmpeg
@@ -88,6 +94,13 @@ export interface AnalysisData {
   fileHandle?: FileSystemFileHandle;
 }
 
+// Add these types
+export interface FrameCache {
+  frames: Map<number, CurrentFrame>;  // frameNumber -> frame data
+  maxSize: number;  // maximum number of frames to cache
+  recentlyUsed: number[];  // list of recently used frame numbers
+}
+
 // Represents the overall state managed by the ProjectContext
 export interface ProjectState {
   projectDirectoryHandle: FileSystemDirectoryHandle | null;
@@ -100,6 +113,8 @@ export interface ProjectState {
   error: string | null;
   currentVideoId: string | null;
   isSaved: boolean;
+  currentFrame: CurrentFrame | null;
+  frameCache: FrameCache;
 }
 
 // Defines the shape of the ProjectContext including state and actions
@@ -116,6 +131,8 @@ export interface ProjectContextType extends ProjectState {
   setCurrentVideoId: (videoId: string | null) => void;
   selectProjectLocation: () => Promise<FileSystemDirectoryHandle | null>;
   resetProject: () => void;
+  currentFrame: CurrentFrame | null;
+  captureCurrentFrame: (videoId: string, frameNumber: number) => Promise<void>;
   setAnnotationsForFrame: (
     videoId: string,
     frameNumber: number,
@@ -149,4 +166,10 @@ export interface UploadVideoResult {
 // Data returned by saveProjectLogic
 export interface SaveProjectResult {
   updatedMetadata: Metadata;
+}
+
+export interface CurrentFrame {
+  timestamp: number;
+  frameNumber: number;
+  blobUrl: string; 
 }

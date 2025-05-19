@@ -124,6 +124,7 @@ endif()
 target_link_libraries(server 
     mongoose 
     mongoose_includes
+    stdc++fs
     ${PLATFORM_SPECIFIC_LIBS}
 )
 

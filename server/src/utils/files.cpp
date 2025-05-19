@@ -32,9 +32,9 @@ void printVeraDir() {
  * a file/directory.
  */
 bool userHasPermission(UserSession &us, std::string path) {
-  std::filesystem::path us_path = getVeraPath();
-  us_path.append(us.session_id);
-  return path.find(us_path) != std::string::npos;
+    std::filesystem::path us_path = getVeraPath();
+    us_path.append(us.session_id);
+    return path.find(us_path.string()) != std::string::npos;
 }
 
 /**
