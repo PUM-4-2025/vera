@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { useProject } from '@/contexts/ProjectContext';
 
 interface FileItemProps {
+  id: string;
   name: string;
   type: 'video' | 'bookmark';
   onSelect: () => void;
@@ -31,11 +32,14 @@ interface FileItemProps {
 }
 
 const FileItem: React.FC<FileItemProps> = ({
+  id,
   name,
   type,
   onSelect,
   isSelected,
 }) => {
+  const { videos } = useProject();
+
   const iconMap = {
     video: <Film size={16} />,
     bookmark: <FileText size={16} />,
@@ -61,9 +65,23 @@ const FileItem: React.FC<FileItemProps> = ({
       )}
       onClick={onSelect}
     >
-      <div className="flex items-center gap-2 overflow-hidden">
-        <span className="text-vera group-hover:text-vera">{iconMap[type]}</span>
-        <span className="truncate">{name}</span>
+      <div className="flex flex-col gap-0.5 overflow-hidden">
+        <div className="flex items-center gap-2">
+          <span className="text-vera group-hover:text-vera">{iconMap[type]}</span>
+          <span className="truncate">{name}</span>
+        </div>
+        {type === 'video' && videos[id]?.uploadStatus && (
+          <>
+            {videos[id]?.uploadStatus?.type === 'uploading' && (
+              <span className="text-vera text-xs animate-pulse pl-1">
+                Uploading: { (videos[id]?.uploadStatus as { type: 'uploading'; percentage: number })?.percentage.toFixed(0)}%
+              </span>
+            )}
+            {videos[id]?.uploadStatus?.type === 'failed' && (
+              <span className="text-red-500 text-xs pl-1">Upload Failed</span>
+            )}
+          </>
+        )}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -132,6 +150,7 @@ const Folder: React.FC<FolderProps> = ({
           {files.map((file) => (
             <FileItem
               key={file.id}
+              id={file.id}
               name={file.name}
               type={file.type}
               onSelect={() => onSelectFile(file.id)}
@@ -156,10 +175,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   );
   const [isDragging, setIsDragging] = useState(false);
 
-  // Convert the videos object to the format needed for the Folder component
+  // Convert the videos object to the format needed for the Folder component, capping filename length at 15 characters
   const videoFiles = Object.entries(videos).map(([id, video]) => ({
     id,
-    name: video.metadata.filename,
+    name: video.metadata.filename.length > 23
+      ? video.metadata.filename.slice(0, 20) + '...'
+      : video.metadata.filename,
     type: 'video' as const,
   }));
 

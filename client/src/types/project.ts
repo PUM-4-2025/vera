@@ -26,6 +26,7 @@ export interface VideoEntry extends VideoEntryData {
   objectURL?: string; // Optional: Blob URL for playback (runtime only)
   file?: File; // Optional: Original File object for unsaved uploads (runtime only)
   ffmpegHandle?: VideoFFmpegHandle; // Add this
+  uploadStatus?: UploadStatus; // Add this for server upload status
 }
 
 // Detailed metadata extracted from a video file using FFmpeg
@@ -80,6 +81,13 @@ export type ShapeData = RectShape | CircleShape | ArrowShape;
 // Structure for storing annotations per video, keyed by frame number
 // e.g., { 37: [ShapeData, ShapeData], 150: [ShapeData] }
 export type VideoAnnotationData = Record<number, ShapeData[]>;
+
+// Add these types for Upload Status
+export type UploadStatus =
+  | { type: 'not_uploaded' }
+  | { type: 'uploading'; percentage: number }
+  | { type: 'uploaded' }
+  | { type: 'failed'; error?: string };
 
 // Preliminary types for bookmarks, annotations and analysis
 export interface BookmarkData {
