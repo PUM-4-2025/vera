@@ -39,6 +39,7 @@ import {
   uploadVideoLogic,
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
+import { toast } from 'sonner';
 
 // --- Constants for Cache Configuration ---
 const FRAME_CACHE_MAX_SIZE = 20;
@@ -481,6 +482,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
             .then(result => {
               console.log('All chunks uploaded and completion notified:', result);
               done = true;
+              toast.success('Video uploaded successfully');
               // Optionally update state here to reflect upload completion immediately
               setState(s => {
                 const currentVideo = s.videos[videoId];
