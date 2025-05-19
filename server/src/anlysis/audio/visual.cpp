@@ -110,7 +110,7 @@ int visual(const std::string in_wav, UserSession &us, float fps) {
     data.append(std::to_string(rounded_db) + "\n");
   }
 
-  data.append(td::to_string(20.0 * std::log10(smallest_sample / 32768.0)));
+  data.append(std::to_string(20.0 * std::log10(smallest_sample / 32768.0)));
   data.append(std::to_string(20.0 * std::log10(biggest_sample / 32768.0))); // Make last line the biggest sample
   writeTextFile(output_path, data, us);
   std::cout << "Wrote " << num_groups << " rounded dB values to " << output_path << "\n";
