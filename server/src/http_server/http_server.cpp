@@ -10,6 +10,9 @@
 #include <utility>
 using json = nlohmann::json;
 
+#include <json.hpp>
+using json = nlohmann::json;
+
 HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
 }

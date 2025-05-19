@@ -6,6 +6,7 @@
 #include <iostream>
 #include <json.hpp>
 #include <mongoose.h>
+#include <json.hpp>
 using json = nlohmann::json;
 
 void registerAudioHandlers(HttpServer &server) {

@@ -146,7 +146,9 @@ unsigned long getFilesize(std::string filename, UserSession &us) {
  * uploaded or generated files.
  */
 std::filesystem::path getTestingDir() {
-  std::filesystem::path path = std::filesystem::temp_directory_path();
-  path.append("vera-testing");
-  return path;
+    std::filesystem::path path = std::filesystem::current_path();
+    path.append("server");
+    path.append("tests");
+    path.append("samplefiles");
+    return path;
 }
