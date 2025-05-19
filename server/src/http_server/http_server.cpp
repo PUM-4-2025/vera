@@ -133,9 +133,13 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
       }
     }
 
-    struct mg_http_serve_opts opts = {};            // Zero-initialize all fields
-    opts.root_dir = server->m_static_dir_.c_str();  // For all other URLs,
-    mg_http_serve_dir(c, hm, &opts);                // Serve static files
+    if (server->m_static_dir_ != "") {
+      struct mg_http_serve_opts opts = {};            // Zero-initialize all fields
+      opts.root_dir = server->m_static_dir_.c_str();  // For all other URLs,
+      mg_http_serve_dir(c, hm, &opts);                // Serve static files
+    } else {
+      mg_http_reply(c, 404, "", "Page not found!");
+    }
   }
 }
 

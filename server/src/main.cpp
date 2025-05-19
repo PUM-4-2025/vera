@@ -19,7 +19,11 @@ int main() {
   // Set up server properties
   HttpServer server;
   server.listenTo(url);
-  server.setStaticFilesPath(STATIC_FILES_PATH);
+
+  if (STATIC_FILES_PATH != "") {
+    std::cout << "Static files: " << STATIC_FILES_PATH << "\n";
+    server.setStaticFilesPath(STATIC_FILES_PATH);
+  }
 
   // Register relevant handlers
   registerMediaHandlers(server);
