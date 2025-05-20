@@ -13,7 +13,7 @@
 #include <vector>
 
 using UserSession = struct Session {
-  std::string session_id;
+  const char *session_id;
 };
 
 class HttpServer {
@@ -28,17 +28,19 @@ public:
   void setStaticFilesPath(std::string path);
   void start();
   void stop();
-  UserSession *getUserSession(std::string sessionToken); 
+  UserSession *getUserSession(std::string sessionToken);
   void appendUserSession(UserSession us);
   void removeUserSession(UserSession us);
+  bool isUniqueId(std::string id);
 
-  using RequestHandler = std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
+  using RequestHandler =
+      std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
   void registerHandler(const std::string &api_path, RequestHandler handler);
 
 private:
-  struct mg_mgr m_mgr_{};
+  struct mg_mgr m_mgr_ {};
   std::string m_address_;
-  std::string m_static_dir_ = "./static";
+  std::string m_static_dir_ = "";
   std::atomic<bool> m_running_{false};
 
   struct HandlerInfo {
@@ -48,9 +50,12 @@ private:
 
   std::vector<HandlerInfo> m_handlers_;
   std::mutex m_session_guard_;
-  std::vector<UserSession> m_active_sessions_;
+  std::vector<UserSession *> m_active_sessions_;
 
   static void eventHandler(struct mg_connection *c, int ev, void *ev_data);
 };
+
+void registerUserSessionHandlers(HttpServer &server);
+void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
 
 #endif

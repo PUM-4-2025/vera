@@ -19,6 +19,7 @@ import {
   getThreeMostRecentProjects,
   RecentProject,
 } from '@/utils/recentProjects';
+import { initiateUserSession } from '@/utils/initiateUserSession';
 
 const WelcomeContent = () => {
   const navigate = useNavigate();
@@ -46,6 +47,9 @@ const WelcomeContent = () => {
   useEffect(() => {
     // Load recent projects from localStorage
     setRecentProjects(getThreeMostRecentProjects());
+
+    // Run initUserSession on page load
+    initiateUserSession();
   }, []);
 
   const handleFormChange = (
@@ -110,7 +114,7 @@ const WelcomeContent = () => {
         toast.error('Please select a location for your project');
         return;
       }
-      
+
       await createProject(
         formData.projectName,
         formData.projectDescription,
@@ -168,7 +172,9 @@ const WelcomeContent = () => {
                 <Button
                   variant="outline"
                   className="h-32 flex flex-col items-center justify-center gap-2 text-lg hover:bg-primary/10"
-                  onClick={() => navigate('/editor', { state: { quickStart: true } })}
+                  onClick={() =>
+                    navigate('/editor', { state: { quickStart: true } })
+                  }
                 >
                   <Rocket size={36} className="text-foreground" />
                   <span className="text-foreground">Quick Start</span>

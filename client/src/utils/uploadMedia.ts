@@ -25,6 +25,7 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
     const initData = {
       fileName: file.name,
       fileSize: file.size,
+      token: '7777',
     };
     const initResponse = await fetch(initUrl, {
       method: 'POST',
@@ -70,6 +71,7 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
     const statusUrl = url + '/api/v1/uploads/status';
     const statusData = {
       uploadId: uploadId,
+      token: '7777',
     };
     const statusResponse = await fetch(statusUrl, {
       method: 'POST',
@@ -100,6 +102,7 @@ export const uploadStatus = async (uploadId: number): Promise<UploadStatus> => {
 // TODO: Properly handle failed uploads
 export const uploadChunks = async (uploadSession: UploadSession) => {
   const chunkSize = 16 * 1024; // 16 kiB
+  const token = '7777';
 
   for (let i = 1; i <= uploadSession.totalChunks; i++) {
     const chunk = uploadSession.file.slice((i - 1) * chunkSize, i * chunkSize);
@@ -112,10 +115,11 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
       '&file=' +
       uploadSession.file.name +
       '&id=' +
-      uploadSession.uploadId;
+      uploadSession.uploadId +
+      '&token=' +
+      token;
 
     await fetch(uploadUrl, {
-      mode: 'no-cors',
       method: 'POST',
       body: chunk,
     });
@@ -135,6 +139,8 @@ export const uploadComplete = async (uploadSession: UploadSession) => {
     const completeUrl = url + '/api/v1/uploads/complete';
     const statusData = {
       uploadId: uploadSession.uploadId,
+      fileName: uploadSession.file.name,
+      token: '7777',
     };
     const completeResponse = await fetch(completeUrl, {
       method: 'POST',
