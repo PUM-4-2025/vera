@@ -40,7 +40,7 @@ public:
 private:
   struct mg_mgr m_mgr_ {};
   std::string m_address_;
-  std::string m_static_dir_ = "./static";
+  std::string m_static_dir_ = "";
   std::atomic<bool> m_running_{false};
 
   struct HandlerInfo {

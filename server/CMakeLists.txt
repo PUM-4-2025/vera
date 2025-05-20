@@ -51,11 +51,13 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/include/project_config.h"
 )
 
+find_package(OpenCV REQUIRED)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/mongoose-patch
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/json
+    ${OpenCV_INCLUDE_DIRS}
 )
 
 add_library(mongoose STATIC 
@@ -77,7 +79,6 @@ target_compile_options(mongoose_includes INTERFACE
 
 file(GLOB_RECURSE CORE_SOURCES 
      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-     #${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp
 )
 
 set(UTIL_SOURCES
@@ -96,13 +97,19 @@ add_executable(server ${ALL_SOURCES})
 add_executable(tests
     tests/tests.cpp
     src/anlysis/audio/extract.cpp
+    src/anlysis/audio/db_analysis.cpp
     src/utils/files.cpp
+    src/anlysis/video/motiondetection.cpp
 )
 
 target_include_directories(tests PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/catch2/single_include
+    ${OpenCV_INCLUDE_DIRS} 
 )
+
+# Kompilera testfilerna med opencv
+target_link_libraries(tests PRIVATE ${OpenCV_LIBS})
 
 # Compiler flags - platform specific definitions
 if(MSVC)
@@ -124,7 +131,9 @@ endif()
 target_link_libraries(server 
     mongoose 
     mongoose_includes
+    stdc++fs
     ${PLATFORM_SPECIFIC_LIBS}
+    ${OpenCV_LIBS}
 )
 
 if(BUILD_TESTING)

@@ -32,9 +32,9 @@ void printVeraDir() {
  * a file/directory.
  */
 bool userHasPermission(UserSession &us, std::string path) {
-  std::filesystem::path us_path = getVeraPath();
-  us_path.append(us.session_id);
-  return path.find(us_path) != std::string::npos;
+    std::filesystem::path us_path = getVeraPath();
+    us_path.append(us.session_id);
+    return path.find(us_path.string()) != std::string::npos;
 }
 
 /**
@@ -146,7 +146,9 @@ unsigned long getFilesize(std::string filename, UserSession &us) {
  * uploaded or generated files.
  */
 std::filesystem::path getTestingDir() {
-  std::filesystem::path path = std::filesystem::temp_directory_path();
-  path.append("vera-testing");
-  return path;
+    std::filesystem::path path = std::filesystem::current_path();
+    path.append("server");
+    path.append("tests");
+    path.append("samplefiles");
+    return path;
 }
