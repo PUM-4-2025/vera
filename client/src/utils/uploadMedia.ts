@@ -1,5 +1,3 @@
-import { toast } from 'sonner';
-
 export interface UploadSession {
   uploadId: number;
   file: File;
@@ -129,8 +127,9 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
     //console.log('Uploaded chunk: ', i);
   }
 
-  // Tell server to verify that upload is complete
-  uploadComplete(uploadSession);
+  // Tell server to verify that upload is complete, and only resolve if successful
+  await uploadComplete(uploadSession);
+  return { success: true, uploadId: uploadSession.uploadId };
 };
 
 export const uploadComplete = async (uploadSession: UploadSession) => {
@@ -162,7 +161,7 @@ export const uploadComplete = async (uploadSession: UploadSession) => {
 
     const message = 'Completed upload of ' + uploadSession.file.name;
     console.log(message);
-    toast.info(message);
+    // toast.info(message); // Toast removed as requested, status will be updated in context
   } catch {
     throw new Error('Finishing upload failed!');
   }

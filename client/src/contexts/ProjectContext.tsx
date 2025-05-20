@@ -16,7 +16,6 @@ import {
 } from '@/utils/projectDatabase';
 import { useFFmpeg } from './FFmpegContext';
 import { uploadMedia, uploadChunks, uploadStatus } from '@/utils/uploadMedia';
-import { toast } from 'sonner';
 import { ffmpegWorkerPool } from '@/utils/ffmpegWorkerPool';
 
 // Import types from the dedicated types file
@@ -40,6 +39,7 @@ import {
   uploadVideoLogic,
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
+import { toast } from 'sonner';
 
 // --- Constants for Cache Configuration ---
 const FRAME_CACHE_MAX_SIZE = 20;
@@ -345,7 +345,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         ...s,
         videos: {
           ...s.videos,
-          [videoId]: videoEntry,
+          [videoId]: {
+            ...videoEntry,
+            uploadStatus: videoEntry.uploadStatus || { type: 'not_uploaded' },
+          } as VideoEntry,
         },
         currentVideoId: videoId,
         isLoading: false,
@@ -440,47 +443,149 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       // Set the updated metadata in the state *before* calling updateVideoState
       setState((s) => ({ ...s, metadata: result.updatedMetadata }));
 
-      // Update state with the new video, including the FFmpeg handle
+      // Update state with the new video, including the FFmpeg handle and initial upload status
       updateVideoState(result.videoId, {
         ...result.videoEntry,
-        ffmpegHandle
+        ffmpegHandle,
+        uploadStatus: { type: 'not_uploaded' }, // Initial status before server upload
       });
       console.log('Video added to state:', result.videoId);
-      console.log('videos', state.videos);
 
-      // Begin upload to server
+      // --- Server Upload ---
+      const videoId = result.videoId; // Capture videoId for use in async operations
+      // Set status to uploading before starting
+      setState(s => {
+        const currentVideo = s.videos[videoId];
+        if (!currentVideo) return s; // Should exist as we just added it
+        return {
+          ...s,
+          videos: {
+            ...s.videos,
+            [videoId]: {
+              ...currentVideo,
+              uploadStatus: { type: 'uploading', percentage: 0 }
+            } as VideoEntry,
+          }
+        };
+      });
+      
       const uploadSession = await uploadMedia(file);
 
-      setTimeout(async () => {
+      // Non-blocking progress update
+      (async () => {
         const sleep = (ms: number) =>
           new Promise((resolve) => setTimeout(resolve, ms));
+        let done = false;
+        try {
+          // Create a promise for uploadChunks so we can know when it is done
+          uploadChunks(uploadSession)
+            .then(result => {
+              console.log('All chunks uploaded and completion notified:', result);
+              done = true;
+              toast.success('Video uploaded successfully');
+              // Optionally update state here to reflect upload completion immediately
+              setState(s => {
+                const currentVideo = s.videos[videoId];
+                if (!currentVideo) return s;
+                return {
+                  ...s,
+                  videos: {
+                    ...s.videos,
+                    [videoId]: {
+                      ...currentVideo,
+                      uploadStatus: { type: 'uploaded' }
+                    } as VideoEntry,
+                  }
+                };
+              });
+              return result; // Continue the promise chain if needed
+            })
+            .catch(chunkError => {
+              console.error('Error during chunk upload:', chunkError);
+              setState(s => {
+                const currentVideo = s.videos[videoId];
+                if (!currentVideo) return s;
+                return {
+                  ...s,
+                  videos: {
+                    ...s.videos,
+                    [videoId]: {
+                      ...currentVideo,
+                      uploadStatus: { type: 'failed', error: chunkError instanceof Error ? chunkError.message : 'Chunk upload failed' }
+                    } as VideoEntry,
+                  }
+                };
+              });
+            });
 
-        uploadChunks(uploadSession).catch(console.error);
+          for (;;) {
+            await sleep(1000); // Check status every 1 seconds
+            if (done) {
+              break;
+            }
+              const status = await uploadStatus(uploadSession.uploadId);
+              console.log('Upload status:', status);
+              const uploadProgress =
+                status.totalChunks > 0
+                  ? 100 * (status.completedChunks / status.totalChunks)
+                  : 0;
 
-        for (;;) {
-          try {
-            const status = await uploadStatus(uploadSession.uploadId);
+              setState(s => {
+                const currentVideo = s.videos[videoId];
+                if (!currentVideo) return s; // Guard against video being deleted mid-upload
+                return {
+                  ...s,
+                  videos: {
+                    ...s.videos,
+                    [videoId]: {
+                      ...currentVideo,
+                      uploadStatus: { type: 'uploading', percentage: uploadProgress }
+                    } as VideoEntry,
+                  }
+                };
+              });
+              
+              if (status.status === 'Completed' || uploadProgress >= 100) {
+                console.log('Upload completed or progress >= 100');
+                break; 
+              }
+              if (status.status === 'Failed') {
+                throw new Error('Server reported upload failure.');
+              }
+            }
 
-            const uploadProgress =
-              100 * (status.completedChunks / status.totalChunks);
+          
+          setState(s => {
+            const currentVideo = s.videos[videoId];
+            if (!currentVideo) return s;
+            return {
+            ...s,
+            videos: {
+              ...s.videos,
+              [videoId]: {
+                ...currentVideo,
+                uploadStatus: { type: 'uploaded' }
+              } as VideoEntry,
+            }
+          }});
 
-            const progressMessage =
-              'Uploading ' +
-              uploadSession.file.name +
-              ': ' +
-              uploadProgress.toFixed(1) +
-              '%';
-
-            toast.info(progressMessage);
-
-            // Sleep for 1 second
-            await sleep(2000);
-          } catch {
-            // Keep getting status until it fails and assume that upload was completed
-            break;
-          }
+        } catch (uploadError) {
+          console.error('Error monitoring upload status or upload failed:', uploadError);
+          setState(s => {
+            const currentVideo = s.videos[videoId];
+            if (!currentVideo) return s;
+            return {
+            ...s,
+            videos: {
+              ...s.videos,
+              [videoId]: {
+                ...currentVideo,
+                uploadStatus: { type: 'failed', error: uploadError instanceof Error ? uploadError.message : 'Upload monitoring failed' }
+              } as VideoEntry,
+            }
+          }});
         }
-      }, 0);
+      })();
 
       return result.videoId;
     } catch (err: unknown) {
