@@ -245,8 +245,13 @@ const SelectionRectangle: React.FC<{
 
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
   ({ containerWidth, containerHeight, onTimeUpdate }, ref) => {
-    const { videos, currentVideoId, annotations, setAnnotationsForFrame, captureCurrentFrame, currentFrame } =
-      useProject();
+    const {
+      videos,
+      currentVideoId,
+      annotations,
+      setAnnotationsForFrame, captureCurrentFrame, currentFrame,
+      setVideoApi,
+    } = useProject();
 
     const currentVideo = currentVideoId ? videos[currentVideoId] : null;
     const videoSrc = currentVideo?.objectURL;
@@ -431,6 +436,28 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       // UPDATED DEPENDENCIES: Added memoized getCurrentFrameNumber
     }, [onTimeUpdate, captureCurrentFrame, currentVideoId, isPlaying, getCurrentFrameNumber]);
 
+    useEffect(() => {
+      if (videoRef.current) {
+        setVideoApi({
+          getCurrentTime: () => videoRef.current?.currentTime || 0,
+          getCurrentFrame: () => getCurrentFrameNumber(),
+          play: () => setIsPlaying(true),
+          pause: () => setIsPlaying(false),
+          seek: (time: number) => {
+            const currentFrameRate = currentVideo?.metadata?.fps || 30; // Use potentially updated frameRate
+            const frameNumber = Math.max(
+              0,
+              Math.floor(time * currentFrameRate)
+            );
+            const targetTime = getTargetTimeForFrame(frameNumber); // Relies on videoRef.current.duration internally
+            if (videoRef.current && targetTime !== null) {
+              videoRef.current.currentTime = targetTime;
+            }
+            return Promise.resolve();
+          },
+        });
+      }
+    }, []);
     // Effect for handling wheel zoom on the container, applying to the video element
     useEffect(() => {
       const container = containerRef.current;

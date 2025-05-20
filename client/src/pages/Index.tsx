@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import BookmarkSidebar from '@/components/BookmarkSidebar';
 import VideoPlayer from '@/components/VideoPlayer';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -28,6 +29,7 @@ const Index = () => {
     resetProject,
   } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isBookmarkSidebarOpen, setIsBookmarkSidebarOpen] = useState(false);
 
   const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -54,6 +56,10 @@ const Index = () => {
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const toggleBookmarkSidebar = () => {
+    setIsBookmarkSidebarOpen(!isBookmarkSidebarOpen);
   };
 
   const handleFormChange = (
@@ -132,6 +138,8 @@ const Index = () => {
         <Header
           toggleSidebar={toggleSidebar}
           isSidebarOpen={sidebarOpen}
+          toggleBookmarkSidebar={toggleBookmarkSidebar}
+          isBookmarkSidebarOpen={isBookmarkSidebarOpen}
           onInitiateSaveAs={initiateSaveAs}
           onGoBackRequest={handleGoBackRequest}
         />
@@ -145,6 +153,7 @@ const Index = () => {
           >
             <VideoPlayer />
           </main>
+          <BookmarkSidebar isOpen={isBookmarkSidebarOpen} />
         </div>
       </div>
 

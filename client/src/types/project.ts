@@ -115,6 +115,17 @@ export interface ProjectState {
   isSaved: boolean;
   currentFrame: CurrentFrame | null;
   frameCache: FrameCache;
+  videoApi: VideoElementApi | null;
+}
+
+export interface VideoElementApi {
+  seek(time: number): Promise<void>;
+  play(): void;
+  pause(): void;
+  getCurrentTime: () => number;
+  getCurrentFrame: () => number;
+  currentFrame: CurrentFrame | null;
+  frameCache: FrameCache;
 }
 
 // Defines the shape of the ProjectContext including state and actions
@@ -138,6 +149,7 @@ export interface ProjectContextType extends ProjectState {
     frameNumber: number,
     shapes: ShapeData[]
   ) => void;
+  setVideoApi: (api: VideoElementApi | null) => void;
 }
 
 // --- Result Types for Utility Functions ---

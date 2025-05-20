@@ -30,6 +30,7 @@ import {
   ShapeData,
   VideoAnnotationData,
   FrameCache,
+  VideoElementApi,
 } from '@/types/project';
 
 // Import utility functions
@@ -75,6 +76,7 @@ const initialState: ProjectState = {
     maxSize: FRAME_CACHE_MAX_SIZE,
     recentlyUsed: []
   }
+  videoApi: null,
 };
 
 // Create the context
@@ -145,6 +147,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         isLoading: false,
         error: null, // Clear any previous errors
         isSaved: true,
+        videoApi: null,
       }));
     },
     []
@@ -926,6 +929,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  const setVideoApi = useCallback((api: VideoElementApi | null) => {
+    setState((s) => ({ ...s, videoApi: api }));
+  }, []);
+
   // --- Value Provided to Consumers ---
   // Ensure this matches the ProjectContextType interface
   const contextValue: ProjectContextType = {
@@ -941,6 +948,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     currentFrame: state.currentFrame,
     captureCurrentFrame,
     setAnnotationsForFrame,
+    setVideoApi,
   };
 
   return (
