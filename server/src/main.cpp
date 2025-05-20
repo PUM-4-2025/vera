@@ -3,16 +3,13 @@
 #include "http_server.h"
 #include "project_config.h"
 #include "upload_media.h"
-#include "audio.h"
 
 #include <iostream>
-#include <vector>
 
 int main() {
 #ifdef __cplusplus
   std::cout << 'C++ version: ' << __cplusplus << std::endl;
-#endif  
-
+#endif
 
   const char *portEnv = std::getenv("PORT");
   int port = std::stoi(portEnv);

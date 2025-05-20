@@ -11,7 +11,8 @@ Checks: >
   -readability-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-owning-memory,
-  -readability-identifier-length
+  -readability-identifier-length,
+  -cppcoreguidelines-pro-type-vararg
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
@@ -26,7 +27,7 @@ CheckOptions:
   - key: readability-identifier-naming.EnumConstantCase
     value: UPPER_CASE
   - key: readability-identifier-naming.FunctionCase
-    value: camelBack
+    value: CamelCase
   - key: readability-identifier-naming.GlobalConstantCase
     value: UPPER_CASE
   - key: readability-identifier-naming.NamespaceCase
@@ -36,4 +37,4 @@ CheckOptions:
   - key: readability-identifier-naming.StructCase
     value: CamelCase
   - key: readability-identifier-naming.VariableCase
-    value: camelBack
+    value: snake_case
