@@ -1,5 +1,6 @@
 #include "audio.h"
 #include "files.h"
+#include "video.h"
 #include "http_server.h"
 #include "http_utils.h"
 
@@ -42,8 +43,9 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
   extract(filename, *us);
   std::string wav_file = filename + ".wav";
 
+  float fps = getFramePerSecond(filename);
   // Extract amplitude
-  visual(wav_file, *us);
+  visual(wav_file, *us, fps);
   std::string txt_file = wav_file + ".txt";
 
   // Anaylse audio

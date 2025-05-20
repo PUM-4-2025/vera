@@ -9,6 +9,14 @@
 #include <vector>
 using json = nlohmann::json;
 
+float getFramePerSecond(std::string path){
+    float fps;
+    cv::VideoCapture cap(path);
+    fps = (float)cap.get(cv::CAP_PROP_FPS);
+    cap.release();
+    return fps;
+}
+
 void registerVideoHandlers(HttpServer &server) {
   server.registerHandler("/api/v1/analysis/startMotion", runVideoAnalysis);
 }
