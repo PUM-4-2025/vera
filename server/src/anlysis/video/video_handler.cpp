@@ -23,7 +23,6 @@ void runVideoAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
 
   std::string user_token = json_body["token"];
 
-  std::cout << user_token << "\n";
   UserSession *us = hs->getUserSession(user_token);
 
   if (us == nullptr) {
