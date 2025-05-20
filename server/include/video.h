@@ -5,6 +5,11 @@
 
 #include <string>
 
+float getFramePerSecond(std::string path);
+/*
+* Getter for frameRate of video
+*/
+
 void registerVideoHandlers(HttpServer &server);
 
 /**
