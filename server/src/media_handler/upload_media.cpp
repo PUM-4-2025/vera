@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <json.hpp>
+#include <optional>
 #include <string>
 using json = nlohmann::json;
 
@@ -123,16 +124,18 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     char id_buf[20] = "0";
     mg_http_get_var(&msg->query, "id", id_buf, sizeof id_buf);
 
-    UploadSession *session = UPLOAD_HANDLER.getSession(std::stoi(id_buf));
+    std::optional<UploadSession> session_opt = UPLOAD_HANDLER.getSession(std::stoi(id_buf));
 
-    if (session == nullptr) {
+    if (!session_opt.has_value()) {
       json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
       std::string response_str = response.dump();
       send_http_response(c, 404, response_str);
       return;
     }
 
-    if (us == nullptr || session->us->session_id != us->session_id) {
+    UploadSession session = session_opt.value();
+
+    if (us == nullptr || session.us->session_id != us->session_id) {
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
@@ -142,8 +145,8 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     // Limit file sizes to 50 GiB for now
     int max_size = 50 * 1024 * 1024 * 1024;
     std::string headers = getVeraHeaders();
-    mg_http_upload(c, msg, &mg_fs_posix, session->dir.c_str(), max_size, headers.c_str());
-    UPLOAD_HANDLER.incrementChunk(*session);
+    mg_http_upload(c, msg, &mg_fs_posix, session.dir.c_str(), max_size, headers.c_str());
+    UPLOAD_HANDLER.incrementChunk(session);
   } catch (...) {
     json response = {
         {"status", "Failure"},
@@ -170,24 +173,26 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
 
     int upload_id = json_body["uploadId"];
 
-    UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
+    std::optional<UploadSession> session_opt = UPLOAD_HANDLER.getSession(upload_id);
 
-    if (session == nullptr) {
+    if (!session_opt.has_value()) {
       json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
       std::string response_str = response.dump();
       send_http_response(c, 404, response_str);
       return;
     }
 
-    if (us == nullptr || session->us->session_id != us->session_id) {
+    UploadSession session = session_opt.value();
+
+    if (us == nullptr || session.us->session_id != us->session_id) {
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
       return;
     }
 
-    int uploaded_chunks = session->completed_chunks;
-    int total_chunks = session->total_chunks;
+    int uploaded_chunks = session.completed_chunks;
+    int total_chunks = session.total_chunks;
 
     json response = {{"uploadId", upload_id},
                      {"status", "In progress"},
@@ -219,37 +224,39 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     std::string filename = json_body["fileName"];
     std::string c_filename = sanitizeName(filename);
 
-    UploadSession *session = UPLOAD_HANDLER.getSession(upload_id);
+    std::optional<UploadSession> session_opt = UPLOAD_HANDLER.getSession(upload_id);
 
-    if (session == nullptr) {
+    if (!session_opt.has_value()) {
       json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
       std::string response_str = response.dump();
       send_http_response(c, 404, response_str);
       return;
     }
 
-    if (us == nullptr || session->us->session_id != us->session_id) {
+    UploadSession session = session_opt.value();
+
+    if (us == nullptr || session.us->session_id != us->session_id) {
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
       return;
     }
 
-    if (!UPLOAD_HANDLER.sessionCompleted(*session)) {
+    if (!UPLOAD_HANDLER.sessionCompleted(session)) {
       json response = {{"status", "Failed"},
                        {"message", "Upload chunks != expected number of chunks. Upload failed!"}};
       std::string response_str = response.dump();
       send_http_response(c, 418, response_str);
-      UPLOAD_HANDLER.removeSession(*session);
+      UPLOAD_HANDLER.removeSession(session);
       return;
     }
 
-    if (session->file_size != getFilesize(filename, *us)) {
+    if (session.file_size != getFilesize(filename, *us)) {
       json response = {{"status", "Failed"},
                        {"message", "Uploaded file size != expected file size. Upload failed!"}};
       std::string response_str = response.dump();
       send_http_response(c, 418, response_str);
-      UPLOAD_HANDLER.removeSession(*session);
+      UPLOAD_HANDLER.removeSession(session);
       return;
     }
 
@@ -259,9 +266,10 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     json response = {{"uploadId", upload_id},
                      {"status", "Completed"},
                      {"message", "Upload completed successfully."}};
+
     std::string response_str = response.dump();
     send_http_response(c, 200, response_str);
-    UPLOAD_HANDLER.removeSession(*session);
+    UPLOAD_HANDLER.removeSession(session);
   } catch (...) {
     json response = {
         {"status", "Failure"},

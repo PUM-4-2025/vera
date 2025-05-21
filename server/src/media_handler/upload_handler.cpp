@@ -1,15 +1,19 @@
 #include "upload_handler.h"
+
 #include "upload_media.h"
+
+#include <iostream>
+#include <optional>
 #include <vector>
 
 /*
  * A lot of methods are written in here to stop race conditions
- * from happening. Even though some methods would be trivial to 
+ * from happening. Even though some methods would be trivial to
  * write in ohter functions, the locking mechanism is needed
- * to assure that uploads are synced. 
+ * to assure that uploads are synced.
  */
 
-UploadHandler::UploadHandler() {};
+UploadHandler::UploadHandler(){};
 UploadHandler::~UploadHandler() {
   m_uploads_guard_.lock();
   m_uploads_.clear();
@@ -24,7 +28,7 @@ void UploadHandler::newSession(UploadSession session) {
 
 void UploadHandler::removeSession(const UploadSession &session) {
   m_uploads_guard_.lock();
-  for (auto it = m_uploads_.begin(); it != m_uploads_.end();) {
+  for (auto it = m_uploads_.begin(); it != m_uploads_.end(); it++) {
     if (it->session_id == session.session_id) {
       m_uploads_.erase(it);
       break;
@@ -35,7 +39,7 @@ void UploadHandler::removeSession(const UploadSession &session) {
 
 bool UploadHandler::isUniqueId(int id) {
   m_uploads_guard_.lock();
-  
+
   for (const auto &session : m_uploads_) {
     if (session.session_id == id) {
       m_uploads_guard_.unlock();
@@ -47,29 +51,38 @@ bool UploadHandler::isUniqueId(int id) {
   return true;
 }
 
-UploadSession* UploadHandler::getSession(int id) {
+std::optional<UploadSession> UploadHandler::getSession(int id) {
   m_uploads_guard_.lock();
-  
-  for (auto &session : m_uploads_) {
+
+  for (auto session : m_uploads_) {
     if (session.session_id == id) {
       m_uploads_guard_.unlock();
-      return &session;
+      return std::optional<UploadSession>{session};
     }
   }
 
   m_uploads_guard_.unlock();
-  return nullptr;
+  return std::nullopt;
 }
 
 void UploadHandler::incrementChunk(UploadSession &session) {
   m_uploads_guard_.lock();
-  session.completed_chunks++;
+  for (auto &s : m_uploads_) {
+    if (s.session_id == session.session_id) {
+      s.completed_chunks++;
+    }
+  }
   m_uploads_guard_.unlock();
 }
 
 bool UploadHandler::sessionCompleted(const UploadSession &session) {
+  bool is_complete = false;
   m_uploads_guard_.lock();
-  bool is_complete = session.completed_chunks == session.total_chunks;
+  for (auto &s : m_uploads_) {
+    if (s.session_id == session.session_id) {
+      is_complete = s.completed_chunks == s.total_chunks;
+    }
+  }
   m_uploads_guard_.unlock();
   return is_complete;
 }

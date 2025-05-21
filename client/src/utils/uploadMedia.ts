@@ -18,7 +18,9 @@ const url =
     ? `${window.location.protocol}//${window.location.hostname}:8000`
     : `${window.location.protocol}//${window.location.hostname}`;
 
-export const uploadMedia = async (file: File): Promise<UploadSession> => {
+export const uploadMedia = async (
+  file: File
+): Promise<UploadSession | null> => {
   try {
     // Call the inititate API
     const initUrl = url + '/api/v1/uploads/initiate';
@@ -37,9 +39,16 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       throw new Error('Failed to initiate upload with server!');
     }
 
-    console.log(initResponse);
     const initResult = await initResponse.json();
-    console.log(initResult);
+
+    if (initResult.status === 'Uninitialized') {
+      console.log(
+        'Recived Uninitialized status with message: ',
+        initResult.message
+      );
+      return null;
+    }
+
     const uploadId = initResult.uploadId;
 
     const status = await uploadStatus(uploadId);
