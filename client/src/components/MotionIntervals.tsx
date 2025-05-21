@@ -1,10 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 
-// temp: function to generate random samples
-const generateRandomSamples = (length: number) => {
-  return Array.from({ length }, () => Math.round(Math.random()));
-};
-
 interface MotionIntervalsProps {
   filename: string;
   currentTime: number;
@@ -31,18 +26,18 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
 
   // temp: Generate random samples based on the number of frames
-  const [samples, setSamples] = useState(generateRandomSamples(numFrames));
+  const [samples, setSamples] = useState(null);
   useEffect(() => {
     // temp: Update samples when numFrames changes
-    const newSamples = generateRandomSamples(numFrames);
+    const newSamples = null;
     setSamples(newSamples);
-    onSamples(newSamples);
+    //onSamples(newSamples);
   }, [numFrames]);
 
   // Handle mouse wheel to zoom in/out of the intervals
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.10 : 0.10;
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
     onZoomChange(delta);
   };
 
@@ -91,7 +86,6 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     ctx.clearRect(0, 0, effectiveWidth, height);
 
     // Intervals parameters
-    const numBars = samples.length; // number of samples
     const totalIntervalsWidth = effectiveWidth * zoomLevel;
     const timePerPixel = videoDuration / totalIntervalsWidth;
     const currentPixel = currentTime / timePerPixel;
@@ -107,26 +101,21 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     }
     scrollOffsetRef.current = scrollOffset; // Store scroll offset
 
-    const barWidth = totalIntervalsWidth / numBars;
-    const startBar = Math.floor(scrollOffset / barWidth);
-    const visibleBars = Math.ceil(effectiveWidth / barWidth);
+    if (samples && samples.length > 1) {
+      // Draw intervals bars
+      for (let i = 0; i < samples.length; i += 2) {
+        const start = samples[i]; // Start of motion
+        const end = samples[i + 1]; // End of motion
 
-    // Draw intervals bars
-    for (let i = startBar; i < startBar + visibleBars && i < numBars; i++) {
-      let data = samples[i]; // Read the sample
-      if (data == undefined || data == null) {
-        data = 0;
+        const barWidth =
+          (totalIntervalsWidth * (end - start)) / totalIntervalsWidth;
+        const barHeight = height;
+
+        //Draw the bar
+        const x = i * barWidth - scrollOffset;
+        ctx.fillStyle = 'red';
+        ctx.fillRect(x, height - barHeight, Math.max(1, barWidth), barHeight);
       }
-
-      let barHeight = 0;
-      if (data > 0) {
-        barHeight = height;
-      }
-
-      //Draw the bar
-      const x = i * barWidth - scrollOffset;
-      ctx.fillStyle = 'red';
-      ctx.fillRect(x, height - barHeight, Math.max(1, barWidth), barHeight);
     }
 
     // Draw line indicating current video time

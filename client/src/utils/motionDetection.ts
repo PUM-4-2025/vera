@@ -14,7 +14,7 @@ interface MotionDetectionRegion {
 export const startMotionDetection = async (
   filename: string,
   region: MotionDetectionRegion
-): Promise<boolean> => {
+): Promise<number[]> => {
   try {
     // Call the motion detection API
     const apiurl = url + '/api/v1/analysis/startMotion';
@@ -39,7 +39,7 @@ export const startMotionDetection = async (
 
     const result = await response.json();
     console.log('Motion detection started:', result);
-    return result.status === 'OK';
+    return result.motion;
   } catch (error) {
     console.error('Error starting motion detection:', error);
     throw new Error('Failed to start motion detection analysis!');
