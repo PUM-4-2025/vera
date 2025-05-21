@@ -247,8 +247,14 @@ const SelectionRectangle: React.FC<{
 
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
   ({ containerWidth, containerHeight, onTimeUpdate }, ref) => {
-    const { videos, currentVideoId, annotations, setAnnotationsForFrame, captureCurrentFrame, currentFrame } =
-      useProject();
+    const {
+      videos,
+      currentVideoId,
+      annotations,
+      setAnnotationsForFrame,
+      captureCurrentFrame,
+      currentFrame,
+    } = useProject();
 
     const currentVideo = currentVideoId ? videos[currentVideoId] : null;
     const videoSrc = currentVideo?.objectURL;
@@ -431,7 +437,13 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         video.removeEventListener('timeupdate', handleTimeUpdateCallback);
       };
       // UPDATED DEPENDENCIES: Added memoized getCurrentFrameNumber
-    }, [onTimeUpdate, captureCurrentFrame, currentVideoId, isPlaying, getCurrentFrameNumber]);
+    }, [
+      onTimeUpdate,
+      captureCurrentFrame,
+      currentVideoId,
+      isPlaying,
+      getCurrentFrameNumber,
+    ]);
 
     // Effect for handling wheel zoom on the container, applying to the video element
     useEffect(() => {
@@ -479,7 +491,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     }, [scale, offset]);
 
     useEffect(() => {
-      console.log("currentFrame", currentFrame?.frameNumber);
+      console.log('currentFrame', currentFrame?.frameNumber);
     }, [currentFrame]);
 
     // --- Update shapes when timestamp changes ---
@@ -492,15 +504,14 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // Effect to update isShowingRawFrame based on conditions
     useEffect(() => {
-      const conditionsResult = 
+      const conditionsResult =
         !isPlaying &&
         showRawFrame &&
         currentFrame &&
         currentFrame.frameNumber === getCurrentFrameNumber() &&
         currentFrame.blobUrl; // This can resolve to non-boolean (e.g. string, null)
-      
-      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
 
+      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
     }, [isPlaying, showRawFrame, currentFrame, getCurrentFrameNumber]);
 
     // --- Imperative Handle ---
@@ -573,7 +584,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return;
       }
 
-      if ((interactionMode === 'draw' || interactionMode === 'motionDetection') && currentShapeType !== 'none') {
+      if (
+        (interactionMode === 'draw' || interactionMode === 'motionDetection') &&
+        currentShapeType !== 'none'
+      ) {
         setSelectedId(null);
         setDrawStartX(stagePoint.x);
         setDrawStartY(stagePoint.y);
@@ -607,12 +621,12 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           setNewShape({
             id,
             type: 'arrow',
-            points: [stagePoint.x, stagePoint.y, stagePoint.x, stagePoint.y] as [
-              number,
-              number,
-              number,
-              number,
-            ],
+            points: [
+              stagePoint.x,
+              stagePoint.y,
+              stagePoint.x,
+              stagePoint.y,
+            ] as [number, number, number, number],
             stroke: interactionMode === 'motionDetection' ? 'blue' : 'red',
             strokeWidth: 4,
           });
@@ -736,7 +750,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return prev;
       });
     };
-    
+
     const handleMouseUp = async () => {
       // Stop Panning
       if (interactionMode === 'pan' && isPanning) {
@@ -800,7 +814,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       }
 
       // Handle both draw and motion detection modes
-      if ((interactionMode === 'draw' || interactionMode === 'motionDetection') && newShape) {
+      if (
+        (interactionMode === 'draw' || interactionMode === 'motionDetection') &&
+        newShape
+      ) {
         const shape = newShape;
         let isValidShape = true;
         if (
@@ -903,23 +920,23 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         // Add shape to shapes array
         if (isValidShape && currentVideoId) {
           const frameNumber = getCurrentFrameNumber();
-          
+
           // If in motion detection mode, don't add the shape to shapes array
           if (interactionMode === 'motionDetection' && shape.type === 'rect') {
             const rectShape = shape as RectShape;
-            const videoTopLeft = getOriginalVideoCoordsFromStagePoint({ 
-              x: rectShape.x, 
-              y: rectShape.y 
+            const videoTopLeft = getOriginalVideoCoordsFromStagePoint({
+              x: rectShape.x,
+              y: rectShape.y,
             });
 
             if (videoTopLeft && currentVideo) {
               const region = {
-                x: videoTopLeft.x,
-                y: videoTopLeft.y,
+                x: videoTopLeft.x >= 0 ? videoTopLeft.x : 0,
+                y: videoTopLeft.y >= 0 ? videoTopLeft.y : 0,
                 w: rectShape.width,
-                h: rectShape.height
+                h: rectShape.height,
               };
-              
+
               console.log('Motion Detection Region:', region);
 
               setNewShape(null);
@@ -927,7 +944,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               setDrawStartY(null);
               setInteractionMode('pan');
               setCurrentShapeType('none');
-              
+
               try {
                 const success = await startMotionDetection(
                   currentVideo.metadata.filename,
@@ -1038,27 +1055,30 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           }}
         />
         {/* Display the current frame as an <img> if frameData is present and toggle is active */}
-        {!isPlaying && showRawFrame && currentFrame && currentFrame.frameNumber === getCurrentFrameNumber() && currentFrame.blobUrl && (
-          
-          <img
-            src={currentFrame.blobUrl}
-            alt="Current Frame"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-              transformOrigin: '0 0',
-              pointerEvents: 'none',
-              opacity: 1,
-              zIndex: 1,
-              imageRendering: 'pixelated',
-            }}
-          />
-        )}
+        {!isPlaying &&
+          showRawFrame &&
+          currentFrame &&
+          currentFrame.frameNumber === getCurrentFrameNumber() &&
+          currentFrame.blobUrl && (
+            <img
+              src={currentFrame.blobUrl}
+              alt="Current Frame"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                transformOrigin: '0 0',
+                pointerEvents: 'none',
+                opacity: 1,
+                zIndex: 1,
+                imageRendering: 'pixelated',
+              }}
+            />
+          )}
 
         {/* ---- Control Buttons Container ---- */}
         <div
@@ -1199,7 +1219,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             onClick={() => setShowRawFrame(!showRawFrame)}
             title="Toggle Raw Frame Display"
           >
-            <Fingerprint size={16} color={isShowingRawFrame ? 'green' : 'red'} />
+            <Fingerprint
+              size={16}
+              color={isShowingRawFrame ? 'green' : 'red'}
+            />
           </Button>
         </div>
 
@@ -1259,17 +1282,3 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 VideoElement.displayName = 'VideoElement';
 
 export default VideoElement;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
