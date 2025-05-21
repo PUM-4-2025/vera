@@ -263,17 +263,13 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     // Rename to OpenCV/FFmpeg compatible name
     renameFile(filename, c_filename, *us);
 
-    UPLOAD_HANDLER.removeSession(session);
-    std::cout << "Session removed!\n";
-
     json response = {{"uploadId", upload_id},
                      {"status", "Completed"},
                      {"message", "Upload completed successfully."}};
 
     std::string response_str = response.dump();
-    std::cout << "Sending response!\n";
     send_http_response(c, 200, response_str);
-    std::cout << "Response sent!\n";
+    UPLOAD_HANDLER.removeSession(session);
   } catch (...) {
     json response = {
         {"status", "Failure"},

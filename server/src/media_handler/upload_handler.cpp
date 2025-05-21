@@ -13,7 +13,7 @@
  * to assure that uploads are synced.
  */
 
-UploadHandler::UploadHandler() {};
+UploadHandler::UploadHandler(){};
 UploadHandler::~UploadHandler() {
   m_uploads_guard_.lock();
   m_uploads_.clear();
@@ -28,7 +28,7 @@ void UploadHandler::newSession(UploadSession session) {
 
 void UploadHandler::removeSession(const UploadSession &session) {
   m_uploads_guard_.lock();
-  for (auto it = m_uploads_.begin(); it != m_uploads_.end();) {
+  for (auto it = m_uploads_.begin(); it != m_uploads_.end(); it++) {
     if (it->session_id == session.session_id) {
       m_uploads_.erase(it);
       break;
