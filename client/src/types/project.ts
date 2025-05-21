@@ -82,10 +82,14 @@ export type ShapeData = RectShape | CircleShape | ArrowShape;
 export type VideoAnnotationData = Record<number, ShapeData[]>;
 
 // Preliminary types for bookmarks, annotations and analysis
-export interface BookmarkData {
-  name: string;
+export interface BookmarkEntryData {
+  path: string;
   description: string;
-  fileHandle?: FileSystemFileHandle;
+  timestamp: number;
+}
+
+export interface BookmarkEntry extends BookmarkEntryData {
+  blobUrl?: string;
 }
 
 export interface AnalysisData {
@@ -96,9 +100,9 @@ export interface AnalysisData {
 
 // Add these types
 export interface FrameCache {
-  frames: Map<number, CurrentFrame>;  // frameNumber -> frame data
-  maxSize: number;  // maximum number of frames to cache
-  recentlyUsed: number[];  // list of recently used frame numbers
+  frames: Map<number, CurrentFrame>; // frameNumber -> frame data
+  maxSize: number; // maximum number of frames to cache
+  recentlyUsed: number[]; // list of recently used frame numbers
 }
 
 // Represents the overall state managed by the ProjectContext
@@ -106,7 +110,7 @@ export interface ProjectState {
   projectDirectoryHandle: FileSystemDirectoryHandle | null;
   metadata: Metadata;
   videos: Record<string, VideoEntry>; // Runtime state, includes object URLs etc.
-  bookmarks: Record<string, BookmarkData>;
+  bookmarks: Record<string, BookmarkEntry[]>;
   annotations: Record<string, VideoAnnotationData>;
   analysis: Record<string, AnalysisData>;
   isLoading: boolean;
@@ -123,9 +127,7 @@ export interface VideoElementApi {
   play(): void;
   pause(): void;
   getCurrentTime: () => number;
-  getCurrentFrame: () => number;
-  currentFrame: CurrentFrame | null;
-  frameCache: FrameCache;
+  getCurrentFrameNumber: () => number;
 }
 
 // Defines the shape of the ProjectContext including state and actions
@@ -150,6 +152,7 @@ export interface ProjectContextType extends ProjectState {
     shapes: ShapeData[]
   ) => void;
   setVideoApi: (api: VideoElementApi | null) => void;
+  setBookmarks: (bookmarks: Record<string, BookmarkEntry[]>) => void;
 }
 
 // --- Result Types for Utility Functions ---
@@ -159,6 +162,7 @@ export interface LoadProjectResult {
   metadata: Metadata;
   videos: Record<string, VideoEntry>;
   annotations: Record<string, VideoAnnotationData>;
+  bookmarks: Record<string, BookmarkEntry[]>;
   currentVideoId: string | null;
 }
 
@@ -183,5 +187,5 @@ export interface SaveProjectResult {
 export interface CurrentFrame {
   timestamp: number;
   frameNumber: number;
-  blobUrl: string; 
+  blobUrl: string;
 }

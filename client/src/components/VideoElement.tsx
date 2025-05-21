@@ -249,7 +249,9 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       videos,
       currentVideoId,
       annotations,
-      setAnnotationsForFrame, captureCurrentFrame, currentFrame,
+      setAnnotationsForFrame,
+      captureCurrentFrame,
+      currentFrame,
       setVideoApi,
     } = useProject();
 
@@ -434,13 +436,29 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         video.removeEventListener('timeupdate', handleTimeUpdateCallback);
       };
       // UPDATED DEPENDENCIES: Added memoized getCurrentFrameNumber
-    }, [onTimeUpdate, captureCurrentFrame, currentVideoId, isPlaying, getCurrentFrameNumber]);
+    }, [
+      onTimeUpdate,
+      captureCurrentFrame,
+      currentVideoId,
+      isPlaying,
+      getCurrentFrameNumber,
+    ]);
 
     useEffect(() => {
       if (videoRef.current) {
         setVideoApi({
           getCurrentTime: () => videoRef.current?.currentTime || 0,
-          getCurrentFrame: () => getCurrentFrameNumber(),
+          getCurrentFrameNumber: () => getCurrentFrameNumber(),
+          getTransformation: () => {
+            console.log('scale', scale);
+            console.log('offset', offset);
+            return {
+              zoom: scale,
+              offsetX: offset.x,
+              offsetY: offset.y,
+              rotation: 0,
+            };
+          },
           play: () => setIsPlaying(true),
           pause: () => setIsPlaying(false),
           seek: (time: number) => {
@@ -457,7 +475,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           },
         });
       }
-    }, []);
+    }, [setVideoApi, getCurrentFrameNumber, scale, offset, frameRate]);
     // Effect for handling wheel zoom on the container, applying to the video element
     useEffect(() => {
       const container = containerRef.current;
@@ -504,7 +522,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     }, [scale, offset]);
 
     useEffect(() => {
-      console.log("currentFrame", currentFrame?.frameNumber);
+      console.log('currentFrame', currentFrame?.frameNumber);
     }, [currentFrame]);
 
     // --- Update shapes when timestamp changes ---
@@ -517,15 +535,14 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // Effect to update isShowingRawFrame based on conditions
     useEffect(() => {
-      const conditionsResult = 
+      const conditionsResult =
         !isPlaying &&
         showRawFrame &&
         currentFrame &&
         currentFrame.frameNumber === getCurrentFrameNumber() &&
         currentFrame.blobUrl; // This can resolve to non-boolean (e.g. string, null)
-      
-      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
 
+      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
     }, [isPlaying, showRawFrame, currentFrame, getCurrentFrameNumber]);
 
     // --- Imperative Handle ---
@@ -759,9 +776,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return prev;
       });
     };
-    
-
-
 
     const handleMouseUp = () => {
       // Stop Panning
@@ -1027,27 +1041,30 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           }}
         />
         {/* Display the current frame as an <img> if frameData is present and toggle is active */}
-        {!isPlaying && showRawFrame && currentFrame && currentFrame.frameNumber === getCurrentFrameNumber() && currentFrame.blobUrl && (
-          
-          <img
-            src={currentFrame.blobUrl}
-            alt="Current Frame"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-              transformOrigin: '0 0',
-              pointerEvents: 'none',
-              opacity: 1,
-              zIndex: 1,
-              imageRendering: 'pixelated',
-            }}
-          />
-        )}
+        {!isPlaying &&
+          showRawFrame &&
+          currentFrame &&
+          currentFrame.frameNumber === getCurrentFrameNumber() &&
+          currentFrame.blobUrl && (
+            <img
+              src={currentFrame.blobUrl}
+              alt="Current Frame"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                transformOrigin: '0 0',
+                pointerEvents: 'none',
+                opacity: 1,
+                zIndex: 1,
+                imageRendering: 'pixelated',
+              }}
+            />
+          )}
 
         {/* ---- Control Buttons Container ---- */}
         <div
@@ -1188,7 +1205,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             onClick={() => setShowRawFrame(!showRawFrame)}
             title="Toggle Raw Frame Display"
           >
-            <Fingerprint size={16} color={isShowingRawFrame ? 'green' : 'red'} />
+            <Fingerprint
+              size={16}
+              color={isShowingRawFrame ? 'green' : 'red'}
+            />
           </Button>
         </div>
 
@@ -1248,17 +1268,3 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 VideoElement.displayName = 'VideoElement';
 
 export default VideoElement;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
