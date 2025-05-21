@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import VideoPlayer from '@/components/VideoPlayer';
+import { VideoElementRef } from '@/components/VideoElement';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { CreateProjectCard } from '@/components/CreateProjectCard';
@@ -28,6 +29,7 @@ const Index = () => {
     resetProject,
   } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const videoElementRef = useRef<VideoElementRef>(null);
 
   const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -134,6 +136,7 @@ const Index = () => {
           isSidebarOpen={sidebarOpen}
           onInitiateSaveAs={initiateSaveAs}
           onGoBackRequest={handleGoBackRequest}
+          videoElementRef={videoElementRef as React.RefObject<VideoElementRef>}
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -143,7 +146,7 @@ const Index = () => {
             className={`flex-1 p-3 transition-all ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'} overflow-y-auto`}
             ref={mainContentRef}
           >
-            <VideoPlayer />
+            <VideoPlayer ref={videoElementRef} />
           </main>
         </div>
       </div>

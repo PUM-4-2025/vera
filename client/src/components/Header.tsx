@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import veraLogo from '../assets/vera_blagul.svg';
+import { VideoElementRef } from './VideoElement';
 
 interface HeaderMenuItemProps {
   icon: React.ReactNode;
@@ -107,12 +108,6 @@ const toolsMenuItems: HeaderMenuItemProps[] = [
   { icon: <Type size={16} />, label: 'Add Text Box', shortcut: 'T' },
 ];
 
-const analyzeMenuItems: HeaderMenuItemProps[] = [
-  { icon: <Activity size={16} />, label: 'Detect Motion', shortcut: '⌘M' },
-  { icon: <Volume2 size={16} />, label: 'Detect Sound', shortcut: '⌘S' },
-  { icon: <FileText size={16} />, label: 'Generate Log', shortcut: '⌘L' },
-];
-
 const helpMenuItems: HeaderMenuItemProps[] = [
   { icon: <HelpCircle size={16} />, label: 'User Guide', shortcut: 'F1' },
   { icon: <Info size={16} />, label: 'About VERA', shortcut: '' },
@@ -124,6 +119,7 @@ interface HeaderProps {
   isSidebarOpen: boolean;
   onInitiateSaveAs: () => void;
   onGoBackRequest: () => void;
+  videoElementRef: React.RefObject<VideoElementRef>;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -131,9 +127,25 @@ const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   onInitiateSaveAs,
   onGoBackRequest,
+  videoElementRef,
 }) => {
   const { saveProject, loadProject, uploadVideo, projectDirectoryHandle } =
     useProject();
+
+  const analyzeMenuItems: HeaderMenuItemProps[] = [
+    { 
+      icon: <Activity size={16} />, 
+      label: 'Detect Motion', 
+      shortcut: '⌘M',
+      onClick: () => {
+        if (videoElementRef.current) {
+          videoElementRef.current.setMotionDetectionMode();
+        }
+      }
+    },
+    { icon: <Volume2 size={16} />, label: 'Detect Sound', shortcut: '⌘S' },
+    { icon: <FileText size={16} />, label: 'Generate Log', shortcut: '⌘L' },
+  ];
 
   const fileMenuItems: HeaderMenuItemProps[] = [
     {

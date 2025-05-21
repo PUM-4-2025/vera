@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   Play,
   Pause,
@@ -20,7 +20,7 @@ import { SoundWaveform } from './SoundWaveform';
 import { MotionIntervals } from './MotionIntervals';
 import VideoElement, { VideoElementRef } from './VideoElement';
 
-const VideoPlayer: React.FC = () => {
+const VideoPlayer = forwardRef<VideoElementRef>((props, ref) => {
   const { videos, currentVideoId } = useProject();
   const videoElementRef = useRef<VideoElementRef>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -412,6 +412,39 @@ const VideoPlayer: React.FC = () => {
     stopPlayback();
   };
 
+  // Expose the video element ref to the parent component
+  useImperativeHandle(ref, () => ({
+    setMotionDetectionMode: () => {
+      if (videoElementRef.current) {
+        videoElementRef.current.setMotionDetectionMode();
+      }
+    },
+    getCurrentTime: () => {
+      return videoElementRef.current?.getCurrentTime() || 0;
+    },
+    play: () => {
+      return videoElementRef.current?.play() || Promise.resolve();
+    },
+    pause: () => {
+      videoElementRef.current?.pause();
+    },
+    prevFrame: () => {
+      videoElementRef.current?.prevFrame();
+    },
+    nextFrame: () => {
+      videoElementRef.current?.nextFrame();
+    },
+    seek: (time: number) => {
+      videoElementRef.current?.seek(time);
+    },
+    getCurrentFrameNumber: () => {
+      return videoElementRef.current?.getCurrentFrameNumber() || 0;
+    },
+    isPlaying: () => {
+      return videoElementRef.current?.isPlaying() || false;
+    },
+  }));
+
   return (
     <div className="h-full">
       {videoSrc ? (
@@ -681,6 +714,6 @@ const VideoPlayer: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default VideoPlayer;

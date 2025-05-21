@@ -6,6 +6,7 @@ const url =
 
 export const getAudio = async (filename: string): Promise<[number] | null> => {
   try {
+    console.log('Getting audio');
     // Call the inititate API
     const apiurl = url + '/api/v1/analysis/startAudio';
     const data = {
