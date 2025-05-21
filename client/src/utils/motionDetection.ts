@@ -5,10 +5,10 @@ const url =
     : `${window.location.protocol}//${window.location.hostname}`;
 
 interface MotionDetectionRegion {
-  topLeft: { x: number; y: number };
-  bottomRight: { x: number; y: number };
-  width: number;
-  height: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export const startMotionDetection = async (
@@ -21,10 +21,10 @@ export const startMotionDetection = async (
     const data = {
       fileName: filename,
       token: '7777',
-      x: region.topLeft.x,
-      y: region.topLeft.y,
-      w: region.width,
-      h: region.height,
+      x: region.x,
+      y: region.y,
+      w: region.w,
+      h: region.h,
     };
 
     const response = await fetch(apiurl, {

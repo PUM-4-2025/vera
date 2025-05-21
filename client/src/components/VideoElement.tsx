@@ -911,17 +911,13 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               x: rectShape.x, 
               y: rectShape.y 
             });
-            const videoBottomRight = getOriginalVideoCoordsFromStagePoint({ 
-              x: rectShape.x + rectShape.width, 
-              y: rectShape.y + rectShape.height 
-            });
-            
-            if (videoTopLeft && videoBottomRight && currentVideo) {
+
+            if (videoTopLeft && currentVideo) {
               const region = {
-                topLeft: videoTopLeft,
-                bottomRight: videoBottomRight,
-                width: videoBottomRight.x - videoTopLeft.x,
-                height: videoBottomRight.y - videoTopLeft.y
+                x: videoTopLeft.x,
+                y: videoTopLeft.y,
+                w: rectShape.width,
+                h: rectShape.height
               };
               
               console.log('Motion Detection Region:', region);
