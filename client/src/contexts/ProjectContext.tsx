@@ -73,8 +73,8 @@ const initialState: ProjectState = {
   frameCache: {
     frames: new Map(),
     maxSize: FRAME_CACHE_MAX_SIZE,
-    recentlyUsed: []
-  }
+    recentlyUsed: [],
+  },
 };
 
 // Create the context
@@ -353,8 +353,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         currentVideoId: videoId,
         isLoading: false,
         error: null,
-        frameCache: { frames: new Map(), maxSize: FRAME_CACHE_MAX_SIZE, recentlyUsed: [] },
-        currentFrame: null
+        frameCache: {
+          frames: new Map(),
+          maxSize: FRAME_CACHE_MAX_SIZE,
+          recentlyUsed: [],
+        },
+        currentFrame: null,
       }));
     },
     []
@@ -364,7 +368,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
    * Prompts the user to select a video file, processes it, and adds it to the project state.
    * @returns The videoId of the uploaded video, or undefined on failure/cancellation.
    */
-  const uploadVideoToFFmpeg = async (file: File, ffmpeg: FFmpeg): Promise<VideoFFmpegHandle> => {
+  const uploadVideoToFFmpeg = async (
+    file: File,
+    ffmpeg: FFmpeg
+  ): Promise<VideoFFmpegHandle> => {
     const filename = `video-${Date.now()}.mp4`;
     await ffmpeg.writeFile(filename, await fetchFile(file));
     return { filename, file };
@@ -454,7 +461,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       // --- Server Upload ---
       const videoId = result.videoId; // Capture videoId for use in async operations
       // Set status to uploading before starting
-      setState(s => {
+      setState((s) => {
         const currentVideo = s.videos[videoId];
         if (!currentVideo) return s; // Should exist as we just added it
         return {
@@ -463,66 +470,76 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
             ...s.videos,
             [videoId]: {
               ...currentVideo,
-              uploadStatus: { type: 'uploading', percentage: 0 }
+              uploadStatus: { type: 'uploading', percentage: 0 },
             } as VideoEntry,
-          }
+          },
         };
       });
-      
+
       const uploadSession = await uploadMedia(file);
 
-      // Non-blocking progress update
-      (async () => {
-        const sleep = (ms: number) =>
-          new Promise((resolve) => setTimeout(resolve, ms));
-        let done = false;
-        try {
-          // Create a promise for uploadChunks so we can know when it is done
-          uploadChunks(uploadSession)
-            .then(result => {
-              console.log('All chunks uploaded and completion notified:', result);
-              done = true;
-              toast.success('Video uploaded successfully');
-              // Optionally update state here to reflect upload completion immediately
-              setState(s => {
-                const currentVideo = s.videos[videoId];
-                if (!currentVideo) return s;
-                return {
-                  ...s,
-                  videos: {
-                    ...s.videos,
-                    [videoId]: {
-                      ...currentVideo,
-                      uploadStatus: { type: 'uploaded' }
-                    } as VideoEntry,
-                  }
-                };
+      if (uploadSession != null) {
+        // Non-blocking progress update
+        (async () => {
+          const sleep = (ms: number) =>
+            new Promise((resolve) => setTimeout(resolve, ms));
+          let done = false;
+          try {
+            // Create a promise for uploadChunks so we can know when it is done
+            uploadChunks(uploadSession)
+              .then((result) => {
+                console.log(
+                  'All chunks uploaded and completion notified:',
+                  result
+                );
+                done = true;
+                toast.success('Video uploaded successfully');
+                // Optionally update state here to reflect upload completion immediately
+                setState((s) => {
+                  const currentVideo = s.videos[videoId];
+                  if (!currentVideo) return s;
+                  return {
+                    ...s,
+                    videos: {
+                      ...s.videos,
+                      [videoId]: {
+                        ...currentVideo,
+                        uploadStatus: { type: 'uploaded' },
+                      } as VideoEntry,
+                    },
+                  };
+                });
+                return result; // Continue the promise chain if needed
+              })
+              .catch((chunkError) => {
+                console.error('Error during chunk upload:', chunkError);
+                setState((s) => {
+                  const currentVideo = s.videos[videoId];
+                  if (!currentVideo) return s;
+                  return {
+                    ...s,
+                    videos: {
+                      ...s.videos,
+                      [videoId]: {
+                        ...currentVideo,
+                        uploadStatus: {
+                          type: 'failed',
+                          error:
+                            chunkError instanceof Error
+                              ? chunkError.message
+                              : 'Chunk upload failed',
+                        },
+                      } as VideoEntry,
+                    },
+                  };
+                });
               });
-              return result; // Continue the promise chain if needed
-            })
-            .catch(chunkError => {
-              console.error('Error during chunk upload:', chunkError);
-              setState(s => {
-                const currentVideo = s.videos[videoId];
-                if (!currentVideo) return s;
-                return {
-                  ...s,
-                  videos: {
-                    ...s.videos,
-                    [videoId]: {
-                      ...currentVideo,
-                      uploadStatus: { type: 'failed', error: chunkError instanceof Error ? chunkError.message : 'Chunk upload failed' }
-                    } as VideoEntry,
-                  }
-                };
-              });
-            });
 
-          for (;;) {
-            await sleep(1000); // Check status every 1 seconds
-            if (done) {
-              break;
-            }
+            for (;;) {
+              await sleep(1000); // Check status every 1 seconds
+              if (done) {
+                break;
+              }
               const status = await uploadStatus(uploadSession.uploadId);
               console.log('Upload status:', status);
               const uploadProgress =
@@ -530,7 +547,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
                   ? 100 * (status.completedChunks / status.totalChunks)
                   : 0;
 
-              setState(s => {
+              setState((s) => {
                 const currentVideo = s.videos[videoId];
                 if (!currentVideo) return s; // Guard against video being deleted mid-upload
                 return {
@@ -539,53 +556,81 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
                     ...s.videos,
                     [videoId]: {
                       ...currentVideo,
-                      uploadStatus: { type: 'uploading', percentage: uploadProgress }
+                      uploadStatus: {
+                        type: 'uploading',
+                        percentage: uploadProgress,
+                      },
                     } as VideoEntry,
-                  }
+                  },
                 };
               });
-              
+
               if (status.status === 'Completed' || uploadProgress >= 100) {
                 console.log('Upload completed or progress >= 100');
-                break; 
+                break;
               }
               if (status.status === 'Failed') {
                 throw new Error('Server reported upload failure.');
               }
             }
 
-          
-          setState(s => {
-            const currentVideo = s.videos[videoId];
-            if (!currentVideo) return s;
-            return {
+            setState((s) => {
+              const currentVideo = s.videos[videoId];
+              if (!currentVideo) return s;
+              return {
+                ...s,
+                videos: {
+                  ...s.videos,
+                  [videoId]: {
+                    ...currentVideo,
+                    uploadStatus: { type: 'uploaded' },
+                  } as VideoEntry,
+                },
+              };
+            });
+          } catch (uploadError) {
+            console.error(
+              'Error monitoring upload status or upload failed:',
+              uploadError
+            );
+            setState((s) => {
+              const currentVideo = s.videos[videoId];
+              if (!currentVideo) return s;
+              return {
+                ...s,
+                videos: {
+                  ...s.videos,
+                  [videoId]: {
+                    ...currentVideo,
+                    uploadStatus: {
+                      type: 'failed',
+                      error:
+                        uploadError instanceof Error
+                          ? uploadError.message
+                          : 'Upload monitoring failed',
+                    },
+                  } as VideoEntry,
+                },
+              };
+            });
+          }
+        })();
+      } else {
+        setState((s) => {
+          const currentVideo = s.videos[videoId];
+          if (!currentVideo) return s;
+          return {
             ...s,
             videos: {
               ...s.videos,
               [videoId]: {
                 ...currentVideo,
-                uploadStatus: { type: 'uploaded' }
+                uploadStatus: { type: 'uploaded' },
               } as VideoEntry,
-            }
-          }});
-
-        } catch (uploadError) {
-          console.error('Error monitoring upload status or upload failed:', uploadError);
-          setState(s => {
-            const currentVideo = s.videos[videoId];
-            if (!currentVideo) return s;
-            return {
-            ...s,
-            videos: {
-              ...s.videos,
-              [videoId]: {
-                ...currentVideo,
-                uploadStatus: { type: 'failed', error: uploadError instanceof Error ? uploadError.message : 'Upload monitoring failed' }
-              } as VideoEntry,
-            }
-          }});
-        }
-      })();
+            },
+          };
+        });
+      }
 
       return result.videoId;
     } catch (err: unknown) {
@@ -709,8 +754,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         setState((s) => ({
           ...s,
           currentVideoId: videoId,
-          frameCache: { frames: new Map(), maxSize: FRAME_CACHE_MAX_SIZE, recentlyUsed: [] },
-          currentFrame: null
+          frameCache: {
+            frames: new Map(),
+            maxSize: FRAME_CACHE_MAX_SIZE,
+            recentlyUsed: [],
+          },
+          currentFrame: null,
         }));
       } else {
         console.warn(
@@ -747,138 +796,160 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       }
     }, []);
 
-  const updateFrameCache = useCallback((
-    framesToAdd: CurrentFrame[],
-    currentFrameCache: FrameCache
-  ): FrameCache => {
-    // Create new Map from the current cache's frames
-    const newFramesMap = new Map(currentFrameCache.frames);
-    
-    // Add all frames to the cache
-    framesToAdd.forEach(frame => {
-      newFramesMap.set(frame.frameNumber, frame);
-    });
-    
-    // Update recently used list with all new frames
-    const newRecentlyUsed = [
-      ...framesToAdd.map(f => f.frameNumber),
-      ...currentFrameCache.recentlyUsed.filter(n => !framesToAdd.some(f => f.frameNumber === n))
-    ].slice(0, FRAME_CACHE_MAX_SIZE);
-    
-    // If we've exceeded the cache size, remove the least recently used frames
-    while (newFramesMap.size > FRAME_CACHE_MAX_SIZE && newRecentlyUsed.length > 0) {
-      const leastRecent = newRecentlyUsed.pop();
-      if (leastRecent !== undefined) {
-        newFramesMap.delete(leastRecent);
-      }
-    }
-    
-    return {
-      // Return only the FrameCache object
-      frames: newFramesMap,
-      maxSize: FRAME_CACHE_MAX_SIZE,
-      recentlyUsed: newRecentlyUsed
-    };
-  }, []);
+  const updateFrameCache = useCallback(
+    (
+      framesToAdd: CurrentFrame[],
+      currentFrameCache: FrameCache
+    ): FrameCache => {
+      // Create new Map from the current cache's frames
+      const newFramesMap = new Map(currentFrameCache.frames);
 
-  const getCachedFrame = useCallback((
-    frameNumber: number,
-  ): CurrentFrame | null => {
-    return state.frameCache.frames.get(frameNumber) || null;
-  }, [state.frameCache]);
-
-  const cacheSurroundingFrames = useCallback(async (
-    videoId: string,
-    centerFrameNumber: number
-  ) => {
-    const video = state.videos[videoId];
-    // Ensure video, file, and metadata are available
-    if (!video?.file || !video.metadata) {
-      console.warn('Video file or metadata not available for caching surrounding frames.');
-      return;
-    }
-
-    const fps = video.metadata.fps || 30;
-    const frameDuration = 1 / fps;
-    const totalFrames = video.metadata.totalFrames; // Get totalFrames from metadata
-
-    const frameNumbersToConsider: number[] = [];
-    for (let i = 1; i <= FRAMES_TO_CACHE_AROUND_CENTER; i++) {
-      frameNumbersToConsider.push(centerFrameNumber - i);
-      frameNumbersToConsider.push(centerFrameNumber + i);
-    }
-    
-    const framesToCache = frameNumbersToConsider.filter(n =>
-      n >= 0 &&                                         // Frame number is not negative
-      (totalFrames === undefined || n < totalFrames) && // Frame number is within video bounds (if totalFrames is known)
-      !state.frameCache.frames.has(n)                   // Frame is not already in cache
-    );
-
-    if (framesToCache.length === 0) {
-      // console.log('All surrounding frames already cached or out of bounds'); // More accurate log
-      return;
-    }
-
-    try {
-      // Capture all frames in parallel using Promise.allSettled
-      const framePromises = framesToCache.map(async (frameNumber) => {
-        const timestamp = frameNumber * frameDuration;
-        const blobUrl = await ffmpegWorkerPool.captureFrame(
-          video.file!,
-          timestamp,
-          video.ffmpegHandle
-        );
-        return { timestamp, frameNumber, blobUrl } as CurrentFrame;
+      // Add all frames to the cache
+      framesToAdd.forEach((frame) => {
+        newFramesMap.set(frame.frameNumber, frame);
       });
 
-      const results = await Promise.allSettled(framePromises);
-      const successfullyCapturedFrames = results
-        .filter(result => result.status === 'fulfilled')
-        .map(result => (result as PromiseFulfilledResult<CurrentFrame>).value);
+      // Update recently used list with all new frames
+      const newRecentlyUsed = [
+        ...framesToAdd.map((f) => f.frameNumber),
+        ...currentFrameCache.recentlyUsed.filter(
+          (n) => !framesToAdd.some((f) => f.frameNumber === n)
+        ),
+      ].slice(0, FRAME_CACHE_MAX_SIZE);
 
-      if (successfullyCapturedFrames.length > 0) {
-        setState(prevState => ({
-          ...prevState,
-          frameCache: updateFrameCache(successfullyCapturedFrames, prevState.frameCache)
-        }));
-      }
-      
-      // Optional: Log rejected promises for debugging
-      results.forEach(result => {
-        if (result.status === 'rejected') {
-          console.error('Failed to capture a surrounding frame:', result.reason);
+      // If we've exceeded the cache size, remove the least recently used frames
+      while (
+        newFramesMap.size > FRAME_CACHE_MAX_SIZE &&
+        newRecentlyUsed.length > 0
+      ) {
+        const leastRecent = newRecentlyUsed.pop();
+        if (leastRecent !== undefined) {
+          newFramesMap.delete(leastRecent);
         }
-      });
+      }
 
-      // console.log(`Successfully attempted to cache ${successfullyCapturedFrames.length} surrounding frames out of ${framesToCache.length} candidates.`);
-    } catch (error) {
-      // This catch is for errors in the setup of Promise.allSettled, not individual promise rejections
-      console.error('Error in cacheSurroundingFrames dispatch logic:', error);
-    }
-  }, [updateFrameCache, state.videos, state.frameCache]);
+      return {
+        // Return only the FrameCache object
+        frames: newFramesMap,
+        maxSize: FRAME_CACHE_MAX_SIZE,
+        recentlyUsed: newRecentlyUsed,
+      };
+    },
+    []
+  );
 
-  const captureCurrentFrame = useCallback(async (videoId: string, frameNumber: number) => {
-    const video = state.videos[videoId];
-    if (!video?.file) {
-      console.warn('No video file available for frame capture');
-      return;
-    }
+  const getCachedFrame = useCallback(
+    (frameNumber: number): CurrentFrame | null => {
+      return state.frameCache.frames.get(frameNumber) || null;
+    },
+    [state.frameCache]
+  );
 
-    try {
-      const cachedFrame = getCachedFrame(frameNumber);
-      if (cachedFrame) {
-        await handleCachedFrame(cachedFrame, videoId, frameNumber);
+  const cacheSurroundingFrames = useCallback(
+    async (videoId: string, centerFrameNumber: number) => {
+      const video = state.videos[videoId];
+      // Ensure video, file, and metadata are available
+      if (!video?.file || !video.metadata) {
+        console.warn(
+          'Video file or metadata not available for caching surrounding frames.'
+        );
         return;
       }
+
       const fps = video.metadata.fps || 30;
-      const timestamp = frameNumber / fps;
+      const frameDuration = 1 / fps;
+      const totalFrames = video.metadata.totalFrames; // Get totalFrames from metadata
 
-      await captureAndCacheNewFrame(videoId, timestamp, frameNumber);
+      const frameNumbersToConsider: number[] = [];
+      for (let i = 1; i <= FRAMES_TO_CACHE_AROUND_CENTER; i++) {
+        frameNumbersToConsider.push(centerFrameNumber - i);
+        frameNumbersToConsider.push(centerFrameNumber + i);
+      }
 
-    } catch (error) {
-      console.error('Frame capture failed:', error);
-    }
-  }, [state, getCachedFrame, updateFrameCache, cacheSurroundingFrames]);
+      const framesToCache = frameNumbersToConsider.filter(
+        (n) =>
+          n >= 0 && // Frame number is not negative
+          (totalFrames === undefined || n < totalFrames) && // Frame number is within video bounds (if totalFrames is known)
+          !state.frameCache.frames.has(n) // Frame is not already in cache
+      );
+
+      if (framesToCache.length === 0) {
+        // console.log('All surrounding frames already cached or out of bounds'); // More accurate log
+        return;
+      }
+
+      try {
+        // Capture all frames in parallel using Promise.allSettled
+        const framePromises = framesToCache.map(async (frameNumber) => {
+          const timestamp = frameNumber * frameDuration;
+          const blobUrl = await ffmpegWorkerPool.captureFrame(
+            video.file!,
+            timestamp,
+            video.ffmpegHandle
+          );
+          return { timestamp, frameNumber, blobUrl } as CurrentFrame;
+        });
+
+        const results = await Promise.allSettled(framePromises);
+        const successfullyCapturedFrames = results
+          .filter((result) => result.status === 'fulfilled')
+          .map(
+            (result) => (result as PromiseFulfilledResult<CurrentFrame>).value
+          );
+
+        if (successfullyCapturedFrames.length > 0) {
+          setState((prevState) => ({
+            ...prevState,
+            frameCache: updateFrameCache(
+              successfullyCapturedFrames,
+              prevState.frameCache
+            ),
+          }));
+        }
+
+        // Optional: Log rejected promises for debugging
+        results.forEach((result) => {
+          if (result.status === 'rejected') {
+            console.error(
+              'Failed to capture a surrounding frame:',
+              result.reason
+            );
+          }
+        });
+
+        // console.log(`Successfully attempted to cache ${successfullyCapturedFrames.length} surrounding frames out of ${framesToCache.length} candidates.`);
+      } catch (error) {
+        // This catch is for errors in the setup of Promise.allSettled, not individual promise rejections
+        console.error('Error in cacheSurroundingFrames dispatch logic:', error);
+      }
+    },
+    [updateFrameCache, state.videos, state.frameCache]
+  );
+
+  const captureCurrentFrame = useCallback(
+    async (videoId: string, frameNumber: number) => {
+      const video = state.videos[videoId];
+      if (!video?.file) {
+        console.warn('No video file available for frame capture');
+        return;
+      }
+
+      try {
+        const cachedFrame = getCachedFrame(frameNumber);
+        if (cachedFrame) {
+          await handleCachedFrame(cachedFrame, videoId, frameNumber);
+          return;
+        }
+        const fps = video.metadata.fps || 30;
+        const timestamp = frameNumber / fps;
+
+        await captureAndCacheNewFrame(videoId, timestamp, frameNumber);
+      } catch (error) {
+        console.error('Frame capture failed:', error);
+      }
+    },
+    [state, getCachedFrame, updateFrameCache, cacheSurroundingFrames]
+  );
 
   const handleCachedFrame = async (
     cachedFrame: CurrentFrame,
@@ -886,14 +957,18 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     frameNumber: number
   ) => {
     console.log(`Found frame ${frameNumber} in cache`);
-    
-    setState(s => ({
+
+    setState((s) => ({
       ...s,
-      currentFrame: cachedFrame
+      currentFrame: cachedFrame,
     }));
-    
-    cacheSurroundingFrames(videoId, frameNumber)
-      .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
+
+    cacheSurroundingFrames(videoId, frameNumber).catch((error) =>
+      console.error(
+        `Failed to cache surrounding frames for ${frameNumber}:`,
+        error
+      )
+    );
   };
 
   const captureAndCacheNewFrame = async (
@@ -902,13 +977,15 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     frameNumber: number
   ) => {
     console.log(`Frame ${frameNumber} not in cache, capturing...`);
-    
+
     const video = state.videos[videoId];
     if (!video?.file) {
-      console.warn(`No video file found for videoId: ${videoId} during captureAndCacheNewFrame`);
+      console.warn(
+        `No video file found for videoId: ${videoId} during captureAndCacheNewFrame`
+      );
       return;
     }
-    
+
     const blobUrl = await ffmpegWorkerPool.captureFrame(
       video.file!,
       timestamp,
@@ -918,20 +995,23 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     const frame: CurrentFrame = {
       timestamp,
       frameNumber,
-      blobUrl
+      blobUrl,
     };
 
     console.log('frame', frame);
-    setState(prevState => ({
+    setState((prevState) => ({
       ...prevState,
       frameCache: updateFrameCache([frame], prevState.frameCache),
-      currentFrame: frame
+      currentFrame: frame,
     }));
 
-    cacheSurroundingFrames(videoId, frameNumber)
-      .catch(error => console.error(`Failed to cache surrounding frames for ${frameNumber}:`, error));
+    cacheSurroundingFrames(videoId, frameNumber).catch((error) =>
+      console.error(
+        `Failed to cache surrounding frames for ${frameNumber}:`,
+        error
+      )
+    );
   };
-
 
   // Add cleanup for worker pool when component unmounts
   useEffect(() => {
@@ -974,7 +1054,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         try {
           await ffmpeg!.deleteFile(video.ffmpegHandle.filename);
         } catch (error) {
-          console.warn(`Failed to delete FFmpeg file ${video.ffmpegHandle.filename}:`, error);
+          console.warn(
+            `Failed to delete FFmpeg file ${video.ffmpegHandle.filename}:`,
+            error
+          );
         }
       }
     }
@@ -984,7 +1067,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   const resetProject = useCallback(async () => {
     // Cleanup FFmpeg files
     await cleanupFFmpegFiles();
-    
+
     // Cleanup worker pool
     await ffmpegWorkerPool.terminate();
 
@@ -992,7 +1075,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     setState(initialState);
 
     // Cleanup object URLs
-    Object.values(state.videos).forEach(video => {
+    Object.values(state.videos).forEach((video) => {
       if (video.objectURL) {
         URL.revokeObjectURL(video.objectURL);
       }
