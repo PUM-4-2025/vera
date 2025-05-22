@@ -215,24 +215,23 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
 
         const vidName = currentVideo?.file?.name;
         console.log("Checking!");
+
         if (vidName && motionFrames[vidName]) {
           const frames = motionFrames[vidName];
+
           if (currentFrame < frames[0]) {
             const targetTime = (frames[0] / numFrames) * videoDuration;
             videoElementRef.current!.seek(targetTime);
             setCurrentTime(targetTime);
+
           } else {
-            for (let i = 2; i < motionFrames.length; i += 2) {
-              const frames = motionFrames[vidName];
-              console.log("Comparing frames: ", currentFrame, " | ", frames[i], " | ", frames[i - 1]);
+            for (let i = 2; i < frames.length; i += 2) {
               // Motion detection and frame skip
-              if (motionFrames[i] < currentFrame && frames[i - 1] > currentFrame) {
-                console.log("True!");
+              if (frames[i] > currentFrame && frames[i - 1] < currentFrame) {
                 const targetTime = (frames[i] / numFrames) * videoDuration;
                 videoElementRef.current!.seek(targetTime);
                 setCurrentTime(targetTime);
-              } else {
-                console.log("False!");
+                break;
               }
             }
           }
@@ -266,67 +265,119 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
   }, [videoSrc]);
 
   const motionStepBackward = () => {
+    const vidName = currentVideo?.file?.name;
+    //const currentFrame = videoElementRef.current?.getCurrentFrameNumber();
     const currentFrame = Math.floor((currentTime / videoDuration) * numFrames - 1);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.prevFrame();
-      if (samples[currentFrame - counter] == 1 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = 0; i < frames.length; i += 2) {
+          // Step one frame if within an interval
+          if (currentFrame >= frames[i] && currentFrame <= frames[i + 1]) {
+            videoElementRef.current?.prevFrame();
+            return;
+
+            // Jump to next motion section
+          } else if (i > 0 && currentFrame < frames[i] && currentFrame > frames[i - 1]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i - 1]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+          } else if (currentFrame < frames[1]) {
+            videoElementRef.current!.seek(0);
+            setCurrentTime(0);
+            return;
+          }
+        }
+        videoElementRef.current?.prevFrame();
       }
-      counter = counter + 1;
     }
   };
 
   const motionStepForward = () => {
+    const vidName = currentVideo?.file?.name;
+    //const currentFrame = videoElementRef.current?.getCurrentFrameNumber();
     const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.nextFrame();
-      if (samples[currentFrame + counter] == 1 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = 0; i < frames.length; i += 2) {
+          // Step one frame if within an interval
+          if (currentFrame >= frames[i] && currentFrame <= frames[i + 1]) {
+            videoElementRef.current?.nextFrame();
+            return;
+
+            // Jump to next motion section
+          } else if (i > 0 && currentFrame < frames[i] && currentFrame > frames[i - 1]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+
+          } else if (currentFrame > frames[0] && currentFrame < frames[1]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[0]);
+            if (newTime) {
+              videoElementRef.current!.seek(0);
+              setCurrentTime(newTime);
+            }
+            return;
+          }
+        }
+        videoElementRef.current?.nextFrame();
       }
-      counter = counter + 1;
     }
   };
 
   const motionSkipBackward = () => {
+    const vidName = currentVideo?.file?.name;
+    //const currentFrame = videoElementRef.current?.getCurrentFrameNumber();
     const currentFrame = Math.floor((currentTime / videoDuration) * numFrames - 1);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.prevFrame();
-      if (samples[currentFrame - counter] == 1 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = frames.length - 2; i >= 0; i -= 2) {
+          if (currentFrame > frames[i]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+          }
+        }
       }
-      counter = counter + 1;
     }
-    videoElementRef.current?.nextFrame();
-    while (true) {
-      videoElementRef.current?.prevFrame();
-      if (samples[currentFrame - counter] == 0 || counter > 1000) {
-        break;
-      }
-      counter = counter + 1;
-    }
-    videoElementRef.current?.nextFrame();
   };
 
   const motionSkipForward = () => {
+    const vidName = currentVideo?.file?.name;
     const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.nextFrame();
-      if (samples[currentFrame + counter] == 0 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = 0; i < frames.length; i += 2) {
+          if (currentFrame < frames[i]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+          }
+        }
       }
-      counter = counter + 1;
-    }
-    videoElementRef.current?.prevFrame();
-    while (true) {
-      videoElementRef.current?.nextFrame();
-      if (samples[currentFrame + counter] == 1 || counter > 1000) {
-        break;
-      }
-      counter = counter + 1;
     }
   };
 
@@ -447,6 +498,9 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
     },
     isPlaying: () => {
       return videoElementRef.current?.isPlaying() || false;
+    },
+    getTargetTimeForFrame: (frameNumber: number) => {
+      return videoElementRef.current?.getTargetTimeForFrame(frameNumber) || 0;
     },
   }));
 

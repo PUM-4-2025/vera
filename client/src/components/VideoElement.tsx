@@ -39,6 +39,7 @@ export interface VideoElementRef {
   getCurrentFrameNumber: () => number;
   isPlaying: () => boolean;
   setMotionDetectionMode: () => void;
+  getTargetTimeForFrame: (frameNumber: number) => number | null;
 }
 
 interface VideoElementProps {
@@ -560,6 +561,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         setInteractionMode('motionDetection');
         setCurrentShapeType('rect');
       },
+      getTargetTimeForFrame: getTargetTimeForFrame,
     }));
 
     // --- Event Handlers for Annotations ---
