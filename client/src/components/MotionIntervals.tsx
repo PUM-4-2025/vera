@@ -9,8 +9,6 @@ interface MotionIntervalsProps {
   zoomLevel: number; // Zoom level for the intervals (1 = normal, >1 = zoomed in)
   onTimeChange: (time: number) => void; // Callback to update video time when clicking intervals
   onZoomChange: (delta: number) => void; // Callback to adjust zoom level
-  onSamples: (delta: number[]) => void; // Callback to adjust samples
-  numFrames: number; // temp: Number of frames in the video
 }
 
 export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
@@ -20,7 +18,6 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   zoomLevel,
   onTimeChange,
   onZoomChange,
-  numFrames, // temp: Receive the number of frames as a prop
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the intervals canvas
   const intervalsContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
@@ -28,20 +25,11 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   const { videos, currentVideoId } = useProject();
   const { motionFrames } = useAnalysis();
 
-  // temp: Generate random samples based on the number of frames
-  const [samples, setSamples] = useState(null);
-  useEffect(() => {
-    // temp: Update samples when numFrames changes
-    const newSamples = null;
-    setSamples(newSamples);
-    //onSamples(newSamples);
-  }, [numFrames]);
-
   // Handle mouse wheel to zoom in/out of the intervals
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    onZoomChange(delta);
+    onZoomChange(delta * zoomLevel);
   };
 
   // Handle clicking the intervals to jump to a specific time (at any zoom level)
@@ -152,7 +140,7 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   // Redraw when props change
   useEffect(() => {
     drawIntervals();
-  }, [currentTime, videoDuration, zoomLevel, samples]);
+  }, [currentTime, videoDuration, zoomLevel]);
 
   // Redraw when window resizes
   useEffect(() => {

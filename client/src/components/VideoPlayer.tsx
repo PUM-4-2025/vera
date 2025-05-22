@@ -19,6 +19,7 @@ import { VideoTimeSlider } from './VideoTimeSlider';
 import { SoundWaveform } from './SoundWaveform';
 import { MotionIntervals } from './MotionIntervals';
 import VideoElement, { VideoElementRef } from './VideoElement';
+import { useAnalysis } from '@/contexts/AnalysisContext';
 
 const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
   const { videos, currentVideoId } = useProject();
@@ -31,7 +32,6 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [samples, setSamples] = useState([0]);
   const [activeComponent, setActiveComponent] = useState<
     'waveform' | 'intervals' | null
   >('waveform');
@@ -50,6 +50,7 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
   let filename = '';
+  const { motionFrames } = useAnalysis();
 
   // runs when video changed
   useEffect(() => {
@@ -212,25 +213,30 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
           return;
         }
 
+        const vidName = currentVideo?.file?.name;
         console.log("Checking!");
-        if (samples[0]) {
-          if (currentFrame < samples[0]) {
-            const targetTime = (samples[0] / numFrames) * videoDuration;
-            videoElementRef.current!.seek(targetTime);
-            setCurrentTime(targetTime);
-          }
-        }
-        for (let i = 2; i < samples.length; i += 2) {
-          console.log("Comparing frames: ", currentFrame, " | ", samples[i], " | ", samples[i - 1]);
-          // Motion detection and frame skip
-          if (samples[i] < currentFrame && samples[i - 1] > currentFrame) {
-            console.log("True!");
-            const targetTime = (samples[i] / numFrames) * videoDuration;
+        if (vidName && motionFrames[vidName]) {
+          const frames = motionFrames[vidName];
+          if (currentFrame < frames[0]) {
+            const targetTime = (frames[0] / numFrames) * videoDuration;
             videoElementRef.current!.seek(targetTime);
             setCurrentTime(targetTime);
           } else {
-            console.log("False!");
+            for (let i = 2; i < motionFrames.length; i += 2) {
+              const frames = motionFrames[vidName];
+              console.log("Comparing frames: ", currentFrame, " | ", frames[i], " | ", frames[i - 1]);
+              // Motion detection and frame skip
+              if (motionFrames[i] < currentFrame && frames[i - 1] > currentFrame) {
+                console.log("True!");
+                const targetTime = (frames[i] / numFrames) * videoDuration;
+                videoElementRef.current!.seek(targetTime);
+                setCurrentTime(targetTime);
+              } else {
+                console.log("False!");
+              }
+            }
           }
+
         }
         // Schedule next check using RAF only
         playbackController.current.nextCheck =
@@ -390,10 +396,6 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
     setZoomLevel(newZoomLevel);
   };
 
-  const handleSampleChange = (samples: number[]) => {
-    setSamples(samples);
-  };
-
   const toggleWaveform = () => {
     setActiveComponent((prev) => {
       const newValue = prev === 'waveform' ? null : 'waveform';
@@ -508,8 +510,6 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
                 zoomLevel={zoomLevel}
                 onTimeChange={handleTimeChange}
                 onZoomChange={handleZoomChange}
-                onSamples={handleSampleChange}
-                numFrames={numFrames} // temp: Pass the number of frames as a prop
               />
             )}
 

@@ -29,7 +29,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    onZoomChange(delta);
+    onZoomChange(delta * zoomLevel);
   };
 
   // Handle clicking the waveform to jump to a specific time (at any zoom level)
@@ -109,13 +109,12 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
           const sample_max = 404212; // sampleFactor is 100 around 1 hour
           let sampleFactor = Math.round(
             1 +
-              99 *
-                (Math.log(
-                  ((Number(numBars) - sample_min) / (sample_max - sample_min)) *
-                    9 +
-                    1
-                ) /
-                  Math.log(10))
+            99 *
+            (Math.log(
+              ((Number(numBars) - sample_min) / (sample_max - sample_min)) * 9 +
+              1
+            ) /
+              Math.log(10))
           );
           if (sampleFactor < 1) {
             sampleFactor = 1;
@@ -143,11 +142,21 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
             );
           }
         }
+        // Draw red line indicating current video time
+        const redLineX = currentPixel - scrollOffset;
+        if (redLineX >= 0 && redLineX <= effectiveWidth) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(redLineX, 0);
+          ctx.lineTo(redLineX, height);
+          ctx.stroke();
+        }
       }
       // Update container scroll position
       container.scrollLeft = scrollOffset;
-    }
-  };
+    };
+  }
 
   // Redraw when props change
   useEffect(() => {
