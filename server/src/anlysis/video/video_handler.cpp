@@ -14,7 +14,9 @@ float getFramePerSecond(std::string path) {
   cv::VideoCapture cap(path);
   fps = (float)cap.get(cv::CAP_PROP_FPS);
   cap.release();
-  return fps;
+
+  // Return fps if fps > 0
+  return (fps > 0) ? fps : 20;
 }
 
 void registerVideoHandlers(HttpServer &server) {

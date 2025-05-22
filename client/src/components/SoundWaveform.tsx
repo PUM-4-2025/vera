@@ -79,8 +79,6 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
 
     let scrollOffset = 0;
 
-
-
     if (videos && currentVideoId && videos[currentVideoId]?.metadata.filename) {
       const histgram = histograms[videos[currentVideoId]?.metadata.filename];
       if (histgram) {
@@ -111,12 +109,13 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
           const sample_max = 404212; // sampleFactor is 100 around 1 hour
           let sampleFactor = Math.round(
             1 +
-            99 *
-            (Math.log(
-              ((Number(numBars) - sample_min) / (sample_max - sample_min)) * 9 +
-              1
-            ) /
-              Math.log(10))
+              99 *
+                (Math.log(
+                  ((Number(numBars) - sample_min) / (sample_max - sample_min)) *
+                    9 +
+                    1
+                ) /
+                  Math.log(10))
           );
           if (sampleFactor < 1) {
             sampleFactor = 1;
@@ -124,14 +123,13 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
           if (i % sampleFactor == 0) {
             // If video is near 1h we only draw mod 100 of the amount of bars
             let data = samples[i]; // Read the sample
-
             // Normalize sound data amplitude to fit in grapth (dB)
-            const minVal = -100;
+            const minVal = 0;
             const maxVal = 100; // Assume 0 dB as max for audio waveforms
             if (data == undefined || data == null) {
               data = minVal;
             }
-            const barHeight = ((data - minVal) / (maxVal - minVal)) * height; // Normalize
+            const barHeight = ((data - minVal) / maxVal) * height; // Normalize
             //const barHeight = Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5; //old sinewave test
 
             //Draw the bar
@@ -145,21 +143,10 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
             );
           }
         }
-        // Draw red line indicating current video time
-        const redLineX = currentPixel - scrollOffset;
-        if (redLineX >= 0 && redLineX <= effectiveWidth) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(redLineX, 0);
-          ctx.lineTo(redLineX, height);
-          ctx.stroke();
-        }
       }
+      // Update container scroll position
+      container.scrollLeft = scrollOffset;
     }
-
-    // Update container scroll position
-    container.scrollLeft = scrollOffset;
   };
 
   // Redraw when props change
