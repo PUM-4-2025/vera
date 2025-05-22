@@ -212,23 +212,26 @@ const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
           return;
         }
 
-        // Motion detection and frame skip
-        if (samples[currentFrame] !== 1) {
-          let nextFrame = currentFrame + 1;
-          while (nextFrame < numFrames && samples[nextFrame] !== 1) {
-            nextFrame++;
+        console.log("Checking!");
+        if (samples[0]) {
+          if (currentFrame < samples[0]) {
+            const targetTime = (samples[0] / numFrames) * videoDuration;
+            videoElementRef.current!.seek(targetTime);
+            setCurrentTime(targetTime);
           }
-
-          if (nextFrame < numFrames) {
-            const targetTime = (nextFrame / numFrames) * videoDuration;
+        }
+        for (let i = 2; i < samples.length; i += 2) {
+          console.log("Comparing frames: ", currentFrame, " | ", samples[i], " | ", samples[i - 1]);
+          // Motion detection and frame skip
+          if (samples[i] < currentFrame && samples[i - 1] > currentFrame) {
+            console.log("True!");
+            const targetTime = (samples[i] / numFrames) * videoDuration;
             videoElementRef.current!.seek(targetTime);
             setCurrentTime(targetTime);
           } else {
-            stopPlayback();
-            return;
+            console.log("False!");
           }
         }
-
         // Schedule next check using RAF only
         playbackController.current.nextCheck =
           requestAnimationFrame(checkFrames);
