@@ -6,7 +6,7 @@ const DEFAULT_SAMPLES = [
   -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
 ]; //insert samples here
 
-let REAL_SAMPLES: [number] | null;
+let REAL_SAMPLES: number[] | null;
 
 interface SoundWaveformProps {
   filename: string;
@@ -141,12 +141,12 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
         let data = samples[i]; // Read the sample
 
         // Normalize sound data amplitude to fit in grapth (dB)
-        const minVal = -100;
+        const minVal = 0;
         const maxVal = 100; // Assume 0 dB as max for audio waveforms
         if (data == undefined || data == null) {
           data = minVal;
         }
-        const barHeight = ((data - minVal) / (maxVal - minVal)) * height; // Normalize
+        const barHeight = ((data - minVal) / maxVal) * height; // Normalize
         //const barHeight = Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5; //old sinewave test
 
         //Draw the bar

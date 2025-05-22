@@ -4,7 +4,7 @@ const url =
     ? `${window.location.protocol}//${window.location.hostname}:8000`
     : `${window.location.protocol}//${window.location.hostname}`;
 
-export const getAudio = async (filename: string): Promise<[number] | null> => {
+export const getAudio = async (filename: string): Promise<number[] | null> => {
   try {
     // Call the inititate API
     const apiurl = url + '/api/v1/analysis/startAudio';
@@ -24,15 +24,17 @@ export const getAudio = async (filename: string): Promise<[number] | null> => {
       );
     }
 
-    console.log(response);
     const result = await response.json();
-    console.log(result);
-    const samples: [number] = result.audio;
+    const samples: string[] = result.audio.split('\n');
 
-    console.log(samples);
+    const cast_samples = [];
+
+    for (let i = 0; i < samples.length - 2; i++) {
+      cast_samples[i] = Number(samples[i]);
+    }
 
     if (samples.length > 0) {
-      return samples;
+      return cast_samples;
     }
     return null;
   } catch {
