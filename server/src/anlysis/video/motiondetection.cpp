@@ -26,7 +26,7 @@ std::vector<int> analyse_video(std::string path, std::vector<int> cords) {
 
   if (!cap.isOpened()) {
     std::cerr << "Error: Cannot open video file.-------------------------" << std::endl;
-    return {};
+    throw std::invalid_argument("Invalid filepath");
   }
 
   if (w <= 0 || h <= 0) {
@@ -35,11 +35,6 @@ std::vector<int> analyse_video(std::string path, std::vector<int> cords) {
 
   if (x < 0 || y < 0 || x + w > video_width || y + h > video_height) {
     throw std::invalid_argument("ROI is outside of video bounds.");
-  }
-
-  if (!cap.isOpened()) {
-    std::cerr << "Error: Cannot open video file.-------------------------" << std::endl;
-    return motion_frames;
   }
 
   cv::Ptr<cv::BackgroundSubtractor> subtractor = cv::createBackgroundSubtractorMOG2();
@@ -61,12 +56,19 @@ std::vector<int> analyse_video(std::string path, std::vector<int> cords) {
 
     double motion_pixels = cv::countNonZero(fgMask);
 
+    //std::cout << motion_pixels << std::endl;
+
+    // Hoppa över första då denna alltid har 100% pixelförändring
+    if (frame_counter == 0){
+      frame_counter += 1;
+      continue;
+    }
+
     if (motion_pixels > 500) {  // Finjustera
       if (!in_motion) {
         // Starta rörelse
         motion_start = frame_counter;
         in_motion = true;
-        no_motion_count = 0;
       }
       // Rörelse, så vi nollställer räknaren
       no_motion_count = 0;
@@ -79,14 +81,10 @@ std::vector<int> analyse_video(std::string path, std::vector<int> cords) {
         motion_frames.push_back(motion_end);
         in_motion = false;
         no_motion_count = 0;
+        //std::cout << "LÄGGER TILL----------------------------------------";
       }
     }
     frame_counter += 1;
-  }
-
-  // Skriver ut alla rörelse-bilder (start & slut)
-  for (int i : motion_frames) {
-    std::cout << i / fps << std::endl;
   }
 
   cap.release();
