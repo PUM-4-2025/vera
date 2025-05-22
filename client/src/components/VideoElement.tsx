@@ -26,7 +26,7 @@ import {
 import { useProject } from '@/contexts/ProjectContext';
 
 import { ShapeData, RectShape } from '@/types/project';
-import { startMotionDetection } from '@/utils/motionDetection';
+import { useAnalysis } from '@/contexts/AnalysisContext';
 
 // Define the interface for the functions/properties we want to expose
 export interface VideoElementRef {
@@ -303,6 +303,9 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     } | null>(null); // State for selection box coordinates/dimensions
     const [showRawFrame, setShowRawFrame] = useState(false); // State for raw frame toggle
     const [isShowingRawFrame, setIsShowingRawFrame] = useState(false); // State for when raw frame is actually visible
+
+    // AnalysisState
+    const { updateMotionFrames } = useAnalysis();
 
     // --- Helper Function --- Moved up
     const getTargetTimeForFrame = (frameNumber: number): number | null => {
@@ -946,15 +949,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               setCurrentShapeType('none');
 
               try {
-                const success = await startMotionDetection(
+                await updateMotionFrames(
                   currentVideo.metadata.filename,
                   region
                 );
-                if (success) {
-                  console.log('Motion detection run successfully');
-                } else {
-                  console.error('Failed to start motion detection');
-                }
               } catch (error) {
                 console.error('Error starting motion detection:', error);
               }

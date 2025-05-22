@@ -1,17 +1,17 @@
 const url =
   `${window.location.protocol}//${window.location.hostname}` ==
-  'http://localhost'
+    'http://localhost'
     ? `${window.location.protocol}//${window.location.hostname}:8000`
     : `${window.location.protocol}//${window.location.hostname}`;
 
-interface MotionDetectionRegion {
+export interface MotionDetectionRegion {
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
-export const startMotionDetection = async (
+export const runMotionDetection = async (
   filename: string,
   region: MotionDetectionRegion
 ): Promise<number[]> => {

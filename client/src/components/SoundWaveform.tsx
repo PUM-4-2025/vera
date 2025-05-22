@@ -1,12 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { getAudio } from '@/utils/audio';
 import { useProject } from '@/contexts/ProjectContext';
-
-const DEFAULT_SAMPLES = [
-  -74.7, -50.0, -22.4, -15.3, -7.0, 0.0, -7.0, -15.3, -22.4, -50.0, -74.7,
-]; //insert samples here
-
-let REAL_SAMPLES: [number] | null;
+import { useAnalysis } from '@/contexts/AnalysisContext';
 
 interface SoundWaveformProps {
   filename: string;
@@ -29,6 +23,7 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
   const waveformContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
   const { videos, currentVideoId } = useProject();
+  const { histograms } = useAnalysis();
 
   // Handle mouse wheel to zoom in/out of the waveform
   const handleWheel = (e: React.WheelEvent) => {
@@ -56,27 +51,10 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     const clickedTime = fraction * videoDuration;
     const newTime = Math.max(0, Math.min(clickedTime, videoDuration));
     onTimeChange(newTime); // Update video time
-
-    // TODO: Replace this with getting the currently selected filename
-    if (videos && currentVideoId) {
-      const filename = videos[currentVideoId]?.metadata.filename;
-      if (filename) {
-        REAL_SAMPLES = await getAudio(filename);
-      } else {
-        REAL_SAMPLES = null;
-      }
-    } else {
-      REAL_SAMPLES = null;
-    }
   };
 
   // Draw the waveform and red line
   const drawWaveform = () => {
-    let samples = DEFAULT_SAMPLES;
-    if (REAL_SAMPLES != null) {
-      samples = REAL_SAMPLES;
-    }
-
     const canvas = canvasRef.current;
     const container = waveformContainerRef.current;
     if (!canvas || !container || !videoDuration) return;
@@ -99,77 +77,85 @@ export const SoundWaveform: React.FC<SoundWaveformProps> = ({
     // Clear the canvas
     ctx.clearRect(0, 0, effectiveWidth, height);
 
-    // Waveform parameters
-    const numBars = samples.length; // number of samples
-    const totalWaveformWidth = effectiveWidth * zoomLevel;
-    const timePerPixel = videoDuration / totalWaveformWidth;
-    const currentPixel = currentTime / timePerPixel;
     let scrollOffset = 0;
 
-    // Calculate scroll offset to center the current time when zoomed in
-    if (totalWaveformWidth > effectiveWidth) {
-      scrollOffset = currentPixel - effectiveWidth / 2;
-      scrollOffset = Math.max(
-        0,
-        Math.min(scrollOffset, totalWaveformWidth - effectiveWidth)
-      );
-    }
-    scrollOffsetRef.current = scrollOffset; // Store scroll offset
 
-    const barWidth = totalWaveformWidth / numBars;
-    const startBar = Math.floor(scrollOffset / barWidth);
-    const visibleBars = Math.ceil(effectiveWidth / barWidth);
 
-    // Draw waveform bars
-    for (let i = startBar; i < startBar + visibleBars && i < numBars; i++) {
-      const sample_min = 5977; // sampleFactor is 1 around 1 min
-      const sample_max = 404212; // sampleFactor is 100 around 1 hour
-      let sampleFactor = Math.round(
-        1 +
-          99 *
+    if (videos && currentVideoId && videos[currentVideoId]?.metadata.filename) {
+      const histgram = histograms[videos[currentVideoId]?.metadata.filename];
+      if (histgram) {
+        const samples = histgram;
+
+        // Waveform parameters
+        const numBars = samples.length; // number of samples
+        const totalWaveformWidth = effectiveWidth * zoomLevel;
+        const timePerPixel = videoDuration / totalWaveformWidth;
+        const currentPixel = currentTime / timePerPixel;
+
+        // Calculate scroll offset to center the current time when zoomed in
+        if (totalWaveformWidth > effectiveWidth) {
+          scrollOffset = currentPixel - effectiveWidth / 2;
+          scrollOffset = Math.max(
+            0,
+            Math.min(scrollOffset, totalWaveformWidth - effectiveWidth)
+          );
+        }
+        scrollOffsetRef.current = scrollOffset; // Store scroll offset
+        const barWidth = totalWaveformWidth / numBars;
+        const startBar = Math.floor(scrollOffset / barWidth);
+        const visibleBars = Math.ceil(effectiveWidth / barWidth);
+
+        // Draw waveform bars
+        for (let i = startBar; i < startBar + visibleBars && i < numBars; i++) {
+          const sample_min = 5977; // sampleFactor is 1 around 1 min
+          const sample_max = 404212; // sampleFactor is 100 around 1 hour
+          let sampleFactor = Math.round(
+            1 +
+            99 *
             (Math.log(
               ((Number(numBars) - sample_min) / (sample_max - sample_min)) * 9 +
-                1
+              1
             ) /
               Math.log(10))
-      );
-      if (sampleFactor < 1) {
-        sampleFactor = 1;
-      }
-      if (i % sampleFactor == 0) {
-        // If video is near 1h we only draw mod 100 of the amount of bars
-        let data = samples[i]; // Read the sample
+          );
+          if (sampleFactor < 1) {
+            sampleFactor = 1;
+          }
+          if (i % sampleFactor == 0) {
+            // If video is near 1h we only draw mod 100 of the amount of bars
+            let data = samples[i]; // Read the sample
 
-        // Normalize sound data amplitude to fit in grapth (dB)
-        const minVal = -100;
-        const maxVal = 100; // Assume 0 dB as max for audio waveforms
-        if (data == undefined || data == null) {
-          data = minVal;
+            // Normalize sound data amplitude to fit in grapth (dB)
+            const minVal = -100;
+            const maxVal = 100; // Assume 0 dB as max for audio waveforms
+            if (data == undefined || data == null) {
+              data = minVal;
+            }
+            const barHeight = ((data - minVal) / (maxVal - minVal)) * height; // Normalize
+            //const barHeight = Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5; //old sinewave test
+
+            //Draw the bar
+            const x = i * barWidth - scrollOffset;
+            ctx.fillStyle = 'rgba(255, 217, 0, 0.7)';
+            ctx.fillRect(
+              x,
+              height - barHeight,
+              Math.max(1, sampleFactor * barWidth),
+              barHeight
+            );
+          }
         }
-        const barHeight = ((data - minVal) / (maxVal - minVal)) * height; // Normalize
-        //const barHeight = Math.sin((i / numBars) * Math.PI * 2) * height * 0.5 + height * 0.5; //old sinewave test
-
-        //Draw the bar
-        const x = i * barWidth - scrollOffset;
-        ctx.fillStyle = 'rgba(255, 217, 0, 0.7)';
-        ctx.fillRect(
-          x,
-          height - barHeight,
-          Math.max(1, sampleFactor * barWidth),
-          barHeight
-        );
+        // Draw red line indicating current video time
+        const redLineX = currentPixel - scrollOffset;
+        if (redLineX >= 0 && redLineX <= effectiveWidth) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(redLineX, 0);
+          ctx.lineTo(redLineX, height);
+          ctx.stroke();
+        }
       }
-    }
-
-    // Draw red line indicating current video time
-    const redLineX = currentPixel - scrollOffset;
-    if (redLineX >= 0 && redLineX <= effectiveWidth) {
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(redLineX, 0);
-      ctx.lineTo(redLineX, height);
-      ctx.stroke();
     }
 
     // Update container scroll position

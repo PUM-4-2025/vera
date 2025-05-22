@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   Play,
   Pause,
@@ -20,7 +20,7 @@ import { SoundWaveform } from './SoundWaveform';
 import { MotionIntervals } from './MotionIntervals';
 import VideoElement, { VideoElementRef } from './VideoElement';
 
-const VideoPlayer = forwardRef<VideoElementRef>((props, ref) => {
+const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
   const { videos, currentVideoId } = useProject();
   const videoElementRef = useRef<VideoElementRef>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -197,7 +197,7 @@ const VideoPlayer = forwardRef<VideoElementRef>((props, ref) => {
     setIsPlaying(true);
 
     try {
-      await videoElementRef.current.play();
+      videoElementRef.current.play();
       const checkFrames = () => {
         if (!playbackController.current.active) return;
 
@@ -451,17 +451,15 @@ const VideoPlayer = forwardRef<VideoElementRef>((props, ref) => {
         // Combined Layout
         <div
           key={effectiveLayout}
-          className={`flex ${
-            isPortraitLayout
-              ? 'flex-row h-full space-x-1'
-              : 'flex-col space-y-1'
-          } h-full`}
+          className={`flex ${isPortraitLayout
+            ? 'flex-row h-full space-x-1'
+            : 'flex-col space-y-1'
+            } h-full`}
         >
           <div
             ref={videoContainerRef}
-            className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${
-              isPortraitLayout ? 'h-full' : 'flex-1'
-            }`}
+            className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${isPortraitLayout ? 'h-full' : 'flex-1'
+              }`}
             style={{
               aspectRatio: displayedAR,
             }}
@@ -475,9 +473,8 @@ const VideoPlayer = forwardRef<VideoElementRef>((props, ref) => {
           </div>
 
           <div
-            className={`${
-              isPortraitLayout ? 'flex-1 h-full flex flex-col space-y-1' : ''
-            }`}
+            className={`${isPortraitLayout ? 'flex-1 h-full flex flex-col space-y-1' : ''
+              }`}
           >
             <VideoTimeSlider
               currentTime={currentTime}

@@ -17,6 +17,7 @@ import {
 import { useFFmpeg } from './FFmpegContext';
 import { uploadMedia, uploadChunks, uploadStatus } from '@/utils/uploadMedia';
 import { ffmpegWorkerPool } from '@/utils/ffmpegWorkerPool';
+import { useAnalysis } from './AnalysisContext';
 
 // Import types from the dedicated types file
 import {
@@ -88,6 +89,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   const { ffmpeg } = useFFmpeg();
   const justSavedRef = useRef(false);
   const justLoadedRef = useRef(false);
+  const { updateHistogram } = useAnalysis();
 
   // Helper function to manage object URL cleanup
   const manageObjectUrlCleanup = useCallback(() => {
@@ -535,7 +537,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
                 });
               });
 
-            for (;;) {
+            for (; ;) {
               await sleep(1000); // Check status every 1 seconds
               if (done) {
                 break;
@@ -588,6 +590,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
                 },
               };
             });
+            // Tell server to perform audio analysis on video
+            updateHistogram(file.name);
           } catch (uploadError) {
             console.error(
               'Error monitoring upload status or upload failed:',
@@ -630,7 +634,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
             },
           };
         });
+        // Tell server to perform audio analysis on video
+        updateHistogram(file.name);
       }
+
 
       return result.videoId;
     } catch (err: unknown) {

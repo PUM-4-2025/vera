@@ -1,4 +1,3 @@
-import React, { useRef } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,9 +132,9 @@ const Header: React.FC<HeaderProps> = ({
     useProject();
 
   const analyzeMenuItems: HeaderMenuItemProps[] = [
-    { 
-      icon: <Activity size={16} />, 
-      label: 'Detect Motion', 
+    {
+      icon: <Activity size={16} />,
+      label: 'Detect Motion',
       shortcut: '⌘M',
       onClick: () => {
         if (videoElementRef.current) {

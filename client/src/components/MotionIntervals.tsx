@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { useAnalysis } from '@/contexts/AnalysisContext';
+import { useProject } from '@/contexts/ProjectContext';
 
 interface MotionIntervalsProps {
   filename: string;
@@ -18,12 +20,13 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
   zoomLevel,
   onTimeChange,
   onZoomChange,
-  onSamples,
   numFrames, // temp: Receive the number of frames as a prop
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the intervals canvas
   const intervalsContainerRef = useRef<HTMLDivElement>(null); // Reference to the scrollable container
   const scrollOffsetRef = useRef<number>(0); // Scroll offset for click handler
+  const { videos, currentVideoId } = useProject();
+  const { motionFrames } = useAnalysis();
 
   // temp: Generate random samples based on the number of frames
   const [samples, setSamples] = useState(null);
@@ -101,20 +104,33 @@ export const MotionIntervals: React.FC<MotionIntervalsProps> = ({
     }
     scrollOffsetRef.current = scrollOffset; // Store scroll offset
 
-    if (samples && samples.length > 1) {
-      // Draw intervals bars
-      for (let i = 0; i < samples.length; i += 2) {
-        const start = samples[i]; // Start of motion
-        const end = samples[i + 1]; // End of motion
+    if (videos && currentVideoId && videos[currentVideoId]?.metadata.filename) {
+      const motion = motionFrames[videos[currentVideoId]?.metadata.filename];
+      const metadata = videos[currentVideoId]?.metadata;
 
-        const barWidth =
-          (totalIntervalsWidth * (end - start)) / totalIntervalsWidth;
-        const barHeight = height;
+      const frameRate = metadata?.fps || 30;
+      const totalFrames = Math.floor(metadata?.duration * frameRate);
 
-        //Draw the bar
-        const x = i * barWidth - scrollOffset;
-        ctx.fillStyle = 'red';
-        ctx.fillRect(x, height - barHeight, Math.max(1, barWidth), barHeight);
+      // Implement barScale
+      const barWidth =
+        totalIntervalsWidth / totalFrames;
+      const barHeight = height;
+
+      if (motion) {
+        const samples = motion;
+        if (samples && samples.length > 1) {
+
+          // Draw intervals bars
+          for (let i = 0; i < samples.length; i += 2) {
+            const start = samples[i]; // Start of motion
+            const end = samples[i + 1]; // End of motion
+
+            //Draw the bar
+            const x = start * barWidth - scrollOffset;
+            ctx.fillStyle = 'red';
+            ctx.fillRect(x, height - barHeight, (end - start) * barWidth, barHeight);
+          }
+        }
       }
     }
 
