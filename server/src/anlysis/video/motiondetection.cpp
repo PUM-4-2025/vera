@@ -54,9 +54,7 @@ std::vector<int> analyse_video(std::string path, std::vector<int> cords) {
     cv::erode(fgMask, fgMask, cv::Mat());
     cv::dilate(fgMask, fgMask, cv::Mat());
 
-    double motion_pixels = cv::countNonZero(fgMask);
-
-    //std::cout << motion_pixels << std::endl;
+    unsigned int motion_pixels = cv::countNonZero(fgMask);
 
     // Hoppa över första då denna alltid har 100% pixelförändring
     if (frame_counter == 0){
@@ -81,7 +79,6 @@ std::vector<int> analyse_video(std::string path, std::vector<int> cords) {
         motion_frames.push_back(motion_end);
         in_motion = false;
         no_motion_count = 0;
-        //std::cout << "LÄGGER TILL----------------------------------------";
       }
     }
     frame_counter += 1;
