@@ -44,7 +44,6 @@ import {
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
 import { toast } from 'sonner';
-import { SrvRecord } from 'dns';
 
 // --- Constants for Cache Configuration ---
 const FRAME_CACHE_MAX_SIZE = 20;
@@ -1139,7 +1138,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         bookmarks: newBookmarks,
         isSaved: false, // Changing bookmarks should mark the project as unsaved
       }));
-    
+    },
+    []
+  );
+
   const setTaskStatus = useCallback(
     (videoId: string, taskStatus: TaskStatus) => {
       setState((prev) => {

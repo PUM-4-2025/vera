@@ -125,6 +125,12 @@ export interface FrameCache {
   recentlyUsed: number[]; // list of recently used frame numbers
 }
 
+export interface AnalysisData {
+  name: string;
+  region: RectShape;
+  data: Record<string, any>;
+}
+
 // Represents the overall state managed by the ProjectContext
 export interface ProjectState {
   projectDirectoryHandle: FileSystemDirectoryHandle | null;
@@ -197,7 +203,6 @@ export interface LoadProjectResult {
   metadata: Metadata;
   videos: Record<string, VideoEntry>;
   annotations: Record<string, VideoAnnotationData>;
-  bookmarks: Record<string, BookmarkEntry[]>;
   currentVideoId: string | null;
 }
 
