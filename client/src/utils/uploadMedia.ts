@@ -1,5 +1,3 @@
-import { toast } from 'sonner';
-
 export interface UploadSession {
   uploadId: number;
   file: File;
@@ -20,7 +18,9 @@ const url =
     ? `${window.location.protocol}//${window.location.hostname}:8000`
     : `${window.location.protocol}//${window.location.hostname}`;
 
-export const uploadMedia = async (file: File): Promise<UploadSession> => {
+export const uploadMedia = async (
+  file: File
+): Promise<UploadSession | null> => {
   try {
     // Call the inititate API
     const initUrl = url + '/api/v1/uploads/initiate';
@@ -39,9 +39,16 @@ export const uploadMedia = async (file: File): Promise<UploadSession> => {
       throw new Error('Failed to initiate upload with server!');
     }
 
-    console.log(initResponse);
     const initResult = await initResponse.json();
-    console.log(initResult);
+
+    if (initResult.status === 'Uninitialized') {
+      console.log(
+        'Recived Uninitialized status with message: ',
+        initResult.message
+      );
+      return null;
+    }
+
     const uploadId = initResult.uploadId;
 
     const status = await uploadStatus(uploadId);
@@ -129,8 +136,9 @@ export const uploadChunks = async (uploadSession: UploadSession) => {
     //console.log('Uploaded chunk: ', i);
   }
 
-  // Tell server to verify that upload is complete
-  uploadComplete(uploadSession);
+  // Tell server to verify that upload is complete, and only resolve if successful
+  await uploadComplete(uploadSession);
+  return { success: true, uploadId: uploadSession.uploadId };
 };
 
 export const uploadComplete = async (uploadSession: UploadSession) => {
@@ -162,7 +170,7 @@ export const uploadComplete = async (uploadSession: UploadSession) => {
 
     const message = 'Completed upload of ' + uploadSession.file.name;
     console.log(message);
-    toast.info(message);
+    // toast.info(message); // Toast removed as requested, status will be updated in context
   } catch {
     throw new Error('Finishing upload failed!');
   }

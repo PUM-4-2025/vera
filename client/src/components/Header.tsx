@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +35,7 @@ import {
 import { useProject } from '@/contexts/ProjectContext';
 import veraLogo from '../assets/vera_blagul.svg';
 import { Button } from '@/components/ui/button';
+import { VideoElementRef } from './VideoElement';
 
 interface HeaderMenuItemProps {
   icon: React.ReactNode;
@@ -89,12 +89,41 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({ label, items }) => (
 );
 
 export interface HeaderProps {
+const editMenuItems: HeaderMenuItemProps[] = [
+  { icon: <Undo2 size={16} />, label: 'Undo', shortcut: '⌘Z' },
+  { icon: <Redo2 size={16} />, label: 'Redo', shortcut: '⌘Y' },
+  { icon: <Trash2 size={16} />, label: 'Clear Annotations', shortcut: '⌘D' },
+];
+
+const viewMenuItems: HeaderMenuItemProps[] = [
+  { icon: <ZoomIn size={16} />, label: 'Zoom In', shortcut: '⌘+' },
+  { icon: <ZoomOut size={16} />, label: 'Zoom Out', shortcut: '⌘-' },
+  { icon: <Maximize size={16} />, label: 'Fullscreen Toggle', shortcut: 'F11' },
+  { icon: <Eye size={16} />, label: 'Show Annotations', shortcut: '⌘A' },
+  { icon: <EyeOff size={16} />, label: 'Hide Annotations', shortcut: '⌘H' },
+];
+
+const toolsMenuItems: HeaderMenuItemProps[] = [
+  { icon: <Circle size={16} />, label: 'Draw Circle', shortcut: 'C' },
+  { icon: <Square size={16} />, label: 'Draw Rectangle', shortcut: 'R' },
+  { icon: <ArrowRight size={16} />, label: 'Draw Arrow', shortcut: 'A' },
+  { icon: <Type size={16} />, label: 'Add Text Box', shortcut: 'T' },
+];
+
+const helpMenuItems: HeaderMenuItemProps[] = [
+  { icon: <HelpCircle size={16} />, label: 'User Guide', shortcut: 'F1' },
+  { icon: <Info size={16} />, label: 'About VERA', shortcut: '' },
+  { icon: <Headphones size={16} />, label: 'Contact Support', shortcut: '' },
+];
+
+interface HeaderProps {
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
   onInitiateSaveAs: () => void;
   onGoBackRequest: () => void;
   toggleBookmarkSidebar: () => void;
   isBookmarkSidebarOpen: boolean;
+  videoElementRef: React.RefObject<VideoElementRef>;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -104,6 +133,7 @@ const Header: React.FC<HeaderProps> = ({
   onGoBackRequest,
   toggleBookmarkSidebar,
   isBookmarkSidebarOpen,
+  videoElementRef,
 }) => {
   const {
     projectDirectoryHandle,
@@ -112,6 +142,21 @@ const Header: React.FC<HeaderProps> = ({
     uploadVideo,
     isSaved,
   } = useProject();
+
+  const analyzeMenuItems: HeaderMenuItemProps[] = [
+    {
+      icon: <Activity size={16} />,
+      label: 'Detect Motion',
+      shortcut: '⌘M',
+      onClick: () => {
+        if (videoElementRef.current) {
+          videoElementRef.current.setMotionDetectionMode();
+        }
+      }
+    },
+    { icon: <Volume2 size={16} />, label: 'Detect Sound', shortcut: '⌘S' },
+    { icon: <FileText size={16} />, label: 'Generate Log', shortcut: '⌘L' },
+  ];
 
   const fileMenuItems: HeaderMenuItemProps[] = [
     {

@@ -26,6 +26,8 @@ export interface VideoEntry extends VideoEntryData {
   objectURL?: string; // Optional: Blob URL for playback (runtime only)
   file?: File; // Optional: Original File object for unsaved uploads (runtime only)
   ffmpegHandle?: VideoFFmpegHandle; // Add this
+  uploadStatus?: UploadStatus; // Add this for server upload status
+  taskStatus?: TaskStatus; // Add this for task status
 }
 
 // Detailed metadata extracted from a video file using FFmpeg
@@ -96,7 +98,21 @@ export interface BookmarkEntry extends BookmarkEntryData {
   blobUrl?: string;
 }
 
-export interface AnalysisData {
+// Add these types for Upload Status
+export type UploadStatus =
+  | { type: 'not_uploaded' }
+  | { type: 'uploading'; percentage: number }
+  | { type: 'uploaded' }
+  | { type: 'failed'; error?: string };
+
+export type TaskStatus =
+  | { type: 'not_started' }
+  | { type: 'analyzing' }
+  | { type: 'completed' }
+  | { type: 'failed'; error?: string };
+
+// Preliminary types for bookmarks
+export interface BookmarkData {
   name: string;
   description: string;
   fileHandle?: FileSystemFileHandle;
@@ -171,6 +187,7 @@ export interface ProjectContextType extends ProjectState {
   ) => void;
   setVideoApi: (api: VideoElementApi | null) => void;
   setBookmarks: (bookmarks: Record<string, BookmarkEntry[]>) => void;
+  setTaskStatus: (videoId: string, taskStatus: TaskStatus) => void;
 }
 
 // --- Result Types for Utility Functions ---

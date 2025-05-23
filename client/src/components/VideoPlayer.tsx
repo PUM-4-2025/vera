@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   Play,
   Pause,
@@ -19,8 +19,9 @@ import { VideoTimeSlider } from './VideoTimeSlider';
 import { SoundWaveform } from './SoundWaveform';
 import { MotionIntervals } from './MotionIntervals';
 import VideoElement, { VideoElementRef } from './VideoElement';
+import { useAnalysis } from '@/contexts/AnalysisContext';
 
-const VideoPlayer: React.FC = () => {
+const VideoPlayer = forwardRef<VideoElementRef>((_props, ref) => {
   const { videos, currentVideoId } = useProject();
   const videoElementRef = useRef<VideoElementRef>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +32,6 @@ const VideoPlayer: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [samples, setSamples] = useState([0]);
   const [activeComponent, setActiveComponent] = useState<
     'waveform' | 'intervals' | null
   >('waveform');
@@ -50,6 +50,7 @@ const VideoPlayer: React.FC = () => {
   const currentVideo = currentVideoId ? videos[currentVideoId] : null;
   const videoSrc = currentVideo?.objectURL || '';
   let filename = '';
+  const { motionFrames } = useAnalysis();
 
   // runs when video changed
   useEffect(() => {
@@ -197,7 +198,7 @@ const VideoPlayer: React.FC = () => {
     setIsPlaying(true);
 
     try {
-      await videoElementRef.current.play();
+      videoElementRef.current.play();
       const checkFrames = () => {
         if (!playbackController.current.active) return;
 
@@ -212,23 +213,30 @@ const VideoPlayer: React.FC = () => {
           return;
         }
 
-        // Motion detection and frame skip
-        if (samples[currentFrame] !== 1) {
-          let nextFrame = currentFrame + 1;
-          while (nextFrame < numFrames && samples[nextFrame] !== 1) {
-            nextFrame++;
-          }
+        const vidName = currentVideo?.file?.name;
+        console.log("Checking!");
 
-          if (nextFrame < numFrames) {
-            const targetTime = (nextFrame / numFrames) * videoDuration;
+        if (vidName && motionFrames[vidName]) {
+          const frames = motionFrames[vidName];
+
+          if (currentFrame < frames[0]) {
+            const targetTime = (frames[0] / numFrames) * videoDuration;
             videoElementRef.current!.seek(targetTime);
             setCurrentTime(targetTime);
-          } else {
-            stopPlayback();
-            return;
-          }
-        }
 
+          } else {
+            for (let i = 2; i < frames.length; i += 2) {
+              // Motion detection and frame skip
+              if (frames[i] > currentFrame && frames[i - 1] < currentFrame) {
+                const targetTime = (frames[i] / numFrames) * videoDuration;
+                videoElementRef.current!.seek(targetTime);
+                setCurrentTime(targetTime);
+                break;
+              }
+            }
+          }
+
+        }
         // Schedule next check using RAF only
         playbackController.current.nextCheck =
           requestAnimationFrame(checkFrames);
@@ -257,67 +265,119 @@ const VideoPlayer: React.FC = () => {
   }, [videoSrc]);
 
   const motionStepBackward = () => {
+    const vidName = currentVideo?.file?.name;
+    //const currentFrame = videoElementRef.current?.getCurrentFrameNumber();
     const currentFrame = Math.floor((currentTime / videoDuration) * numFrames - 1);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.prevFrame();
-      if (samples[currentFrame - counter] == 1 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = 0; i < frames.length; i += 2) {
+          // Step one frame if within an interval
+          if (currentFrame >= frames[i] && currentFrame <= frames[i + 1]) {
+            videoElementRef.current?.prevFrame();
+            return;
+
+            // Jump to next motion section
+          } else if (i > 0 && currentFrame < frames[i] && currentFrame > frames[i - 1]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i - 1]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+          } else if (currentFrame < frames[1]) {
+            videoElementRef.current!.seek(0);
+            setCurrentTime(0);
+            return;
+          }
+        }
+        videoElementRef.current?.prevFrame();
       }
-      counter = counter + 1;
     }
   };
 
   const motionStepForward = () => {
+    const vidName = currentVideo?.file?.name;
+    //const currentFrame = videoElementRef.current?.getCurrentFrameNumber();
     const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.nextFrame();
-      if (samples[currentFrame + counter] == 1 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = 0; i < frames.length; i += 2) {
+          // Step one frame if within an interval
+          if (currentFrame >= frames[i] && currentFrame <= frames[i + 1]) {
+            videoElementRef.current?.nextFrame();
+            return;
+
+            // Jump to next motion section
+          } else if (i > 0 && currentFrame < frames[i] && currentFrame > frames[i - 1]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+
+          } else if (currentFrame > frames[0] && currentFrame < frames[1]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[0]);
+            if (newTime) {
+              videoElementRef.current!.seek(0);
+              setCurrentTime(newTime);
+            }
+            return;
+          }
+        }
+        videoElementRef.current?.nextFrame();
       }
-      counter = counter + 1;
     }
   };
 
   const motionSkipBackward = () => {
+    const vidName = currentVideo?.file?.name;
+    //const currentFrame = videoElementRef.current?.getCurrentFrameNumber();
     const currentFrame = Math.floor((currentTime / videoDuration) * numFrames - 1);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.prevFrame();
-      if (samples[currentFrame - counter] == 1 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = frames.length - 2; i >= 0; i -= 2) {
+          if (currentFrame > frames[i]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+          }
+        }
       }
-      counter = counter + 1;
     }
-    videoElementRef.current?.nextFrame();
-    while (true) {
-      videoElementRef.current?.prevFrame();
-      if (samples[currentFrame - counter] == 0 || counter > 1000) {
-        break;
-      }
-      counter = counter + 1;
-    }
-    videoElementRef.current?.nextFrame();
   };
 
   const motionSkipForward = () => {
+    const vidName = currentVideo?.file?.name;
     const currentFrame = Math.ceil((currentTime / videoDuration) * numFrames);
-    let counter = 0;
-    while (true) {
-      videoElementRef.current?.nextFrame();
-      if (samples[currentFrame + counter] == 0 || counter > 1000) {
-        break;
+
+    if (vidName && currentFrame) {
+      const frames = motionFrames[vidName];
+
+      if (frames) {
+        for (let i = 0; i < frames.length; i += 2) {
+          if (currentFrame < frames[i]) {
+            const newTime = videoElementRef.current?.getTargetTimeForFrame(frames[i]);
+            if (newTime) {
+              videoElementRef.current!.seek(newTime);
+              setCurrentTime(newTime);
+            }
+            return;
+          }
+        }
       }
-      counter = counter + 1;
-    }
-    videoElementRef.current?.prevFrame();
-    while (true) {
-      videoElementRef.current?.nextFrame();
-      if (samples[currentFrame + counter] == 1 || counter > 1000) {
-        break;
-      }
-      counter = counter + 1;
     }
   };
 
@@ -387,10 +447,6 @@ const VideoPlayer: React.FC = () => {
     setZoomLevel(newZoomLevel);
   };
 
-  const handleSampleChange = (samples: number[]) => {
-    setSamples(samples);
-  };
-
   const toggleWaveform = () => {
     setActiveComponent((prev) => {
       const newValue = prev === 'waveform' ? null : 'waveform';
@@ -412,23 +468,57 @@ const VideoPlayer: React.FC = () => {
     stopPlayback();
   };
 
+  // Expose the video element ref to the parent component
+  useImperativeHandle(ref, () => ({
+    setMotionDetectionMode: () => {
+      if (videoElementRef.current) {
+        videoElementRef.current.setMotionDetectionMode();
+      }
+    },
+    getCurrentTime: () => {
+      return videoElementRef.current?.getCurrentTime() || 0;
+    },
+    play: () => {
+      return videoElementRef.current?.play() || Promise.resolve();
+    },
+    pause: () => {
+      videoElementRef.current?.pause();
+    },
+    prevFrame: () => {
+      videoElementRef.current?.prevFrame();
+    },
+    nextFrame: () => {
+      videoElementRef.current?.nextFrame();
+    },
+    seek: (time: number) => {
+      videoElementRef.current?.seek(time);
+    },
+    getCurrentFrameNumber: () => {
+      return videoElementRef.current?.getCurrentFrameNumber() || 0;
+    },
+    isPlaying: () => {
+      return videoElementRef.current?.isPlaying() || false;
+    },
+    getTargetTimeForFrame: (frameNumber: number) => {
+      return videoElementRef.current?.getTargetTimeForFrame(frameNumber) || 0;
+    },
+  }));
+
   return (
     <div className="h-full">
       {videoSrc ? (
         // Combined Layout
         <div
           key={effectiveLayout}
-          className={`flex ${
-            isPortraitLayout
-              ? 'flex-row h-full space-x-1'
-              : 'flex-col space-y-1'
-          } h-full`}
+          className={`flex ${isPortraitLayout
+            ? 'flex-row h-full space-x-1'
+            : 'flex-col space-y-1'
+            } h-full`}
         >
           <div
             ref={videoContainerRef}
-            className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${
-              isPortraitLayout ? 'h-full' : 'flex-1'
-            }`}
+            className={`relative bg-vera-muted overflow-hidden flex items-center justify-center border border-border/30 ${isPortraitLayout ? 'h-full' : 'flex-1'
+              }`}
             style={{
               aspectRatio: displayedAR,
             }}
@@ -442,9 +532,8 @@ const VideoPlayer: React.FC = () => {
           </div>
 
           <div
-            className={`${
-              isPortraitLayout ? 'flex-1 h-full flex flex-col space-y-1' : ''
-            }`}
+            className={`${isPortraitLayout ? 'flex-1 h-full flex flex-col space-y-1' : ''
+              }`}
           >
             <VideoTimeSlider
               currentTime={currentTime}
@@ -475,8 +564,6 @@ const VideoPlayer: React.FC = () => {
                 zoomLevel={zoomLevel}
                 onTimeChange={handleTimeChange}
                 onZoomChange={handleZoomChange}
-                onSamples={handleSampleChange}
-                numFrames={numFrames} // temp: Pass the number of frames as a prop
               />
             )}
 
@@ -681,6 +768,6 @@ const VideoPlayer: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default VideoPlayer;

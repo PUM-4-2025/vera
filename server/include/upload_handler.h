@@ -4,17 +4,17 @@
 #include "upload_media.h"
 
 #include <mutex>
+#include <optional>
 #include <vector>
 
 class UploadHandler {
 public:
-
   UploadHandler();
   ~UploadHandler();
 
   void newSession(UploadSession session);
   void removeSession(const UploadSession &session);
-  UploadSession* getSession(int upload_id);
+  std::optional<UploadSession> getSession(int upload_id);
   bool isUniqueId(int id);
   void incrementChunk(UploadSession &session);
   bool sessionCompleted(const UploadSession &session);
