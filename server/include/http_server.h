@@ -40,7 +40,7 @@ public:
   bool isUniqueId(std::string id);
 
   using RequestHandler = std::function<void(struct ThreadData *)>;
-  void registerHandler(const std::string &api_path, void *(*f));
+  void registerHandler(const std::string &api_path, void *(*f)(void *));
 
 private:
   struct mg_mgr m_mgr_{};
@@ -50,7 +50,7 @@ private:
 
   struct HandlerInfo {
     std::string path;
-    void *handler;
+    void *(*handler)(void *);
   };
 
   std::vector<HandlerInfo> m_handlers_;
@@ -61,6 +61,6 @@ private:
 };
 
 void registerUserSessionHandlers(HttpServer &server);
-void initUserSession(void *p);
+void *initUserSession(void *p);
 
 #endif

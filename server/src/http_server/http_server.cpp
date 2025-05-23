@@ -171,7 +171,7 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
 }
 
 void registerUserSessionHandlers(HttpServer &server) {
-  server.registerHandler("/api/v1/user-sessions/initiate", initUserSession);
+  server.registerHandler("/api/v1/user-sessions/initiate", &initUserSession);
 }
 
 void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
