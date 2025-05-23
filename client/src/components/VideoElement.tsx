@@ -255,7 +255,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       setAnnotationsForFrame,
       captureCurrentFrame,
       currentFrame,
-      setVideoApi,
       setTaskStatus,
     } = useProject();
 
@@ -309,99 +308,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     const [showRawFrame, setShowRawFrame] = useState(false); // State for raw frame toggle
     const [isShowingRawFrame, setIsShowingRawFrame] = useState(false); // State for when raw frame is actually visible
 
-    // Ref to store the previous containerWidth to compare against the current one
-    const prevContainerWidthRef = useRef<number>(containerWidth);
-
-    useEffect(() => {
-      const oldContainerWidth = prevContainerWidthRef.current;
-      const newContainerWidth = containerWidth;
-
-      // Only proceed if containerWidth has actually changed and essential video dimensions are available
-      if (
-        oldContainerWidth === newContainerWidth ||
-        !videoWidth ||
-        !videoHeight ||
-        videoWidth <= 0 || // Ensure positive dimensions
-        videoHeight <= 0 ||
-        scale === 0 // User zoom factor; division by zero if 0
-      ) {
-        prevContainerWidthRef.current = newContainerWidth; // Update ref for the next run
-        return;
-      }
-
-      // --- 1. Calculate the video X-coordinate that was at the center of the OLD container ---
-      const oldStageCenterX = oldContainerWidth / 2;
-
-      // Calculate display parameters for OLD container width (due to object-fit: contain)
-      const oldActualBaseScale = Math.min(
-        oldContainerWidth / videoWidth,
-        containerHeight / videoHeight // containerHeight from component props/closure
-      );
-
-      if (oldActualBaseScale <= 0) {
-        // Guard against zero or negative base scale
-        prevContainerWidthRef.current = newContainerWidth;
-        return;
-      }
-      const oldDisplayVideoWidth = videoWidth * oldActualBaseScale;
-      const oldDisplayVideoX = (oldContainerWidth - oldDisplayVideoWidth) / 2;
-
-      // Inverse transform from old stage center to video X-coordinate
-      // This logic is derived from getOriginalVideoCoordsFromStagePoint for the X-coordinate:
-      // 1. Stage point to "base canvas" point (after user pan/zoom is undone)
-      const baseCanvasXAtOldCenter = (oldStageCenterX - offset.x) / scale; // offset.x from state/closure
-      // 2. "Base canvas" point to original video point (after object-fit is undone)
-      const videoXAtOldCenter =
-        (baseCanvasXAtOldCenter - oldDisplayVideoX) / oldActualBaseScale;
-
-      // --- 2. Calculate the new offset.x to keep this video X-coordinate at the center of the NEW container ---
-      const newStageCenterX = newContainerWidth / 2;
-
-      // Calculate display parameters for NEW container width
-      const newActualBaseScale = Math.min(
-        newContainerWidth / videoWidth,
-        containerHeight / videoHeight
-      );
-
-      if (newActualBaseScale <= 0) {
-        // Guard against zero or negative base scale
-        prevContainerWidthRef.current = newContainerWidth;
-        return;
-      }
-      // const newDisplayVideoWidth = videoWidth * newActualBaseScale; // Not strictly needed for newOffsetX calculation itself
-      const newDisplayVideoX =
-        (newContainerWidth - videoWidth * newActualBaseScale) / 2;
-
-      // Target X on the "base canvas" (after object-fit, before user zoom/pan)
-      // for the `videoXAtOldCenter` in the NEW container setup.
-      const targetBaseCanvasXInNew =
-        videoXAtOldCenter * newActualBaseScale + newDisplayVideoX;
-
-      // Calculate the new offset.x required.
-      // Derived from the forward transformation: newStageCenterX = targetBaseCanvasXInNew * scale + newOffsetX
-      const newOffsetX = newStageCenterX - targetBaseCanvasXInNew * scale;
-
-      setOffset((currentOffset) => ({
-        x: newOffsetX,
-        y: currentOffset.y, // Keep current y-offset
-      }));
-
-      // Update the ref with the new containerWidth for the next comparison
-      prevContainerWidthRef.current = newContainerWidth;
-    }, [
-      containerWidth,
-      containerHeight,
-      videoWidth,
-      videoHeight,
-      scale,
-      offset.x,
-      offset.y,
-      setOffset,
-    ]);
-          
     // AnalysisState
     const { updateMotionFrames } = useAnalysis();
-
 
     // --- Helper Function --- Moved up
     const getTargetTimeForFrame = (frameNumber: number): number | null => {
@@ -431,39 +339,20 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     const getOriginalVideoCoordsFromStagePoint = (
       stagePoint: { x: number; y: number } | null | undefined
     ): { x: number; y: number } | null => {
-      if (
-        !stagePoint ||
-        !videoWidth ||
-        !videoHeight ||
-        scale === 0 // User zoom factor; division by zero if 0
-      ) {
+      if (!stagePoint || scale === 0) {
+        // Return null if input is invalid or scale is zero
         return null;
       }
 
-      const actualBaseScale = Math.min(
-        containerWidth / videoWidth,
-        containerHeight / videoHeight
-      );
+      // Convert stage coordinates to video coordinates
+      const containerX = (stagePoint.x - offset.x) / scale;
+      const containerY = (stagePoint.y - offset.y) / scale;
 
-      if (actualBaseScale === 0) {
-        // This would happen if containerWidth or containerHeight is 0,
-        // or if videoWidth/videoHeight is Infinity.
-        return null;
-      }
+      const ratioX = containerX / containerWidth;
+      const ratioY = containerY / containerHeight;
 
-      const displayVideoWidth = videoWidth * actualBaseScale;
-      const displayVideoHeight = videoHeight * actualBaseScale;
-      const displayVideoX = (containerWidth - displayVideoWidth) / 2;
-      const displayVideoY = (containerHeight - displayVideoHeight) / 2;
-
-      // 1. Reverse user pan and zoom to get coordinates on the "base canvas"
-      // The "base canvas" is where the video lies after object-fit: contain but before user scale/offset.
-      const baseCanvasX = (stagePoint.x - offset.x) / scale;
-      const baseCanvasY = (stagePoint.y - offset.y) / scale;
-
-      // 2. Reverse the object-fit: contain scaling and offset to get original video coordinates
-      const videoX = (baseCanvasX - displayVideoX) / actualBaseScale;
-      const videoY = (baseCanvasY - displayVideoY) / actualBaseScale;
+      const videoX = videoWidth * ratioX;
+      const videoY = videoHeight * ratioY;
 
       return { x: videoX, y: videoY };
     };
@@ -472,62 +361,24 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     const getStagePointFromOriginalVideoCoords = (
       videoCoords: { x: number; y: number } | null | undefined
     ): { x: number; y: number } | null => {
-      if (!videoCoords || !videoWidth || !videoHeight) {
+      if (!videoCoords || scale === 0) {
+        // Return null if input is invalid or scale is zero
         return null;
       }
 
-      const actualBaseScale = Math.min(
-        containerWidth / videoWidth,
-        containerHeight / videoHeight
-      );
+      // Convert video coordinates to ratios
+      const ratioX = videoCoords.x / videoWidth;
+      const ratioY = videoCoords.y / videoHeight;
 
-      if (actualBaseScale === 0) {
-        return null;
-      }
+      // Convert ratios to container coordinates
+      const containerX = ratioX * containerWidth;
+      const containerY = ratioY * containerHeight;
 
-      const displayVideoWidth = videoWidth * actualBaseScale;
-      const displayVideoHeight = videoHeight * actualBaseScale;
-      const displayVideoX = (containerWidth - displayVideoWidth) / 2;
-      const displayVideoY = (containerHeight - displayVideoHeight) / 2;
-
-      // 1. Apply object-fit: contain scaling and offset to get coordinates on the "base canvas"
-      const baseCanvasX = videoCoords.x * actualBaseScale + displayVideoX;
-      const baseCanvasY = videoCoords.y * actualBaseScale + displayVideoY;
-
-      // 2. Apply user pan and zoom
-      const stageX = baseCanvasX * scale + offset.x;
-      const stageY = baseCanvasY * scale + offset.y;
+      // Convert container coordinates to stage coordinates
+      const stageX = containerX * scale + offset.x;
+      const stageY = containerY * scale + offset.y;
 
       return { x: stageX, y: stageY };
-    };
-
-    const getFrameDimensionsOnStage = () => {
-      const topLeft = { x: 0, y: 0 };
-      let videoTopLeft = getOriginalVideoCoordsFromStagePoint(topLeft);
-      if (videoTopLeft) {
-        videoTopLeft = {
-          x: Math.max(0, videoTopLeft.x),
-          y: Math.max(0, videoTopLeft.y),
-        };
-      }
-      const bottomRight = { x: containerWidth, y: containerHeight };
-      let videoBottomRight = getOriginalVideoCoordsFromStagePoint(bottomRight);
-
-      if (videoBottomRight) {
-        videoBottomRight = {
-          x: Math.min(videoWidth, videoBottomRight.x),
-          y: Math.min(videoHeight, videoBottomRight.y),
-        };
-      }
-      if (!videoTopLeft || !videoBottomRight)
-        return { x: 0, y: 0, width: 0, height: 0 };
-
-      return {
-        x: videoTopLeft.x,
-        y: videoTopLeft.y,
-        width: videoBottomRight.x - videoTopLeft.x,
-        height: videoBottomRight.y - videoTopLeft.y,
-      };
     };
 
     // --- Effects ---
@@ -580,9 +431,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         if (!isPlaying && currentVideoId) {
           captureCurrentFrame(currentVideoId, getCurrentFrameNumber());
         }
-        if (videoAnnotations) {
-          setShapes(videoAnnotations[getCurrentFrameNumber()] || []);
-        }
       };
 
       video.addEventListener('play', handlePlay);
@@ -604,118 +452,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       getCurrentFrameNumber,
     ]);
 
-    useEffect(() => {
-      if (videoRef.current) {
-        setVideoApi({
-          getCurrentTime: () => videoRef.current?.currentTime || 0,
-          getCurrentFrameNumber: () => getCurrentFrameNumber(),
-          getFrameDimensions() {
-            return getFrameDimensionsOnStage();
-          },
-          getCurrentAnnotationImage() {
-            // `shapes` state already holds the annotations for the current frame
-            // and is updated when the frame or annotations change.
-            // `videoWidth` and `videoHeight` are also in scope and up-to-date from the outer closure.
-
-            if (!currentVideoId || shapes.length === 0) {
-              return '';
-            }
-
-            // Create a detached div for the temporary stage.
-            // Konva needs a container element, even if not attached to the visible DOM.
-            const detachedContainer = document.createElement('div');
-            // Konva.Stage width/height config should be primary for canvas size.
-
-            const tempStage = new Konva.Stage({
-              container: detachedContainer,
-              width: videoWidth, // Use actual video dimensions
-              height: videoHeight, // Use actual video dimensions
-            });
-
-            const tempLayer = new Konva.Layer();
-            tempStage.add(tempLayer);
-
-            shapes.forEach((shape: ShapeData) => {
-              if (shape.type === 'rect') {
-                const rect = new Konva.Rect({
-                  id: shape.id,
-                  x: shape.x, // Already video coordinates
-                  y: shape.y, // Already video coordinates
-                  width: shape.width, // Already video dimensions
-                  height: shape.height, // Already video dimensions
-                  stroke: shape.stroke,
-                  strokeWidth: shape.strokeWidth,
-                });
-                tempLayer.add(rect);
-              } else if (shape.type === 'circle') {
-                const ellipse = new Konva.Ellipse({
-                  id: shape.id,
-                  x: shape.x, // Already video center X
-                  y: shape.y, // Already video center Y
-                  radiusX: shape.radiusX, // Already video radius X
-                  radiusY: shape.radiusY, // Already video radius Y
-                  stroke: shape.stroke,
-                  strokeWidth: shape.strokeWidth,
-                });
-                tempLayer.add(ellipse);
-              } else if (shape.type === 'arrow') {
-                const arrow = new Konva.Arrow({
-                  id: shape.id,
-                  points: shape.points, // Already video coordinates [x1, y1, x2, y2]
-                  stroke: shape.stroke,
-                  strokeWidth: shape.strokeWidth,
-                  pointerLength: 10, // Consistent with existing rendering
-                  pointerWidth: 10, // Consistent with existing rendering
-                });
-                tempLayer.add(arrow);
-              }
-            });
-
-            // Ensure the layer is drawn before exporting
-            // Although toDataURL often handles this, explicit draw is safer.
-            // tempLayer.draw(); // Stage.toDataURL will draw the stage
-
-            const dataURL = tempStage.toDataURL({ pixelRatio: 1 }); // Use pixelRatio 1 for native resolution
-
-            tempStage.destroy(); // Clean up the temporary stage and its container
-
-            return dataURL;
-          },
-          getTransformationMatrix: () => {
-            return { scale, offsetX: offset.x, offsetY: offset.y };
-          },
-          setOffset: (offsetX: number, offsetY: number) => {
-            if (scale < 1) setOffset({ x: 0, y: 0 });
-            else setOffset({ x: offsetX, y: offsetY });
-          },
-          setScale: (scale: number) => {
-            if (scale < 1) setScale(1);
-            else setScale(scale);
-          },
-          play: () => setIsPlaying(true),
-          pause: () => setIsPlaying(false),
-          seek: (time: number) => {
-            const currentFrameRate = currentVideo?.metadata?.fps || 30; // Use potentially updated frameRate
-            const frameNumber = Math.max(
-              0,
-              Math.floor(time * currentFrameRate)
-            );
-            const targetTime = getTargetTimeForFrame(frameNumber); // Relies on videoRef.current.duration internally
-            if (videoRef.current && targetTime !== null) {
-              videoRef.current.currentTime = targetTime;
-            }
-            return Promise.resolve();
-          },
-        });
-      }
-    }, [
-      setVideoApi,
-      getCurrentFrameNumber,
-      scale,
-      offset,
-      frameRate,
-      videoAnnotations,
-    ]);
     // Effect for handling wheel zoom on the container, applying to the video element
     useEffect(() => {
       const container = containerRef.current;
@@ -764,6 +500,14 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     useEffect(() => {
       console.log('currentFrame', currentFrame?.frameNumber);
     }, [currentFrame]);
+
+    // --- Update shapes when timestamp changes ---
+    useEffect(() => {
+      if (videoAnnotations) {
+        const frameNumber = getCurrentFrameNumber();
+        setShapes(videoAnnotations[frameNumber] || []);
+      }
+    }, [videoAnnotations, getCurrentFrameNumber]);
 
     // Effect to update isShowingRawFrame based on conditions
     useEffect(() => {
@@ -1014,7 +758,6 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return prev;
       });
     };
-
 
     const handleMouseUp = async () => {
       // Stop Panning

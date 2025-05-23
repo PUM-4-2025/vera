@@ -30,8 +30,6 @@ import {
   ShapeData,
   VideoAnnotationData,
   FrameCache,
-  VideoElementApi,
-  BookmarkEntry,
   TaskStatus,
 } from '@/types/project';
 
@@ -44,6 +42,7 @@ import {
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
 import { toast } from 'sonner';
+import { SrvRecord } from 'dns';
 
 // --- Constants for Cache Configuration ---
 const FRAME_CACHE_MAX_SIZE = 20;
@@ -79,7 +78,6 @@ const initialState: ProjectState = {
     maxSize: FRAME_CACHE_MAX_SIZE,
     recentlyUsed: [],
   },
-  videoApi: null,
 };
 
 // Create the context
@@ -151,7 +149,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         isLoading: false,
         error: null, // Clear any previous errors
         isSaved: true,
-        videoApi: null,
       }));
     },
     []
@@ -1126,22 +1123,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
-  const setVideoApi = useCallback((api: VideoElementApi | null) => {
-    setState((s) => ({ ...s, videoApi: api }));
-  }, []);
-
-  // Define the setBookmarks function
-  const setBookmarks = useCallback(
-    (newBookmarks: Record<string, BookmarkEntry[]>) => {
-      setState((s) => ({
-        ...s,
-        bookmarks: newBookmarks,
-        isSaved: false, // Changing bookmarks should mark the project as unsaved
-      }));
-    },
-    []
-  );
-
   const setTaskStatus = useCallback(
     (videoId: string, taskStatus: TaskStatus) => {
       setState((prev) => {
@@ -1178,8 +1159,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     currentFrame: state.currentFrame,
     captureCurrentFrame,
     setAnnotationsForFrame,
-    setBookmarks,
-    setVideoApi,
     setTaskStatus,
   };
 

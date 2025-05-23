@@ -30,11 +30,9 @@ import {
   Headphones,
   Menu,
   ArrowLeft,
-  BookMarked,
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import veraLogo from '../assets/vera_blagul.svg';
-import { Button } from '@/components/ui/button';
 import { VideoElementRef } from './VideoElement';
 
 interface HeaderMenuItemProps {
@@ -88,15 +86,38 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({ label, items }) => (
   </DropdownMenu>
 );
 
+const editMenuItems: HeaderMenuItemProps[] = [
+  { icon: <Undo2 size={16} />, label: 'Undo', shortcut: '⌘Z' },
+  { icon: <Redo2 size={16} />, label: 'Redo', shortcut: '⌘Y' },
+  { icon: <Trash2 size={16} />, label: 'Clear Annotations', shortcut: '⌘D' },
+];
 
+const viewMenuItems: HeaderMenuItemProps[] = [
+  { icon: <ZoomIn size={16} />, label: 'Zoom In', shortcut: '⌘+' },
+  { icon: <ZoomOut size={16} />, label: 'Zoom Out', shortcut: '⌘-' },
+  { icon: <Maximize size={16} />, label: 'Fullscreen Toggle', shortcut: 'F11' },
+  { icon: <Eye size={16} />, label: 'Show Annotations', shortcut: '⌘A' },
+  { icon: <EyeOff size={16} />, label: 'Hide Annotations', shortcut: '⌘H' },
+];
+
+const toolsMenuItems: HeaderMenuItemProps[] = [
+  { icon: <Circle size={16} />, label: 'Draw Circle', shortcut: 'C' },
+  { icon: <Square size={16} />, label: 'Draw Rectangle', shortcut: 'R' },
+  { icon: <ArrowRight size={16} />, label: 'Draw Arrow', shortcut: 'A' },
+  { icon: <Type size={16} />, label: 'Add Text Box', shortcut: 'T' },
+];
+
+const helpMenuItems: HeaderMenuItemProps[] = [
+  { icon: <HelpCircle size={16} />, label: 'User Guide', shortcut: 'F1' },
+  { icon: <Info size={16} />, label: 'About VERA', shortcut: '' },
+  { icon: <Headphones size={16} />, label: 'Contact Support', shortcut: '' },
+];
 
 interface HeaderProps {
   toggleSidebar: () => void;
   isSidebarOpen: boolean;
   onInitiateSaveAs: () => void;
   onGoBackRequest: () => void;
-  toggleBookmarkSidebar: () => void;
-  isBookmarkSidebarOpen: boolean;
   videoElementRef: React.RefObject<VideoElementRef>;
 }
 
@@ -105,16 +126,10 @@ const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   onInitiateSaveAs,
   onGoBackRequest,
-  toggleBookmarkSidebar,
-  isBookmarkSidebarOpen,
   videoElementRef,
 }) => {
-  const {
-    projectDirectoryHandle,
-    saveProject,
-    loadProject,
-    uploadVideo,
-  } = useProject();
+  const { saveProject, loadProject, uploadVideo, projectDirectoryHandle } =
+    useProject();
 
   const analyzeMenuItems: HeaderMenuItemProps[] = [
     {
@@ -151,7 +166,7 @@ const Header: React.FC<HeaderProps> = ({
       },
     },
     {
-      icon: <UploadCloud size={16} />,
+      icon: <Save size={16} />,
       label: 'Load Project',
       shortcut: '⌘O',
       onClick: async () => {
@@ -181,48 +196,16 @@ const Header: React.FC<HeaderProps> = ({
     { icon: <Download size={16} />, label: 'Export', shortcut: '⌘E' },
   ];
 
-  const editMenuItems: HeaderMenuItemProps[] = [
-    { icon: <Undo2 size={16} />, label: 'Undo', shortcut: '⌘Z' },
-    { icon: <Redo2 size={16} />, label: 'Redo', shortcut: '⌘Y' },
-    { icon: <Trash2 size={16} />, label: 'Clear Annotations', shortcut: '⌘D' },
-  ];
-
-  const viewMenuItems: HeaderMenuItemProps[] = [
-    { icon: <ZoomIn size={16} />, label: 'Zoom In', shortcut: '⌘+' },
-    { icon: <ZoomOut size={16} />, label: 'Zoom Out', shortcut: '⌘-' },
-    {
-      icon: <Maximize size={16} />,
-      label: 'Fullscreen Toggle',
-      shortcut: 'F11',
-    },
-    { icon: <Eye size={16} />, label: 'Show Annotations', shortcut: '⌘A' },
-    { icon: <EyeOff size={16} />, label: 'Hide Annotations', shortcut: '⌘H' },
-  ];
-
-  const toolsMenuItems: HeaderMenuItemProps[] = [
-    { icon: <Circle size={16} />, label: 'Draw Circle', shortcut: 'C' },
-    { icon: <Square size={16} />, label: 'Draw Rectangle', shortcut: 'R' },
-    { icon: <ArrowRight size={16} />, label: 'Draw Arrow', shortcut: 'A' },
-    { icon: <Type size={16} />, label: 'Add Text Box', shortcut: 'T' },
-  ];
-
-  const helpMenuItems: HeaderMenuItemProps[] = [
-    { icon: <HelpCircle size={16} />, label: 'User Guide', shortcut: 'F1' },
-    { icon: <Info size={16} />, label: 'About VERA', shortcut: '' },
-    { icon: <Headphones size={16} />, label: 'Contact Support', shortcut: '' },
-  ];
-
   return (
-    <header className="w-full h-14 border-b flex items-center justify-between px-3 bg-background dark:bg-sidebar dark:border-border backdrop-blur-md z-10">
+    <header className="w-full h-14 border-b flex items-center justify-between px-3 backdrop-blur-md z-10">
       <div className="flex items-center gap-1 sm:gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
           onClick={toggleSidebar}
+          className="p-2 rounded-md hover:bg-vera-highlight/50 transition-colors"
           aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
         >
           <Menu size={20} />
-        </Button>
+        </button>
         <div className="flex items-center mr-1 md:mr-4">
           <img src={veraLogo} alt="VERA Logo" className="h-8 w-auto" />
         </div>
@@ -236,30 +219,14 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
           onClick={onGoBackRequest}
-          aria-label="Go back"
+          className="p-2 rounded-md hover:bg-vera-highlight/50 transition-colors"
+          aria-label="Go back to welcome page"
         >
           <ArrowLeft size={20} />
-        </Button>
+        </button>
         <ThemeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleBookmarkSidebar}
-          aria-label={
-            isBookmarkSidebarOpen
-              ? 'Close bookmark sidebar'
-              : 'Open bookmark sidebar'
-          }
-        >
-          <BookMarked
-            size={20}
-            className={`${isBookmarkSidebarOpen ? 'text-vera' : ''}`}
-          />
-        </Button>
       </div>
     </header>
   );

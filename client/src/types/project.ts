@@ -83,21 +83,6 @@ export type ShapeData = RectShape | CircleShape | ArrowShape;
 // e.g., { 37: [ShapeData, ShapeData], 150: [ShapeData] }
 export type VideoAnnotationData = Record<number, ShapeData[]>;
 
-// Preliminary types for bookmarks, annotations and analysis
-export interface BookmarkEntryData {
-  path: string;
-  description: string;
-  timestamp: number;
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-}
-
-export interface BookmarkEntry extends BookmarkEntryData {
-  id: string; // Unique identifier for the bookmark
-  blobUrl?: string;
-}
-
 // Add these types for Upload Status
 export type UploadStatus =
   | { type: 'not_uploaded' }
@@ -125,18 +110,12 @@ export interface FrameCache {
   recentlyUsed: number[]; // list of recently used frame numbers
 }
 
-export interface AnalysisData {
-  name: string;
-  region: RectShape;
-  data: Record<string, any>;
-}
-
 // Represents the overall state managed by the ProjectContext
 export interface ProjectState {
   projectDirectoryHandle: FileSystemDirectoryHandle | null;
   metadata: Metadata;
   videos: Record<string, VideoEntry>; // Runtime state, includes object URLs etc.
-  bookmarks: Record<string, BookmarkEntry[]>;
+  bookmarks: Record<string, BookmarkData>;
   annotations: Record<string, VideoAnnotationData>;
   analysis: Record<string, AnalysisData>;
   isLoading: boolean;
@@ -145,29 +124,6 @@ export interface ProjectState {
   isSaved: boolean;
   currentFrame: CurrentFrame | null;
   frameCache: FrameCache;
-  videoApi: VideoElementApi | null;
-}
-
-export interface VideoElementApi {
-  seek(time: number): Promise<void>;
-  play(): void;
-  pause(): void;
-  getCurrentTime: () => number;
-  getCurrentFrameNumber: () => number;
-  getFrameDimensions: () => {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  getCurrentAnnotationImage: () => string;
-  getTransformationMatrix: () => {
-    scale: number;
-    offsetX: number;
-    offsetY: number;
-  };
-  setOffset: (offsetX: number, offsetY: number) => void;
-  setScale: (scale: number) => void;
 }
 
 // Defines the shape of the ProjectContext including state and actions
@@ -191,8 +147,6 @@ export interface ProjectContextType extends ProjectState {
     frameNumber: number,
     shapes: ShapeData[]
   ) => void;
-  setVideoApi: (api: VideoElementApi | null) => void;
-  setBookmarks: (bookmarks: Record<string, BookmarkEntry[]>) => void;
   setTaskStatus: (videoId: string, taskStatus: TaskStatus) => void;
 }
 
