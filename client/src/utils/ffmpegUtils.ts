@@ -163,10 +163,16 @@ export const getMetadata = async (
   }
 };
 
-async function ensureFFmpegFile(ffmpeg: FFmpeg, videoFile: File, ffmpegHandle?: VideoFFmpegHandle) {
+async function ensureFFmpegFile(
+  ffmpeg: FFmpeg,
+  videoFile: File,
+  ffmpegHandle?: VideoFFmpegHandle
+) {
   if (ffmpegHandle) {
     const files = await ffmpeg.listDir('/');
-    const fileExists = files.some(file => file.name === ffmpegHandle.filename);
+    const fileExists = files.some(
+      (file) => file.name === ffmpegHandle.filename
+    );
     if (!fileExists) {
       await ffmpeg.writeFile(ffmpegHandle.filename, await fetchFile(videoFile));
     }
@@ -188,7 +194,6 @@ export const captureFrame = async (
     throw new Error('FFmpeg is not loaded.');
   }
 
-
   const outputFilename = `frame-${Date.now()}.png`;
 
   const inputFilename = await ensureFFmpegFile(ffmpeg, file, ffmpegHandle);
@@ -197,14 +202,20 @@ export const captureFrame = async (
     // Use -ss before -i for fast seeking
 
     await ffmpeg.exec([
-      '-ss', timestamp.toString(),
-      '-i', inputFilename,
-      '-vframes', '1',
-      '-c:v', 'png',
-      '-pix_fmt', 'rgba',
-      '-vsync', '0',
+      '-ss',
+      timestamp.toString(),
+      '-i',
+      inputFilename,
+      '-vframes',
+      '1',
+      '-c:v',
+      'png',
+      '-pix_fmt',
+      'rgba',
+      '-vsync',
+      '0',
       '-an',
-      outputFilename
+      outputFilename,
     ]);
 
     const frameData = await ffmpeg.readFile(outputFilename);
@@ -219,4 +230,45 @@ export const captureFrame = async (
   }
 };
 
+export const createBookmarkImage = async (
+  ffmpeg: FFmpeg,
+  frame: string, // Expected to be a data URL for the frame image
+  annotationImage: string, // Expected to be a data URL for the annotation, or an empty string
+  dimensions: { x: number; y: number; width: number; height: number }
+) => {
+  // Ensure ffmpeg has the base frame
+  await ffmpeg.writeFile('frame.png', await fetchFile(frame));
 
+  // Construct the crop filter string using the dynamic dimensions
+  const cropFilter = `crop=${dimensions.width}:${dimensions.height}:${dimensions.x}:${dimensions.y}`;
+
+  if (annotationImage && annotationImage.startsWith('data:image')) {
+    // Annotation image is present and looks like a valid data URL
+    await ffmpeg.writeFile('annotation.png', await fetchFile(annotationImage));
+
+    // Command to overlay annotation onto frame, then crop the result
+    await ffmpeg.exec([
+      '-i',
+      'frame.png',
+      '-i',
+      'annotation.png',
+      '-filter_complex',
+      `[0:v][1:v]overlay=0:0[merged];[merged]${cropFilter}`, // Chain: overlay then crop
+      'output.png',
+    ]);
+  } else {
+    // No valid annotationImage, so just crop the frame
+    await ffmpeg.exec([
+      '-i',
+      'frame.png',
+      '-vf', // Use -vf for a simple filtergraph on a single input
+      cropFilter,
+      'output.png',
+    ]);
+  }
+
+  const outputData = await ffmpeg.readFile('output.png');
+  const outputBlob = new Blob([outputData], { type: 'image/png' });
+  const outputUrl = URL.createObjectURL(outputBlob);
+  return outputUrl;
+};
