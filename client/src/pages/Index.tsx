@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import BookmarkSidebar from '@/components/BookmarkSidebar';
 import VideoPlayer from '@/components/VideoPlayer';
 import { VideoElementRef } from '@/components/VideoElement';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -29,8 +30,8 @@ const Index = () => {
     resetProject,
   } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isBookmarkSidebarOpen, setIsBookmarkSidebarOpen] = useState(false);
   const videoElementRef = useRef<VideoElementRef>(null);
-
   const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     projectName: '',
@@ -56,6 +57,10 @@ const Index = () => {
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const toggleBookmarkSidebar = () => {
+    setIsBookmarkSidebarOpen(!isBookmarkSidebarOpen);
   };
 
   const handleFormChange = (
@@ -134,6 +139,8 @@ const Index = () => {
         <Header
           toggleSidebar={toggleSidebar}
           isSidebarOpen={sidebarOpen}
+          toggleBookmarkSidebar={toggleBookmarkSidebar}
+          isBookmarkSidebarOpen={isBookmarkSidebarOpen}
           onInitiateSaveAs={initiateSaveAs}
           onGoBackRequest={handleGoBackRequest}
           videoElementRef={videoElementRef as React.RefObject<VideoElementRef>}
@@ -148,6 +155,7 @@ const Index = () => {
           >
             <VideoPlayer ref={videoElementRef} />
           </main>
+          <BookmarkSidebar isOpen={isBookmarkSidebarOpen} />
         </div>
       </div>
 
