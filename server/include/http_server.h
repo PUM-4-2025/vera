@@ -16,6 +16,12 @@ using UserSession = struct Session {
   const char *session_id;
 };
 
+struct ThreadData {
+  struct mg_connection *c;
+  struct mg_http_message *hm;
+  struct HttpServer *hs;
+};
+
 class HttpServer {
 public:
   /**
@@ -33,19 +39,18 @@ public:
   void removeUserSession(UserSession us);
   bool isUniqueId(std::string id);
 
-  using RequestHandler =
-      std::function<void(struct mg_connection *, struct mg_http_message *, HttpServer *)>;
-  void registerHandler(const std::string &api_path, RequestHandler handler);
+  using RequestHandler = std::function<void(struct ThreadData *)>;
+  void registerHandler(const std::string &api_path, void *(*f));
 
 private:
-  struct mg_mgr m_mgr_ {};
+  struct mg_mgr m_mgr_{};
   std::string m_address_;
   std::string m_static_dir_ = "";
   std::atomic<bool> m_running_{false};
 
   struct HandlerInfo {
     std::string path;
-    RequestHandler handler;
+    void *handler;
   };
 
   std::vector<HandlerInfo> m_handlers_;
@@ -56,6 +61,6 @@ private:
 };
 
 void registerUserSessionHandlers(HttpServer &server);
-void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
+void initUserSession(void *p);
 
 #endif

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 #include <json.hpp>
+#include <memory>
 #include <mongoose.h>
 #include <utility>
 using json = nlohmann::json;
@@ -13,10 +14,24 @@ using json = nlohmann::json;
 #include <json.hpp>
 using json = nlohmann::json;
 
+static void start_thread(void *(*f)(void *), void *p) {
+#ifdef _WIN32
+  _beginthread((void(__cdecl *)(void *))f, 0, p);
+#else
+#define closesocket(x) close(x)
+#include <pthread.h>
+  pthread_t thread_id = (pthread_t)0;
+  pthread_attr_t attr;
+  (void)pthread_attr_init(&attr);
+  (void)pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  pthread_create(&thread_id, &attr, f, p);
+  pthread_attr_destroy(&attr);
+#endif
+}
+
 HttpServer::HttpServer() {
   mg_mgr_init(&m_mgr_);
 }
-
 HttpServer::~HttpServer() {
   stop();
   mg_mgr_free(&m_mgr_);
@@ -47,7 +62,7 @@ void HttpServer::stop() {
   std::cout << "Shutting down the server..." << std::endl;
 }
 
-void HttpServer::registerHandler(const std::string &api_path, RequestHandler handler) {
+void HttpServer::registerHandler(const std::string &api_path, void *(*handler)(void *)) {
   m_handlers_.push_back({api_path, handler});
 }
 
@@ -118,7 +133,16 @@ void HttpServer::eventHandler(struct mg_connection *c, int ev, void *ev_data) {
         // does not crash in case an error occurs in the
         // request handler.
         try {
-          handler_info.handler(c, hm, server);
+          struct ThreadData *data = (ThreadData *)calloc(1, sizeof(*data));  // Worker owns it
+          std::shared_ptr<mg_connection *> c_ptr = std::make_shared<mg_connection *>(c);
+          std::shared_ptr<mg_http_message *> hm_ptr = std::make_shared<mg_http_message *>(hm);
+
+          data->c = *c_ptr;
+          data->hm = *hm_ptr;
+          data->hs = server;
+
+          start_thread(handler_info.handler, (void *)data);
+
         } catch (const std::exception &exc) {
           std::cout << "Handler crash occured!" << "\n ------------------------------- \n";
           std::cout << "ERR: " << exc.what() << "\n ------------------------------- \n";
