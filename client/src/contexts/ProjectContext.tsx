@@ -30,6 +30,7 @@ import {
   ShapeData,
   VideoAnnotationData,
   FrameCache,
+  TaskStatus,
 } from '@/types/project';
 
 // Import utility functions
@@ -41,6 +42,7 @@ import {
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
 import { toast } from 'sonner';
+import { SrvRecord } from 'dns';
 
 // --- Constants for Cache Configuration ---
 const FRAME_CACHE_MAX_SIZE = 20;
@@ -350,6 +352,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
           [videoId]: {
             ...videoEntry,
             uploadStatus: videoEntry.uploadStatus || { type: 'not_uploaded' },
+            taskStatus: videoEntry.taskStatus || { type: 'not_started' },
           } as VideoEntry,
         },
         currentVideoId: videoId,
@@ -537,7 +540,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
                 });
               });
 
-            for (; ;) {
+            for (;;) {
               await sleep(1000); // Check status every 1 seconds
               if (done) {
                 break;
@@ -637,7 +640,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         // Tell server to perform audio analysis on video
         updateHistogram(file.name);
       }
-
 
       return result.videoId;
     } catch (err: unknown) {
@@ -1121,6 +1123,27 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  const setTaskStatus = useCallback(
+    (videoId: string, taskStatus: TaskStatus) => {
+      setState((prev) => {
+        const video = prev.videos[videoId];
+        if (!video) return prev;
+        return {
+          ...prev,
+          videos: {
+            ...prev.videos,
+            [videoId]: {
+              ...video,
+              taskStatus,
+            },
+          },
+          isSaved: false,
+        };
+      });
+    },
+    []
+  );
+
   // --- Value Provided to Consumers ---
   // Ensure this matches the ProjectContextType interface
   const contextValue: ProjectContextType = {
@@ -1136,6 +1159,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     currentFrame: state.currentFrame,
     captureCurrentFrame,
     setAnnotationsForFrame,
+    setTaskStatus,
   };
 
   return (

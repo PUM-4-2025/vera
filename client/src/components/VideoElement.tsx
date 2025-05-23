@@ -255,6 +255,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       setAnnotationsForFrame,
       captureCurrentFrame,
       currentFrame,
+      setTaskStatus,
     } = useProject();
 
     const currentVideo = currentVideoId ? videos[currentVideoId] : null;
@@ -281,6 +282,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Annotation State ---
     const [shapes, setShapes] = useState<ShapeData[]>([]);
+    const [motionDetectionRegion, setMotionDetectionRegion] =
+      useState<RectShape | null>(null);
     const [currentShapeType, setCurrentShapeType] = useState<
       'rect' | 'circle' | 'arrow' | 'none'
     >('none');
@@ -843,6 +846,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
         if (shape.type === 'rect') {
           // Normalize rectangle coordinates based on drag direction
+          console.log('in here');
           const x1 = shape.x;
           const y1 = shape.y;
           const x2 = shape.x + shape.width;
@@ -929,15 +933,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           // If in motion detection mode, don't add the shape to shapes array
           if (interactionMode === 'motionDetection' && shape.type === 'rect') {
             const rectShape = shape as RectShape;
-            const videoTopLeft = getOriginalVideoCoordsFromStagePoint({
-              x: rectShape.x,
-              y: rectShape.y,
-            });
-
-            if (videoTopLeft && currentVideo) {
+            if (rectShape && currentVideo) {
               const region = {
-                x: videoTopLeft.x >= 0 ? videoTopLeft.x : 0,
-                y: videoTopLeft.y >= 0 ? videoTopLeft.y : 0,
+                x: rectShape.x >= 0 ? rectShape.x : 0,
+                y: rectShape.y >= 0 ? rectShape.y : 0,
                 w: rectShape.width,
                 h: rectShape.height,
               };
@@ -949,14 +948,21 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               setDrawStartY(null);
               setInteractionMode('pan');
               setCurrentShapeType('none');
+              setMotionDetectionRegion(rectShape);
 
               try {
+                setTaskStatus(currentVideoId, { type: 'analyzing' });
                 await updateMotionFrames(
                   currentVideo.metadata.filename,
                   region
                 );
+                setTaskStatus(currentVideoId, { type: 'completed' });
               } catch (error) {
                 console.error('Error starting motion detection:', error);
+                setTaskStatus(currentVideoId, {
+                  type: 'failed',
+                  error: error as string,
+                });
               }
             }
           } else {
@@ -1266,6 +1272,17 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
                 getStagePointFromOriginalVideoCoords
               }
             />
+
+            {motionDetectionRegion && (
+              <ExistingShapes
+                shapes={[motionDetectionRegion]}
+                selectedId={null}
+                currentShapeType="rect"
+                getStagePointFromOriginalVideoCoords={
+                  getStagePointFromOriginalVideoCoords
+                }
+              />
+            )}
 
             {/* Render new shape preview */}
             <NewShapePreview newShape={newShape} />
