@@ -17,6 +17,7 @@ import {
 import { useFFmpeg } from './FFmpegContext';
 import { uploadMedia, uploadChunks, uploadStatus } from '@/utils/uploadMedia';
 import { ffmpegWorkerPool } from '@/utils/ffmpegWorkerPool';
+import { useAnalysis } from './AnalysisContext';
 
 // Import types from the dedicated types file
 import {
@@ -29,6 +30,7 @@ import {
   ShapeData,
   VideoAnnotationData,
   FrameCache,
+  TaskStatus,
 } from '@/types/project';
 
 // Import utility functions
@@ -40,6 +42,7 @@ import {
 } from '@/utils/projectUtils';
 import { fetchFile } from '@ffmpeg/util';
 import { toast } from 'sonner';
+import { SrvRecord } from 'dns';
 
 // --- Constants for Cache Configuration ---
 const FRAME_CACHE_MAX_SIZE = 20;
@@ -88,6 +91,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
   const { ffmpeg } = useFFmpeg();
   const justSavedRef = useRef(false);
   const justLoadedRef = useRef(false);
+  const { updateHistogram } = useAnalysis();
 
   // Helper function to manage object URL cleanup
   const manageObjectUrlCleanup = useCallback(() => {
@@ -348,6 +352,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
           [videoId]: {
             ...videoEntry,
             uploadStatus: videoEntry.uploadStatus || { type: 'not_uploaded' },
+            taskStatus: videoEntry.taskStatus || { type: 'not_started' },
           } as VideoEntry,
         },
         currentVideoId: videoId,
@@ -588,6 +593,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
                 },
               };
             });
+            // Tell server to perform audio analysis on video
+            updateHistogram(file.name);
           } catch (uploadError) {
             console.error(
               'Error monitoring upload status or upload failed:',
@@ -630,6 +637,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
             },
           };
         });
+        // Tell server to perform audio analysis on video
+        updateHistogram(file.name);
       }
 
       return result.videoId;
@@ -1114,6 +1123,27 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  const setTaskStatus = useCallback(
+    (videoId: string, taskStatus: TaskStatus) => {
+      setState((prev) => {
+        const video = prev.videos[videoId];
+        if (!video) return prev;
+        return {
+          ...prev,
+          videos: {
+            ...prev.videos,
+            [videoId]: {
+              ...video,
+              taskStatus,
+            },
+          },
+          isSaved: false,
+        };
+      });
+    },
+    []
+  );
+
   // --- Value Provided to Consumers ---
   // Ensure this matches the ProjectContextType interface
   const contextValue: ProjectContextType = {
@@ -1129,6 +1159,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     currentFrame: state.currentFrame,
     captureCurrentFrame,
     setAnnotationsForFrame,
+    setTaskStatus,
   };
 
   return (

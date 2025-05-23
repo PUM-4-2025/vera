@@ -27,6 +27,7 @@ export interface VideoEntry extends VideoEntryData {
   file?: File; // Optional: Original File object for unsaved uploads (runtime only)
   ffmpegHandle?: VideoFFmpegHandle; // Add this
   uploadStatus?: UploadStatus; // Add this for server upload status
+  taskStatus?: TaskStatus; // Add this for task status
 }
 
 // Detailed metadata extracted from a video file using FFmpeg
@@ -89,14 +90,14 @@ export type UploadStatus =
   | { type: 'uploaded' }
   | { type: 'failed'; error?: string };
 
-// Preliminary types for bookmarks, annotations and analysis
-export interface BookmarkData {
-  name: string;
-  description: string;
-  fileHandle?: FileSystemFileHandle;
-}
+export type TaskStatus =
+  | { type: 'not_started' }
+  | { type: 'analyzing' }
+  | { type: 'completed' }
+  | { type: 'failed'; error?: string };
 
-export interface AnalysisData {
+// Preliminary types for bookmarks
+export interface BookmarkData {
   name: string;
   description: string;
   fileHandle?: FileSystemFileHandle;
@@ -104,9 +105,9 @@ export interface AnalysisData {
 
 // Add these types
 export interface FrameCache {
-  frames: Map<number, CurrentFrame>;  // frameNumber -> frame data
-  maxSize: number;  // maximum number of frames to cache
-  recentlyUsed: number[];  // list of recently used frame numbers
+  frames: Map<number, CurrentFrame>; // frameNumber -> frame data
+  maxSize: number; // maximum number of frames to cache
+  recentlyUsed: number[]; // list of recently used frame numbers
 }
 
 // Represents the overall state managed by the ProjectContext
@@ -146,6 +147,7 @@ export interface ProjectContextType extends ProjectState {
     frameNumber: number,
     shapes: ShapeData[]
   ) => void;
+  setTaskStatus: (videoId: string, taskStatus: TaskStatus) => void;
 }
 
 // --- Result Types for Utility Functions ---
@@ -179,5 +181,5 @@ export interface SaveProjectResult {
 export interface CurrentFrame {
   timestamp: number;
   frameNumber: number;
-  blobUrl: string; 
+  blobUrl: string;
 }

@@ -1,11 +1,12 @@
 const url =
   `${window.location.protocol}//${window.location.hostname}` ==
-  'http://localhost'
+    'http://localhost'
     ? `${window.location.protocol}//${window.location.hostname}:8000`
     : `${window.location.protocol}//${window.location.hostname}`;
 
 export const getAudio = async (filename: string): Promise<number[] | null> => {
   try {
+    console.log('Requesting audio histogram from server...');
     // Call the inititate API
     const apiurl = url + '/api/v1/analysis/startAudio';
     const data = {

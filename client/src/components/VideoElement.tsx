@@ -25,7 +25,8 @@ import {
 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 
-import { ShapeData } from '@/types/project';
+import { ShapeData, RectShape } from '@/types/project';
+import { useAnalysis } from '@/contexts/AnalysisContext';
 
 // Define the interface for the functions/properties we want to expose
 export interface VideoElementRef {
@@ -37,6 +38,8 @@ export interface VideoElementRef {
   getCurrentTime: () => number;
   getCurrentFrameNumber: () => number;
   isPlaying: () => boolean;
+  setMotionDetectionMode: () => void;
+  getTargetTimeForFrame: (frameNumber: number) => number | null;
 }
 
 interface VideoElementProps {
@@ -215,7 +218,7 @@ const MAX_ZOOM = 25; // Increased max zoom for video
 const ZOOM_STEP = 0.1;
 
 // Define interaction modes
-type InteractionMode = 'draw' | 'pan' | 'selectionZoom';
+type InteractionMode = 'draw' | 'pan' | 'selectionZoom' | 'motionDetection';
 
 // Add a simple component to render the selection rectangle
 const SelectionRectangle: React.FC<{
@@ -245,8 +248,15 @@ const SelectionRectangle: React.FC<{
 
 const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
   ({ containerWidth, containerHeight, onTimeUpdate }, ref) => {
-    const { videos, currentVideoId, annotations, setAnnotationsForFrame, captureCurrentFrame, currentFrame } =
-      useProject();
+    const {
+      videos,
+      currentVideoId,
+      annotations,
+      setAnnotationsForFrame,
+      captureCurrentFrame,
+      currentFrame,
+      setTaskStatus,
+    } = useProject();
 
     const currentVideo = currentVideoId ? videos[currentVideoId] : null;
     const videoSrc = currentVideo?.objectURL;
@@ -272,15 +282,17 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // --- Annotation State ---
     const [shapes, setShapes] = useState<ShapeData[]>([]);
+    const [motionDetectionRegion, setMotionDetectionRegion] =
+      useState<RectShape | null>(null);
     const [currentShapeType, setCurrentShapeType] = useState<
       'rect' | 'circle' | 'arrow' | 'none'
-    >('rect');
+    >('none');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [newShape, setNewShape] = useState<ShapeData | null>(null);
     const [drawStartX, setDrawStartX] = useState<number | null>(null); // Store initial X for drawing
     const [drawStartY, setDrawStartY] = useState<number | null>(null); // Store initial Y for drawing
     const [interactionMode, setInteractionMode] =
-      useState<InteractionMode>('draw'); // New state for interaction mode
+      useState<InteractionMode>('pan'); // New state for interaction mode
     const [isPanning, setIsPanning] = useState(false); // State for panning status
     const [panStartPoint, setPanStartPoint] = useState<{
       x: number;
@@ -295,6 +307,9 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     } | null>(null); // State for selection box coordinates/dimensions
     const [showRawFrame, setShowRawFrame] = useState(false); // State for raw frame toggle
     const [isShowingRawFrame, setIsShowingRawFrame] = useState(false); // State for when raw frame is actually visible
+
+    // AnalysisState
+    const { updateMotionFrames } = useAnalysis();
 
     // --- Helper Function --- Moved up
     const getTargetTimeForFrame = (frameNumber: number): number | null => {
@@ -429,7 +444,13 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         video.removeEventListener('timeupdate', handleTimeUpdateCallback);
       };
       // UPDATED DEPENDENCIES: Added memoized getCurrentFrameNumber
-    }, [onTimeUpdate, captureCurrentFrame, currentVideoId, isPlaying, getCurrentFrameNumber]);
+    }, [
+      onTimeUpdate,
+      captureCurrentFrame,
+      currentVideoId,
+      isPlaying,
+      getCurrentFrameNumber,
+    ]);
 
     // Effect for handling wheel zoom on the container, applying to the video element
     useEffect(() => {
@@ -477,7 +498,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
     }, [scale, offset]);
 
     useEffect(() => {
-      console.log("currentFrame", currentFrame?.frameNumber);
+      console.log('currentFrame', currentFrame?.frameNumber);
     }, [currentFrame]);
 
     // --- Update shapes when timestamp changes ---
@@ -490,15 +511,14 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
     // Effect to update isShowingRawFrame based on conditions
     useEffect(() => {
-      const conditionsResult = 
+      const conditionsResult =
         !isPlaying &&
         showRawFrame &&
         currentFrame &&
         currentFrame.frameNumber === getCurrentFrameNumber() &&
         currentFrame.blobUrl; // This can resolve to non-boolean (e.g. string, null)
-      
-      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
 
+      setIsShowingRawFrame(Boolean(conditionsResult)); // Ensure it's always a boolean for the state
     }, [isPlaying, showRawFrame, currentFrame, getCurrentFrameNumber]);
 
     // --- Imperative Handle ---
@@ -540,6 +560,11 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       // Add getCurrentFrameNumber to the exposed ref
       getCurrentFrameNumber: getCurrentFrameNumber,
       isPlaying: () => isPlaying,
+      setMotionDetectionMode: () => {
+        setInteractionMode('motionDetection');
+        setCurrentShapeType('rect');
+      },
+      getTargetTimeForFrame: getTargetTimeForFrame,
     }));
 
     // --- Event Handlers for Annotations ---
@@ -552,11 +577,11 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
       if (interactionMode === 'pan') {
         setIsPanning(true);
         setPanStartPoint(stagePoint);
-        return; // Don't proceed with other interactions if panning
+        return;
       }
 
       if (interactionMode === 'selectionZoom') {
-        setSelectedId(null); // Clear shape selection if any
+        setSelectedId(null);
         setIsSelecting(true);
         setSelectionBox({
           x: stagePoint.x,
@@ -564,55 +589,56 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           width: 0,
           height: 0,
         });
-        return; // Don't proceed with shape drawing if selecting
+        return;
       }
 
-      // Only draw if in 'draw' mode and a shape type is selected
-      if (interactionMode !== 'draw' || currentShapeType === 'none') return;
+      if (
+        (interactionMode === 'draw' || interactionMode === 'motionDetection') &&
+        currentShapeType !== 'none'
+      ) {
+        setSelectedId(null);
+        setDrawStartX(stagePoint.x);
+        setDrawStartY(stagePoint.y);
+        const id = uuidv4();
 
-      setSelectedId(null); // Deselect any selected shape when starting a new one
-
-      setDrawStartX(stagePoint.x);
-      setDrawStartY(stagePoint.y);
-      const id = uuidv4();
-
-      if (currentShapeType === 'rect') {
-        setNewShape({
-          id,
-          type: 'rect',
-          x: stagePoint.x,
-          y: stagePoint.y,
-          width: 0,
-          height: 0,
-          stroke: 'red',
-          strokeWidth: 4,
-        });
-      }
-      if (currentShapeType === 'circle') {
-        setNewShape({
-          id,
-          type: 'circle',
-          x: stagePoint.x,
-          y: stagePoint.y,
-          radiusX: 0,
-          radiusY: 0,
-          stroke: 'red',
-          strokeWidth: 4,
-        });
-      }
-      if (currentShapeType === 'arrow') {
-        setNewShape({
-          id,
-          type: 'arrow',
-          points: [stagePoint.x, stagePoint.y, stagePoint.x, stagePoint.y] as [
-            number,
-            number,
-            number,
-            number,
-          ],
-          stroke: 'red',
-          strokeWidth: 4,
-        });
+        if (currentShapeType === 'rect') {
+          setNewShape({
+            id,
+            type: 'rect',
+            x: stagePoint.x,
+            y: stagePoint.y,
+            width: 0,
+            height: 0,
+            stroke: interactionMode === 'motionDetection' ? 'blue' : 'red',
+            strokeWidth: 4,
+          });
+        }
+        if (currentShapeType === 'circle') {
+          setNewShape({
+            id,
+            type: 'circle',
+            x: stagePoint.x,
+            y: stagePoint.y,
+            radiusX: 0,
+            radiusY: 0,
+            stroke: interactionMode === 'motionDetection' ? 'blue' : 'red',
+            strokeWidth: 4,
+          });
+        }
+        if (currentShapeType === 'arrow') {
+          setNewShape({
+            id,
+            type: 'arrow',
+            points: [
+              stagePoint.x,
+              stagePoint.y,
+              stagePoint.x,
+              stagePoint.y,
+            ] as [number, number, number, number],
+            stroke: interactionMode === 'motionDetection' ? 'blue' : 'red',
+            strokeWidth: 4,
+          });
+        }
       }
     };
 
@@ -674,7 +700,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
       // Handle Shape Drawing (only if in 'draw' mode and drawing started)
       if (
-        interactionMode !== 'draw' ||
+        (interactionMode !== 'draw' && interactionMode !== 'motionDetection') ||
         !newShape ||
         drawStartX === null ||
         drawStartY === null
@@ -732,11 +758,8 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return prev;
       });
     };
-    
 
-
-
-    const handleMouseUp = () => {
+    const handleMouseUp = async () => {
       // Stop Panning
       if (interactionMode === 'pan' && isPanning) {
         setIsPanning(false);
@@ -798,11 +821,12 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         return; // Selection zoom finished, do nothing else
       }
 
-      // Finalize Shape Drawing (only if in 'draw' mode)
-      if (interactionMode === 'draw' && newShape) {
-        // Ensure shape has some minimal size? Optional.
+      // Handle both draw and motion detection modes
+      if (
+        (interactionMode === 'draw' || interactionMode === 'motionDetection') &&
+        newShape
+      ) {
         const shape = newShape;
-        // Example minimal size check (adjust as needed)
         let isValidShape = true;
         if (
           shape.type === 'rect' &&
@@ -822,6 +846,7 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 
         if (shape.type === 'rect') {
           // Normalize rectangle coordinates based on drag direction
+          console.log('in here');
           const x1 = shape.x;
           const y1 = shape.y;
           const x2 = shape.x + shape.width;
@@ -904,17 +929,53 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
         // Add shape to shapes array
         if (isValidShape && currentVideoId) {
           const frameNumber = getCurrentFrameNumber();
-          // Calculate the new shapes array explicitly
-          const newShapes = [...shapes, shape];
-          // Update local state
-          setShapes(newShapes);
-          // Update context state with the new array
-          setAnnotationsForFrame(currentVideoId, frameNumber, newShapes);
+
+          // If in motion detection mode, don't add the shape to shapes array
+          if (interactionMode === 'motionDetection' && shape.type === 'rect') {
+            const rectShape = shape as RectShape;
+            if (rectShape && currentVideo) {
+              const region = {
+                x: rectShape.x >= 0 ? rectShape.x : 0,
+                y: rectShape.y >= 0 ? rectShape.y : 0,
+                w: rectShape.width,
+                h: rectShape.height,
+              };
+
+              console.log('Motion Detection Region:', region);
+
+              setNewShape(null);
+              setDrawStartX(null);
+              setDrawStartY(null);
+              setInteractionMode('pan');
+              setCurrentShapeType('none');
+              setMotionDetectionRegion(rectShape);
+
+              try {
+                setTaskStatus(currentVideoId, { type: 'analyzing' });
+                await updateMotionFrames(
+                  currentVideo.metadata.filename,
+                  region
+                );
+                setTaskStatus(currentVideoId, { type: 'completed' });
+              } catch (error) {
+                console.error('Error starting motion detection:', error);
+                setTaskStatus(currentVideoId, {
+                  type: 'failed',
+                  error: error as string,
+                });
+              }
+            }
+          } else {
+            // For non-motion detection shapes, add to shapes array as before
+            const newShapes = [...shapes, shape];
+            setShapes(newShapes);
+            setAnnotationsForFrame(currentVideoId, frameNumber, newShapes);
+          }
         }
 
         setNewShape(null);
-        setDrawStartX(null); // Reset drawing start point
-        setDrawStartY(null); // Reset drawing start point
+        setDrawStartX(null);
+        setDrawStartY(null);
       }
     };
 
@@ -1000,27 +1061,30 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
           }}
         />
         {/* Display the current frame as an <img> if frameData is present and toggle is active */}
-        {!isPlaying && showRawFrame && currentFrame && currentFrame.frameNumber === getCurrentFrameNumber() && currentFrame.blobUrl && (
-          
-          <img
-            src={currentFrame.blobUrl}
-            alt="Current Frame"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-              transformOrigin: '0 0',
-              pointerEvents: 'none',
-              opacity: 1,
-              zIndex: 1,
-              imageRendering: 'pixelated',
-            }}
-          />
-        )}
+        {!isPlaying &&
+          showRawFrame &&
+          currentFrame &&
+          currentFrame.frameNumber === getCurrentFrameNumber() &&
+          currentFrame.blobUrl && (
+            <img
+              src={currentFrame.blobUrl}
+              alt="Current Frame"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                transformOrigin: '0 0',
+                pointerEvents: 'none',
+                opacity: 1,
+                zIndex: 1,
+                imageRendering: 'pixelated',
+              }}
+            />
+          )}
 
         {/* ---- Control Buttons Container ---- */}
         <div
@@ -1161,7 +1225,10 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
             onClick={() => setShowRawFrame(!showRawFrame)}
             title="Toggle Raw Frame Display"
           >
-            <Fingerprint size={16} color={isShowingRawFrame ? 'green' : 'red'} />
+            <Fingerprint
+              size={16}
+              color={isShowingRawFrame ? 'green' : 'red'}
+            />
           </Button>
         </div>
 
@@ -1206,6 +1273,17 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
               }
             />
 
+            {motionDetectionRegion && (
+              <ExistingShapes
+                shapes={[motionDetectionRegion]}
+                selectedId={null}
+                currentShapeType="rect"
+                getStagePointFromOriginalVideoCoords={
+                  getStagePointFromOriginalVideoCoords
+                }
+              />
+            )}
+
             {/* Render new shape preview */}
             <NewShapePreview newShape={newShape} />
 
@@ -1221,17 +1299,3 @@ const VideoElement = forwardRef<VideoElementRef, VideoElementProps>(
 VideoElement.displayName = 'VideoElement';
 
 export default VideoElement;
-
-
-
-
-
-
-
-
-
-
-
-
-
-

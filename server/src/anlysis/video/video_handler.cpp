@@ -35,6 +35,8 @@ void runVideoAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
 
   UserSession *us = hs->getUserSession(user_token);
 
+  std::cout << "Found sessionn: " << us->session_id << "\n";
+
   if (us == nullptr) {
     json response = {{"status", "Not found"}, {"message", "UserSession not found!"}};
     std::string response_str = response.dump();
@@ -56,7 +58,11 @@ void runVideoAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
 
   std::vector<int> coords = {x, w, y, h};
 
+  std::cout << "Analysing: " << filename << "\n";
+  std::cout << "Coords: " << x << ", " << w << ", " << y << ", " << h << "\n";
+
   std::vector<int> result = analyse_video(path, coords);
+  std::cout << "Done!\n";
 
   json response = {{"status", "OK"}, {"motion", result}};
   std::string response_str = response.dump();
