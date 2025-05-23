@@ -86,9 +86,13 @@ export interface BookmarkEntryData {
   path: string;
   description: string;
   timestamp: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface BookmarkEntry extends BookmarkEntryData {
+  id: string; // Unique identifier for the bookmark
   blobUrl?: string;
 }
 
@@ -128,6 +132,20 @@ export interface VideoElementApi {
   pause(): void;
   getCurrentTime: () => number;
   getCurrentFrameNumber: () => number;
+  getFrameDimensions: () => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  getCurrentAnnotationImage: () => string;
+  getTransformationMatrix: () => {
+    scale: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  setOffset: (offsetX: number, offsetY: number) => void;
+  setScale: (scale: number) => void;
 }
 
 // Defines the shape of the ProjectContext including state and actions

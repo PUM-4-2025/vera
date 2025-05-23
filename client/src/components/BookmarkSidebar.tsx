@@ -14,6 +14,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFFmpeg } from '@/contexts/FFmpegContext';
+import { createBookmarkImage } from '@/utils/ffmpegUtils';
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 interface BookmarkSidebarProps {
   isOpen: boolean;
@@ -22,7 +25,7 @@ interface BookmarkSidebarProps {
 const BookmarkSidebar: React.FC<BookmarkSidebarProps> = ({ isOpen }) => {
   const { videoApi, currentVideoId, bookmarks, currentFrame, setBookmarks } =
     useProject(); // Get videoApi and currentVideoId
-
+  const { ffmpeg } = useFFmpeg();
   const [isDescriptionDialogOpen, setIsDescriptionDialogOpen] = useState(false);
   const [currentBookmarkDescription, setCurrentBookmarkDescription] =
     useState('');
@@ -50,31 +53,91 @@ const BookmarkSidebar: React.FC<BookmarkSidebarProps> = ({ isOpen }) => {
     }
   };
 
-  const handleConfirmAndAddBookmark = () => {
-    if (currentVideoId && pendingBookmarkDetails) {
-      const { timestamp, blobUrl } = pendingBookmarkDetails;
-      const fileName = `bookmark-${currentVideoId}-${timestamp}.png`;
-      const bookmark: BookmarkEntry = {
-        timestamp,
-        path: 'bookmarks/' + fileName,
-        description: currentBookmarkDescription, // Use the entered description
-        blobUrl: blobUrl,
-      };
-      const newBookmarks = {
-        ...bookmarks,
-        [currentVideoId]: [...(bookmarks[currentVideoId] || []), bookmark],
-      };
-      setBookmarks(newBookmarks);
-      console.log('Bookmark added:', bookmark);
-
-      setIsDescriptionDialogOpen(false); // Close dialog
-      setPendingBookmarkDetails(null); // Reset pending data
+  const handleConfirmAndAddBookmark = async () => {
+    if (
+      !currentVideoId ||
+      !pendingBookmarkDetails ||
+      !ffmpeg ||
+      !currentFrame?.blobUrl ||
+      !videoApi
+    ) {
+      console.error('Cannot add bookmark: Missing required data or API.', {
+        currentVideoId,
+        pendingBookmarkDetails,
+        ffmpegReady: !!ffmpeg,
+        currentFrameBlobUrl: currentFrame?.blobUrl,
+        videoApiReady: !!videoApi,
+      });
+      setIsDescriptionDialogOpen(false);
+      setPendingBookmarkDetails(null);
+      return;
     }
+
+    const { timestamp } = pendingBookmarkDetails;
+    // videoApi is guaranteed to be non-null here.
+    const annotationImageString = videoApi.getCurrentAnnotationImage(); // Returns string (dataURL or '')
+    const dimensions = videoApi.getFrameDimensions();
+    const fileName = `bookmark-${currentVideoId}-${timestamp}.png`;
+    let bookmarkImageUrl = ''; // Use a more descriptive name
+
+    try {
+      // Call createBookmarkImage. It handles an empty annotationImageString internally.
+      bookmarkImageUrl = await createBookmarkImage(
+        ffmpeg,
+        currentFrame.blobUrl,
+        annotationImageString, // This is guaranteed to be a string
+        dimensions
+      );
+    } catch (error) {
+      console.error('Error during createBookmarkImage:', error);
+      // bookmarkImageUrl will remain '' or be whatever createBookmarkImage returned before error if it partly succeeded.
+      // Ensure it's reset or handled if createBookmarkImage might not clean up on error.
+      // For now, we assume it results in an unusable URL or error is thrown before assignment.
+    }
+
+    if (!bookmarkImageUrl) {
+      console.error(
+        'Failed to create bookmark image. Result was empty or an error occurred.'
+      );
+      setIsDescriptionDialogOpen(false);
+      setPendingBookmarkDetails(null);
+      return;
+    }
+
+    const { scale, offsetX, offsetY } = videoApi.getTransformationMatrix();
+
+    const newBookmark: BookmarkEntry = {
+      id: uuidv4(), // Generate unique ID
+      timestamp,
+      path: 'bookmarks/' + fileName, // Consider if path needs to be more dynamic or handled differently
+      description: currentBookmarkDescription,
+      blobUrl: bookmarkImageUrl,
+      scale,
+      offsetX,
+      offsetY,
+    };
+
+    const newBookmarks = {
+      ...bookmarks,
+      [currentVideoId]: [...(bookmarks[currentVideoId] || []), newBookmark],
+    };
+    setBookmarks(newBookmarks);
+    console.log('Bookmark added:', newBookmark);
+
+    setIsDescriptionDialogOpen(false);
+    setPendingBookmarkDetails(null);
   };
 
-  const handleBookmarkClick = (timestamp: number) => {
+  const handleBookmarkClick = (
+    timestamp: number,
+    scale: number,
+    offsetX: number,
+    offsetY: number
+  ) => {
     if (videoApi) {
       videoApi.seek(timestamp);
+      videoApi.setOffset(offsetX, offsetY);
+      videoApi.setScale(scale);
     }
   };
 
@@ -105,8 +168,15 @@ const BookmarkSidebar: React.FC<BookmarkSidebarProps> = ({ isOpen }) => {
         bookmarks[currentVideoId].length > 0 ? (
           bookmarks[currentVideoId]?.map((bookmark) => (
             <div
-              key={bookmark.timestamp}
-              onClick={() => handleBookmarkClick(bookmark.timestamp)}
+              key={bookmark.id}
+              onClick={() =>
+                handleBookmarkClick(
+                  bookmark.timestamp,
+                  bookmark.scale,
+                  bookmark.offsetX,
+                  bookmark.offsetY
+                )
+              }
               className="mb-2 p-2 border hover:bg-accent cursor-pointer dark:border-border dark:hover:bg-gray-700"
               role="button"
               tabIndex={0}
