@@ -13,9 +13,14 @@ void registerAudioHandlers(HttpServer &server) {
   server.registerHandler("/api/v1/analysis/startAudio", runAudioAnalysis);
 }
 
-void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *runAudioAnalysis(void *p) {
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
+
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
 
   std::string body = msg->body.buf;
@@ -59,4 +64,5 @@ void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
   std::string response_str = response.dump();
 
   send_http_response(c, 200, response_str);
+  return nullptr;
 }

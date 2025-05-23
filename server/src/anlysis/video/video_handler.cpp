@@ -23,9 +23,13 @@ void registerVideoHandlers(HttpServer &server) {
   server.registerHandler("/api/v1/analysis/startMotion", runVideoAnalysis);
 }
 
-void runVideoAnalysis(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *runVideoAnalysis(void *p) {
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
 
   std::string body = msg->body.buf;
@@ -67,4 +71,5 @@ void runVideoAnalysis(struct mg_connection *c, struct mg_http_message *msg, Http
   json response = {{"status", "OK"}, {"motion", result}};
   std::string response_str = response.dump();
   send_http_response(c, 200, response_str);
+  return nullptr;
 }

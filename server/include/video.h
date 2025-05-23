@@ -7,8 +7,8 @@
 
 float getFramePerSecond(std::string path);
 /*
-* Getter for frameRate of video
-*/
+ * Getter for frameRate of video
+ */
 
 void registerVideoHandlers(HttpServer &server);
 
@@ -16,7 +16,7 @@ void registerVideoHandlers(HttpServer &server);
  * API functionality for backend
  */
 
-void runVideoAnalysis(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
+void *runVideoAnalysis(void *p);
 
 /**
  * Backend functions for performing actual analysis

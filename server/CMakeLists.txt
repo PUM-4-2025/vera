@@ -27,7 +27,6 @@ if(MSVC) # disable warnings for mongoose
 else()
     set(MONGOOSE_WARNINGS 
         -w
-        -Wno-everything
         -Wno-pedantic
         -Wno-conversion
     )

@@ -1,16 +1,16 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-#include <string>
-
 #include "http_server.h"
+
+#include <string>
 
 /**
  * API functionality for backend
  */
 void registerAudioHandlers(HttpServer &server);
 
-void runAudioAnalysis(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs);
+void *runAudioAnalysis(void *p);
 
 /**
  * Backend functions for performing actual analysis
@@ -20,7 +20,5 @@ int db_analysis(std::string in_txt, int threshold_db, int min_duration_seconds, 
 void extract(std::string filename, UserSession &us);
 
 int visual(std::string filename, UserSession &us, float fps);
-
-
 
 #endif

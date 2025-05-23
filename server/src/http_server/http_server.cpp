@@ -174,10 +174,18 @@ void registerUserSessionHandlers(HttpServer &server) {
   server.registerHandler("/api/v1/user-sessions/initiate", &initUserSession);
 }
 
-void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *initUserSession(void *p) {
+  std::cout << "Initing user...\n";
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
+
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
+
+  std::cout << "Go stuff: " << c->id << " | " << *msg->body.buf << "\n";
 
   try {
     std::string body = msg->body.buf;
@@ -201,4 +209,5 @@ void initUserSession(struct mg_connection *c, struct mg_http_message *msg, HttpS
     std::string response_str = response.dump();
     send_http_response(c, 500, response_str);
   }
+  return nullptr;
 }

@@ -41,9 +41,13 @@ int getUploadId() {
 /**
  * Handles HTTP request for initiating new uploads.
  */
-void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *initUpload(void *p) {
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
 
   try {
@@ -57,7 +61,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
-      return;
+      return nullptr;
     }
 
     std::string file_name = json_body["fileName"];
@@ -71,7 +75,7 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
                        {"message", "File already exists. No upload required!"}};
       std::string response_str = response.dump();
       send_http_response(c, 200, response_str);
-      return;
+      return nullptr;
     }
 
     int upload_id = getUploadId();
@@ -105,14 +109,19 @@ void initUpload(struct mg_connection *c, struct mg_http_message *msg, HttpServer
     std::string response_str = response.dump();
     send_http_response(c, 500, response_str);
   }
+  return nullptr;
 }
 
 /**
  * Handles HTTP request for uploading a chunk of a file.
  */
-void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *uploadChunk(void *p) {
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
 
   try {
@@ -130,7 +139,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
       json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
       std::string response_str = response.dump();
       send_http_response(c, 404, response_str);
-      return;
+      return nullptr;
     }
 
     UploadSession session = session_opt.value();
@@ -139,7 +148,7 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
-      return;
+      return nullptr;
     }
 
     // Limit file sizes to 50 GiB for now
@@ -154,14 +163,19 @@ void uploadChunk(struct mg_connection *c, struct mg_http_message *msg, HttpServe
     std::string response_str = response.dump();
     send_http_response(c, 500, response_str);
   }
+  return nullptr;
 }
 
 /**
  * Handles HTTP request for status of an upload.
  */
-void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *uploadStatus(void *p) {
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
 
   try {
@@ -179,7 +193,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
       json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
       std::string response_str = response.dump();
       send_http_response(c, 404, response_str);
-      return;
+      return nullptr;
     }
 
     UploadSession session = session_opt.value();
@@ -188,7 +202,7 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
-      return;
+      return nullptr;
     }
 
     int uploaded_chunks = session.completed_chunks;
@@ -206,11 +220,17 @@ void uploadStatus(struct mg_connection *c, struct mg_http_message *msg, HttpServ
     std::string response_str = response.dump();
     send_http_response(c, 500, response_str);
   }
+
+  return nullptr;
 }
 
-void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpServer *hs) {
+void *uploadComplete(void *p) {
+  struct ThreadData *data = (struct ThreadData *)p;
+  mg_connection *c = data->c;
+  mg_http_message *msg = data->hm;
+  HttpServer *hs = data->hs;
   if (handlePreflight(c, msg) == 0) {
-    return;
+    return nullptr;
   }
 
   try {
@@ -230,7 +250,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
       json response = {{"status", "Not found"}, {"message", "uploadId not found!"}};
       std::string response_str = response.dump();
       send_http_response(c, 404, response_str);
-      return;
+      return nullptr;
     }
 
     UploadSession session = session_opt.value();
@@ -239,7 +259,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
       json response = {{"status", "Unauthorized"}, {"message", "Invalid session token!"}};
       std::string response_str = response.dump();
       send_http_response(c, 401, response_str);
-      return;
+      return nullptr;
     }
 
     if (!UPLOAD_HANDLER.sessionCompleted(session)) {
@@ -248,7 +268,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
       std::string response_str = response.dump();
       send_http_response(c, 418, response_str);
       UPLOAD_HANDLER.removeSession(session);
-      return;
+      return nullptr;
     }
 
     if (session.file_size != getFilesize(filename, *us)) {
@@ -257,7 +277,7 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
       std::string response_str = response.dump();
       send_http_response(c, 418, response_str);
       UPLOAD_HANDLER.removeSession(session);
-      return;
+      return nullptr;
     }
 
     // Rename to OpenCV/FFmpeg compatible name
@@ -277,4 +297,6 @@ void uploadComplete(struct mg_connection *c, struct mg_http_message *msg, HttpSe
     std::string response_str = response.dump();
     send_http_response(c, 500, response_str);
   }
+
+  return nullptr;
 }
